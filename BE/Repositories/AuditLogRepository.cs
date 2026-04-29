@@ -57,11 +57,19 @@ public class AuditLogRepository : IAuditLogRepository
         await _context.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task<List<AuditLog>> GetDailyBucketsAsync(CancellationToken cancellationToken = default)
+    public async Task<List<AuditLog>> GetDailyBucketsAsync(int? userId = null, CancellationToken cancellationToken = default)
     {
-        return await _context.AuditLogs
+        var query = _context.AuditLogs
             .Include(x => x.User)
             .AsNoTracking()
+            .AsQueryable();
+
+        if (userId.HasValue)
+        {
+            query = query.Where(x => x.UserId == userId.Value);
+        }
+
+        return await query
             .OrderByDescending(x => x.AuditDate)
             .ThenByDescending(x => x.LastUpdatedAt)
             .ToListAsync(cancellationToken);

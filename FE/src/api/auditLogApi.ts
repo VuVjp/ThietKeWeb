@@ -61,8 +61,23 @@ export const auditLogApi = {
         return data;
     },
 
+    async getMine(filters?: AuditLogFilters): Promise<AuditLogDailyGroup[]> {
+        const { data } = await httpClient.get<AuditLogDailyGroup[]>('/AuditLogs/me', { params: filters });
+        return data;
+    },
+
     async getPaged(filters?: AuditLogFilters): Promise<AuditLogPagedResult> {
         const { data } = await httpClient.get<AuditLogPagedApiResult>('/AuditLogs/paged', { params: filters });
+        return {
+            items: data.items,
+            totalCount: data.total,
+            page: data.page,
+            pageSize: data.pageSize,
+        };
+    },
+
+    async getMinePaged(filters?: AuditLogFilters): Promise<AuditLogPagedResult> {
+        const { data } = await httpClient.get<AuditLogPagedApiResult>('/AuditLogs/me/paged', { params: filters });
         return {
             items: data.items,
             totalCount: data.total,

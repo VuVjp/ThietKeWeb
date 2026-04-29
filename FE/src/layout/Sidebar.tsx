@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { HomeIcon, BuildingOffice2Icon, ArchiveBoxIcon, ExclamationTriangleIcon, SparklesIcon, UsersIcon, ShieldCheckIcon, WrenchScrewdriverIcon, Squares2X2Icon, RectangleStackIcon, ChevronDownIcon, CalendarDaysIcon, TicketIcon, StarIcon, CubeIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline';
+import { useState } from 'react';
+import { HomeIcon, BuildingOffice2Icon, ArchiveBoxIcon, ExclamationTriangleIcon, SparklesIcon, UsersIcon, ShieldCheckIcon, WrenchScrewdriverIcon, Squares2X2Icon, RectangleStackIcon, ChevronDownIcon, CalendarDaysIcon, TicketIcon, StarIcon, CubeIcon } from '@heroicons/react/24/outline';
 import { NavLink, useLocation } from 'react-router-dom';
 import type { AppPermission } from '../auth/auth.types';
 import { useAppAuth } from '../auth/useAppAuth';
@@ -77,25 +77,6 @@ export function Sidebar({ collapsed, mobileOpen, onCloseMobile }: SidebarProps) 
   const { hasPermission } = useAppAuth();
   const location = useLocation();
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({ 'Reception': true });
-
-  useEffect(() => {
-    let changed = false;
-    const nextOpen = { ...openGroups };
-
-    navItems.forEach((item) => {
-      if (item.children && !nextOpen[item.label]) {
-        const hasActiveChild = item.children.some((child) => location.pathname.startsWith(child.to));
-        if (hasActiveChild) {
-          nextOpen[item.label] = true;
-          changed = true;
-        }
-      }
-    });
-
-    if (changed) {
-      setOpenGroups(nextOpen);
-    }
-  }, [location.pathname]);
   const toggleGroup = (label: string) => {
     if (collapsed) return;
     setOpenGroups((prev) => ({ ...prev, [label]: !prev[label] }));
@@ -116,8 +97,8 @@ export function Sidebar({ collapsed, mobileOpen, onCloseMobile }: SidebarProps) 
             const Icon = item.icon;
 
             if (item.children) {
-              const isOpen = openGroups[item.label] && !collapsed;
               const hasActiveChild = item.children.some(child => location.pathname.startsWith(child.to));
+              const isOpen = (openGroups[item.label] || hasActiveChild) && !collapsed;
 
               return (
                 <div key={item.label} className="space-y-1">

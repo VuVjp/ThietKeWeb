@@ -2,7 +2,7 @@ import { createContext, useEffect, useMemo, useState, type PropsWithChildren } f
 import { authApi } from '../api/authApi';
 import { rolesApi } from '../api/rolesApi';
 import { getAccessToken } from '../api/httpClient';
-import { appPermissions, type AppPermission, type AppUser } from './auth.types';
+import { type AppPermission, type AppUser } from './auth.types';
 import { subscribeAuthRefresh } from '../api/httpClient';
 
 const PERMISSIONS_STORAGE_KEY = 'permissions';
@@ -39,7 +39,6 @@ function toKnownPermissions(items: string[] | null | undefined): AppPermission[]
         return [];
     }
 
-    const allowed = new Set<string>(appPermissions);
     const normalized = new Set<AppPermission>();
 
     for (const item of items) {
@@ -48,11 +47,7 @@ function toKnownPermissions(items: string[] | null | undefined): AppPermission[]
             continue;
         }
 
-        const canonical = trimmed.toUpperCase() as AppPermission;
-        if (allowed.has(canonical)) {
-            normalized.add(canonical);
-            continue;
-        }
+        normalized.add(trimmed.toUpperCase() as AppPermission);
     }
 
     return Array.from(normalized);
@@ -78,7 +73,7 @@ function getUserBaseFromToken(): Omit<AppUser, 'permissions'> | null {
         payload?.email ??
         payload?.['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress'];
 
-    const nameClaim =   
+    const nameClaim =
         payload?.name ??
         payload?.['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name'] ??
         'User';
@@ -93,7 +88,7 @@ function getUserBaseFromToken(): Omit<AppUser, 'permissions'> | null {
 
 async function resolveCurrentUser(emailOverride?: string): Promise<AppUser | null> {
     let baseUser = getUserBaseFromToken();
-    
+
     if (!baseUser) {
         try {
             const refreshToken = localStorage.getItem('refreshToken');

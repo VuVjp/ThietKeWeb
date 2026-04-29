@@ -14,6 +14,7 @@ import { Select } from '../../components/Select';
 import { toApiError } from '../../api/httpClient';
 import { auditLogApi } from '../../api/auditLogApi';
 import type { AuditLogDailyGroup, AuditLogEvent } from '../../api/auditLogApi';
+import { useAppAuth } from '../../auth/useAppAuth';
 import { paginate, queryIncludes } from '../../utils/table';
 
 const ACTION_COLORS: Record<string, { bg: string; text: string }> = {
@@ -107,6 +108,8 @@ const ACTION_OPTIONS = ['All', 'CREATE', 'UPDATE', 'DELETE', 'OTHER'];
 export function AuditLogPage() {
     const [groups, setGroups] = useState<AuditLogDailyGroup[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const { hasPermission } = useAppAuth();
+    const canViewFullLogs = hasPermission('VIEW_FULL_AUDIT_LOGS');
 
     const [searchQuery, setSearchQuery] = useState('');
     const [actionFilter, setActionFilter] = useState('All');
@@ -119,7 +122,9 @@ export function AuditLogPage() {
     const loadLogs = useCallback(async () => {
         setIsLoading(true);
         try {
-            const data = await auditLogApi.getAll();
+            const data = canViewFullLogs
+                ? await auditLogApi.getAll()
+                : await auditLogApi.getMine();
             setGroups(data || []);
         } catch (error) {
             const apiError = toApiError(error);
@@ -127,7 +132,7 @@ export function AuditLogPage() {
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [canViewFullLogs]);
 
     useEffect(() => {
         void loadLogs();
@@ -149,14 +154,9 @@ export function AuditLogPage() {
 
     const filtered = useMemo(() => {
         return logs.filter((log) => {
-            const matchSearch =
-                !searchQuery.trim() ||
-                queryIncludes(String(log.context?.['userName'] ?? ''), searchQuery) ||
-                queryIncludes(String(log.context?.['userEmail'] ?? ''), searchQuery) ||
-                queryIncludes(log.message ?? '', searchQuery);
-
+            const matchSearch = !searchQuery.trim() || queryIncludes(log.message ?? '', searchQuery);
             const matchAction = actionFilter === 'All' || log.actionType === actionFilter;
-            const matchEntity = entityFilter === 'All' || !entityFilter || log.entityType === entityFilter;
+            const matchEntity = !canViewFullLogs || entityFilter === 'All' || !entityFilter || log.entityType === entityFilter;
 
             const logDate = new Date(log.timestamp);
             const matchFrom = !dateFrom || logDate >= new Date(dateFrom);
@@ -164,7 +164,7 @@ export function AuditLogPage() {
 
             return matchSearch && matchAction && matchEntity && matchFrom && matchTo;
         });
-    }, [logs, searchQuery, actionFilter, entityFilter, dateFrom, dateTo]);
+    }, [logs, searchQuery, actionFilter, entityFilter, dateFrom, dateTo, canViewFullLogs]);
 
     const paged = paginate(filtered, page, pageSize);
 
@@ -176,7 +176,9 @@ export function AuditLogPage() {
         setDateTo('');
     };
 
-    const hasActiveFilter = searchQuery || actionFilter !== 'All' || entityFilter || dateFrom || dateTo;
+    const hasActiveFilter = canViewFullLogs
+        ? searchQuery || actionFilter !== 'All' || entityFilter || dateFrom || dateTo
+        : searchQuery || actionFilter !== 'All' || dateFrom || dateTo;
     const startItem = filtered.length === 0 ? 0 : (page - 1) * pageSize + 1;
     const endItem = Math.min(page * pageSize, filtered.length);
 
@@ -238,7 +240,7 @@ export function AuditLogPage() {
                 }
 
                 return (
-                    <details className="w-[400px] rounded-lg border border-slate-200 bg-white">
+                    <details className="w-100 rounded-lg border border-slate-200 bg-white">
                         <summary className="cursor-pointer select-none px-3 py-2 text-xs font-semibold text-cyan-700 hover:bg-cyan-50">
                             View changes
                         </summary>
@@ -262,6 +264,10 @@ export function AuditLogPage() {
         },
     ];
 
+    const visibleColumns = canViewFullLogs
+        ? columns
+        : columns.filter((column) => column.key === 'createdAt' || column.key === 'action' || column.key === 'message' || column.key === 'changesSummary');
+
     return (
         <div className="space-y-6">
             {/* Header */}
@@ -279,20 +285,21 @@ export function AuditLogPage() {
                 </button>
             </div>
 
-            {/* Stats strip */}
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                {[
-                    { label: 'Daily Buckets', value: groups.length, color: 'text-slate-800' },
-                    { label: 'Filtered Events', value: filtered.length, color: 'text-cyan-700' },
-                    { label: 'Actions Today', value: logs.filter(l => new Date(l.timestamp).toDateString() === new Date().toDateString()).length, color: 'text-emerald-700' },
-                    { label: 'Unique Users', value: new Set(groups.map(g => g.userId)).size, color: 'text-amber-700' },
-                ].map((stat) => (
-                    <div key={stat.label} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                        <p className="text-xs font-medium text-slate-400">{stat.label}</p>
-                        <p className={`mt-1 text-2xl font-bold ${stat.color}`}>{stat.value}</p>
-                    </div>
-                ))}
-            </div>
+            {canViewFullLogs && (
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    {[
+                        { label: 'Daily Buckets', value: groups.length, color: 'text-slate-800' },
+                        { label: 'Filtered Events', value: filtered.length, color: 'text-cyan-700' },
+                        { label: 'Actions Today', value: logs.filter(l => new Date(l.timestamp).toDateString() === new Date().toDateString()).length, color: 'text-emerald-700' },
+                        { label: 'Unique Users', value: new Set(groups.map(g => g.userId)).size, color: 'text-amber-700' },
+                    ].map((stat) => (
+                        <div key={stat.label} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                            <p className="text-xs font-medium text-slate-400">{stat.label}</p>
+                            <p className={`mt-1 text-2xl font-bold ${stat.color}`}>{stat.value}</p>
+                        </div>
+                    ))}
+                </div>
+            )}
 
             {/* Filters */}
             <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -308,40 +315,65 @@ export function AuditLogPage() {
                         </button>
                     )}
                 </div>
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-                    <div className="relative xl:col-span-2">
+                <div className={canViewFullLogs ? 'grid gap-3 md:grid-cols-2 xl:grid-cols-5' : 'grid gap-3 md:grid-cols-2 xl:grid-cols-4'}>
+                    <div className={canViewFullLogs ? 'relative xl:col-span-2' : 'relative md:col-span-2 xl:col-span-4'}>
                         <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                         <input
                             className="w-full rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-sm outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100"
-                            placeholder="Search by user, email or message..."
+                            placeholder={canViewFullLogs ? 'Search by user, email or message...' : 'Search by message...'}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
                     </div>
-                    <Select value={actionFilter} onChange={(e) => setActionFilter(e.target.value)}>
-                        {ACTION_OPTIONS.map((a) => (
-                            <option key={a} value={a}>{a === 'All' ? 'All Actions' : a}</option>
-                        ))}
-                    </Select>
-                    <Select value={entityFilter} onChange={(e) => setEntityFilter(e.target.value)}>
-                        {entityTypes.map((t) => (
-                            <option key={t} value={t === 'All' ? '' : t}>{t === 'All' ? 'All Entities' : t}</option>
-                        ))}
-                    </Select>
-                    <div className="grid grid-cols-2 gap-2">
-                        <Input
-                            type="date"
-                            value={dateFrom}
-                            onChange={(e) => setDateFrom(e.target.value)}
-                            placeholder="From"
-                        />
-                        <Input
-                            type="date"
-                            value={dateTo}
-                            onChange={(e) => setDateTo(e.target.value)}
-                            placeholder="To"
-                        />
-                    </div>
+                    {canViewFullLogs && (
+                        <>
+                            <Select value={actionFilter} onChange={(e) => setActionFilter(e.target.value)}>
+                                {ACTION_OPTIONS.map((a) => (
+                                    <option key={a} value={a}>{a === 'All' ? 'All Actions' : a}</option>
+                                ))}
+                            </Select>
+                            <Select value={entityFilter} onChange={(e) => setEntityFilter(e.target.value)}>
+                                {entityTypes.map((t) => (
+                                    <option key={t} value={t === 'All' ? '' : t}>{t === 'All' ? 'All Entities' : t}</option>
+                                ))}
+                            </Select>
+                            <div className="grid grid-cols-2 gap-2">
+                                <Input
+                                    type="date"
+                                    value={dateFrom}
+                                    onChange={(e) => setDateFrom(e.target.value)}
+                                    placeholder="From"
+                                />
+                                <Input
+                                    type="date"
+                                    value={dateTo}
+                                    onChange={(e) => setDateTo(e.target.value)}
+                                    placeholder="To"
+                                />
+                            </div>
+                        </>
+                    )}
+                    {!canViewFullLogs && (
+                        <div className="grid gap-3 md:grid-cols-3 xl:col-span-4">
+                            <Select value={actionFilter} onChange={(e) => setActionFilter(e.target.value)}>
+                                {ACTION_OPTIONS.map((a) => (
+                                    <option key={a} value={a}>{a === 'All' ? 'All Actions' : a}</option>
+                                ))}
+                            </Select>
+                            <Input
+                                type="date"
+                                value={dateFrom}
+                                onChange={(e) => setDateFrom(e.target.value)}
+                                placeholder="From"
+                            />
+                            <Input
+                                type="date"
+                                value={dateTo}
+                                onChange={(e) => setDateTo(e.target.value)}
+                                placeholder="To"
+                            />
+                        </div>
+                    )}
                 </div>
                 <p className="mt-3 text-xs text-slate-400">
                     Showing <span className="font-semibold text-slate-600">{filtered.length}</span> / {logs.length} events
@@ -384,7 +416,7 @@ export function AuditLogPage() {
                             </Select>
                         </div>
                     </div>
-                    <Table columns={columns} rows={paged} />
+                    <Table columns={visibleColumns} rows={paged} />
                     <Pagination page={page} pageSize={pageSize} total={filtered.length} onPageChange={setPage} />
                 </div>
             )}

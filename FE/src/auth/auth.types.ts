@@ -1,5 +1,6 @@
 export const appPermissions = [
     'VIEW_DASHBOARD',
+    'VIEW_FULL_AUDIT_LOGS',
     'MANAGE_USERS',
     'MANAGE_ROLES',
     'MANAGE_ROOMS',

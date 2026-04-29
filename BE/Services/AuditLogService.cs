@@ -42,17 +42,17 @@ public class AuditLogService : IAuditLogService
         await _auditLogRepository.AppendEventAsync(dto.UserId, auditDate, auditEvent, cancellationToken);
     }
 
-    public async Task<List<AuditLogDailyGroupDto>> GetAllAsync(AuditLogQueryDto query, CancellationToken cancellationToken = default)
+    public async Task<List<AuditLogDailyGroupDto>> GetAllAsync(AuditLogQueryDto query, int? userId = null, CancellationToken cancellationToken = default)
     {
-        var buckets = await _auditLogRepository.GetDailyBucketsAsync(cancellationToken);
+        var buckets = await _auditLogRepository.GetDailyBucketsAsync(userId, cancellationToken);
         return ApplyFilters(MapToDailyGroups(buckets), query);
     }
 
-    public async Task<PaginatedResultDto<AuditLogDailyGroupDto>> GetPagedAsync(AuditLogQueryDto query, CancellationToken cancellationToken = default)
+    public async Task<PaginatedResultDto<AuditLogDailyGroupDto>> GetPagedAsync(AuditLogQueryDto query, int? userId = null, CancellationToken cancellationToken = default)
     {
         var normalizedPage = query.Page <= 0 ? 1 : query.Page;
         var normalizedPageSize = query.PageSize <= 0 ? 20 : Math.Min(query.PageSize, 200);
-        var buckets = await _auditLogRepository.GetDailyBucketsAsync(cancellationToken);
+        var buckets = await _auditLogRepository.GetDailyBucketsAsync(userId, cancellationToken);
         var filtered = ApplyFilters(MapToDailyGroups(buckets), query);
 
         var items = filtered

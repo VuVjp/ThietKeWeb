@@ -9,7 +9,7 @@ export const notificationsSeed: NotificationItem[] = [
 ];
 
 const roomTypes = ['Standard', 'Deluxe', 'Suite'] as const;
-const roomStatuses = ['Available', 'Occupied', 'Cleaning', 'Inspecting'] as const;
+const roomStatuses = ['Available', 'Occupied', 'InsClean', 'Maintenance'] as const;
 const cleaningStates = ['Clean', 'Dirty', 'Inspecting'] as const;
 
 export const roomsSeed: Room[] = Array.from({ length: 24 }).map((_, idx) => ({
@@ -75,7 +75,7 @@ export const usersSeed: UserItem[] = Array.from({ length: 20 }).map((_, idx) => 
 }));
 
 export const rolesSeed: RoleItem[] = [
-  { id: 1, name: 'Admin', permissions: ['create_article', 'update_article', 'delete_article', 'get_all_room_inventory', 'create_room_inventory', 'update_room_inventory', 'delete_room_inventory', 'get_all_rooms', 'create_room', 'update_room', 'change_room_status', 'change_room_cleaning_status', 'delete_room', 'manage_role', 'manage_user', 'manage_room_type', 'manage_attraction', 'create_article_category', 'delete_article_category', 'update_article_category', 'create_amenity', 'update_amenity', 'delete_amenity', 'update_thumbnail', 'assign_role'] },
+  { id: 1, name: 'Admin', permissions: ['create_article', 'update_article', 'delete_article', 'get_all_room_inventory', 'create_room_inventory', 'update_room_inventory', 'delete_room_inventory', 'get_all_rooms', 'create_room', 'update_room', 'change_room_status', 'change_room_cleaning_status', 'delete_room', 'manage_role', 'manage_user', 'manage_room_type', 'manage_attraction', 'create_article_category', 'delete_article_category', 'update_article_category', 'create_amenity', 'update_amenity', 'delete_amenity', 'update_thumbnail', 'assign_role', 'VIEW_FULL_AUDIT_LOGS'] },
   { id: 2, name: 'Manager', permissions: ['get_all_room_inventory', 'get_all_rooms', 'create_room', 'update_room', 'change_room_status', 'change_room_cleaning_status', 'delete_room'] },
   { id: 3, name: 'Staff', permissions: ['get_all_rooms', 'change_room_cleaning_status'] },
 ];
@@ -106,4 +106,5 @@ export const allPermissions = [
   'delete_amenity',
   'update_thumbnail',
   'assign_role',
+  'VIEW_FULL_AUDIT_LOGS',
 ];

@@ -82,6 +82,17 @@ public class AuditLogActionFilter : IAsyncActionFilter
             };
 
             var newData = BuildActionArgumentsPayload(context.ActionArguments);
+            var oldDataForMessage = oldData;
+            var newDataForMessage = newData;
+            var oldDataForStorage = oldData;
+            var newDataForStorage = newData;
+
+            if (string.Equals(actionType, "UPDATE", StringComparison.OrdinalIgnoreCase))
+            {
+                var changes = BuildChangedPayload(oldDataForMessage, newDataForMessage, descriptor?.ActionName);
+                oldDataForStorage = changes.OldValues;
+                newDataForStorage = changes.NewValues;
+            }
 
             var dto = new AuditLogCreateDto
             {
@@ -90,9 +101,9 @@ public class AuditLogActionFilter : IAsyncActionFilter
                 EntityType = entityType,
                 RecordId = recordId,
                 Context = contextData,
-                OldData = oldData,
-                NewData = newData,
-                Message = BuildMessage(actionType, entityType, recordId, oldData, newData),
+                OldData = oldDataForStorage,
+                NewData = newDataForStorage,
+                Message = BuildMessage(actionType, entityType, recordId, oldDataForMessage, newDataForMessage, descriptor?.ActionName ?? string.Empty, context.ActionArguments),
             };
 
             await _auditLogService.CreateAuditLogAsync(dto, httpContext.RequestAborted);
@@ -354,17 +365,54 @@ public class AuditLogActionFilter : IAsyncActionFilter
         return StatusCodes.Status200OK;
     }
 
-    private static string BuildMessage(string actionType, string entityType, int? recordId, object? oldData, object? newData)
+    private static string BuildMessage(
+        string actionType,
+        string entityType,
+        int? recordId,
+        object? oldData,
+        object? newData,
+        string actionName,
+        IDictionary<string, object?> actionArguments)
     {
         var displayEntity = HumanizeEntityName(entityType);
 
+        if (actionType == "CREATE")
+        {
+            var createdMessage = BuildCreateMessage(entityType, recordId, newData);
+            if (!string.IsNullOrWhiteSpace(createdMessage))
+            {
+                return createdMessage;
+            }
+
+            var noPayloadMessage = BuildNoPayloadMessage(actionName, entityType, recordId, new Dictionary<string, object?>(), actionArguments);
+            if (!string.IsNullOrWhiteSpace(noPayloadMessage))
+            {
+                return noPayloadMessage;
+            }
+
+            return $"Created {ComposeEntityLabel(displayEntity, recordId.HasValue ? $"#{recordId.Value}" : string.Empty)}.".Trim();
+        }
+
+        if (actionType == "DELETE")
+        {
+            var deletedMessage = BuildDeleteMessage(entityType, recordId, oldData);
+            if (!string.IsNullOrWhiteSpace(deletedMessage))
+            {
+                return deletedMessage;
+            }
+
+            return $"Deleted {ComposeEntityLabel(displayEntity, recordId.HasValue ? $"#{recordId.Value}" : string.Empty)}.".Trim();
+        }
+
         if (actionType == "UPDATE")
         {
-            var specificMessage = BuildUpdateMessage(entityType, recordId, oldData, newData);
+            var specificMessage = BuildUpdateMessage(entityType, recordId, oldData, newData, actionName, actionArguments);
             if (!string.IsNullOrWhiteSpace(specificMessage))
             {
                 return specificMessage;
             }
+
+            return $"Updated {ComposeEntityLabel(displayEntity, recordId.HasValue ? $"#{recordId.Value}" : string.Empty)}.".Trim();
         }
 
         if (recordId.HasValue)
@@ -375,14 +423,54 @@ public class AuditLogActionFilter : IAsyncActionFilter
         return $"{actionType} operation on {displayEntity}.";
     }
 
-    private static string? BuildUpdateMessage(string entityType, int? recordId, object? oldData, object? newData)
+    private static string? BuildCreateMessage(string entityType, int? recordId, object? newData)
+    {
+        var newValues = FlattenUpdateValues(newData);
+        if (newValues.Count == 0)
+        {
+            return null;
+        }
+
+        var displayEntity = HumanizeEntityName(entityType);
+        var recordLabel = ResolveRecordLabel(newValues, recordId);
+        var payloadFields = BuildPayloadSummary(newValues);
+
+        if (payloadFields.Count == 0)
+        {
+            return null;
+        }
+
+        return $"{ComposeEntityLabel(displayEntity, recordLabel)} created: {string.Join(", ", payloadFields.Take(8))}".Trim();
+    }
+
+    private static string? BuildDeleteMessage(string entityType, int? recordId, object? oldData)
+    {
+        var oldValues = FlattenJsonValues(ToJsonNode(oldData));
+        var displayEntity = HumanizeEntityName(entityType);
+        var recordLabel = ResolveRecordLabel(oldValues, recordId);
+
+        if (string.IsNullOrWhiteSpace(recordLabel))
+        {
+            return $"{displayEntity} deleted.";
+        }
+
+        return $"{displayEntity} {recordLabel} deleted.";
+    }
+
+    private static string? BuildUpdateMessage(
+        string entityType,
+        int? recordId,
+        object? oldData,
+        object? newData,
+        string actionName,
+        IDictionary<string, object?> actionArguments)
     {
         var oldValues = FlattenJsonValues(ToJsonNode(oldData));
         var updateValues = FlattenUpdateValues(newData);
 
         if (updateValues.Count == 0)
         {
-            return null;
+            return BuildNoPayloadMessage(actionName, entityType, recordId, oldValues, actionArguments);
         }
 
         var displayEntity = HumanizeEntityName(entityType);
@@ -413,10 +501,149 @@ public class AuditLogActionFilter : IAsyncActionFilter
                 return null;
             }
 
-            return $"{displayEntity} {recordLabel} updated: {string.Join(", ", payloadFields.Take(8))}";
+            return $"{ComposeEntityLabel(displayEntity, recordLabel)} updated: {string.Join(", ", payloadFields.Take(8))}".Trim();
         }
 
-        return $"{displayEntity} {recordLabel} changed: {string.Join(", ", changedFields.Take(8))}";
+        return $"{ComposeEntityLabel(displayEntity, recordLabel)} changed: {string.Join(", ", changedFields.Take(8))}".Trim();
+    }
+
+    private static string? BuildNoPayloadMessage(
+        string actionName,
+        string entityType,
+        int? recordId,
+        Dictionary<string, object?> oldValues,
+        IDictionary<string, object?> actionArguments)
+    {
+        if (string.IsNullOrWhiteSpace(actionName))
+        {
+            return null;
+        }
+
+        var normalizedAction = actionName.Trim();
+        var displayEntity = HumanizeEntityName(entityType);
+        var recordLabel = ResolveRecordLabel(oldValues, recordId);
+
+        if (normalizedAction.Equals("MarkAllAsRead", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Marked all notifications as read.";
+        }
+
+        if (normalizedAction.Equals("MarkAsRead", StringComparison.OrdinalIgnoreCase))
+        {
+            var notificationId = ResolveIntArgument(actionArguments, "notificationId") ?? recordId;
+            var label = notificationId.HasValue ? $"#{notificationId.Value}" : string.Empty;
+            return $"Notification {label} marked as read.".Trim();
+        }
+
+        if (normalizedAction.Equals("ResetPassword", StringComparison.OrdinalIgnoreCase))
+        {
+            var userId = ResolveIntArgument(actionArguments, "userId") ?? recordId;
+            var label = userId.HasValue ? $"#{userId.Value}" : string.Empty;
+            return $"User {label} password reset.".Trim();
+        }
+
+        if (normalizedAction.Equals("Clone", StringComparison.OrdinalIgnoreCase))
+        {
+            var idClone = ResolveIntArgument(actionArguments, "idClone");
+            var newRoomId = ResolveIntArgument(actionArguments, "newRoomId");
+            if (idClone.HasValue && newRoomId.HasValue)
+            {
+                return $"Room inventory item #{idClone.Value} cloned to room #{newRoomId.Value}.";
+            }
+        }
+
+        if (normalizedAction.Equals("SetPrimaryImage", StringComparison.OrdinalIgnoreCase))
+        {
+            var imageId = ResolveIntArgument(actionArguments, "imageId");
+            if (imageId.HasValue)
+            {
+                return $"{ComposeEntityLabel(displayEntity, recordLabel)} primary image set to #{imageId.Value}.".Trim();
+            }
+
+            return $"{ComposeEntityLabel(displayEntity, recordLabel)} primary image updated.".Trim();
+        }
+
+        if (normalizedAction.Equals("CompleteCleaningRequest", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"Room {recordLabel} cleaning completed.".Trim();
+        }
+
+        if (normalizedAction.Equals("Restore", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"{ComposeEntityLabel(displayEntity, recordLabel)} restored.".Trim();
+        }
+
+        if (normalizedAction.Contains("Toggle", StringComparison.OrdinalIgnoreCase)
+            || normalizedAction.Contains("Active", StringComparison.OrdinalIgnoreCase))
+        {
+            if (TryGetCaseInsensitive(oldValues, "IsActive", out var isActiveValue)
+                && isActiveValue is bool isActive)
+            {
+                var nowActive = !isActive;
+                return $"{ComposeEntityLabel(displayEntity, recordLabel)} {(nowActive ? "activated" : "deactivated")}.".Trim();
+            }
+
+            return $"{ComposeEntityLabel(displayEntity, recordLabel)} active status toggled.".Trim();
+        }
+
+        return null;
+    }
+
+    private static int? ResolveIntArgument(IDictionary<string, object?> actionArguments, string key)
+    {
+        if (!actionArguments.TryGetValue(key, out var value) || value == null)
+        {
+            return null;
+        }
+
+        if (int.TryParse(Convert.ToString(value), out var parsed))
+        {
+            return parsed;
+        }
+
+        return null;
+    }
+
+    private static (Dictionary<string, object?> OldValues, Dictionary<string, object?> NewValues) BuildChangedPayload(
+        object? oldData,
+        object? newData,
+        string? actionName)
+    {
+        var oldValues = FlattenJsonValues(ToJsonNode(oldData));
+        var updateValues = FlattenUpdateValues(newData);
+        var oldChanges = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+        var newChanges = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var entry in updateValues)
+        {
+            if (!TryGetCaseInsensitive(oldValues, entry.Key, out var oldValue))
+            {
+                continue;
+            }
+
+            if (JsonValueEquals(oldValue, entry.Value))
+            {
+                continue;
+            }
+
+            oldChanges[entry.Key] = oldValue;
+            newChanges[entry.Key] = entry.Value;
+        }
+
+        if (updateValues.Count == 0
+            && !string.IsNullOrWhiteSpace(actionName)
+            && (actionName.Contains("Toggle", StringComparison.OrdinalIgnoreCase)
+                || actionName.Contains("Active", StringComparison.OrdinalIgnoreCase)))
+        {
+            if (TryGetCaseInsensitive(oldValues, "IsActive", out var isActiveValue)
+                && isActiveValue is bool isActive)
+            {
+                oldChanges["IsActive"] = isActive;
+                newChanges["IsActive"] = !isActive;
+            }
+        }
+
+        return (oldChanges, newChanges);
     }
 
     private static string HumanizeEntityName(string entityType)
@@ -425,14 +652,14 @@ public class AuditLogActionFilter : IAsyncActionFilter
         return HumanizeToken(singular);
     }
 
-    private static string ResolveRecordLabel(Dictionary<string, object?> oldValues, int? recordId)
+    private static string ResolveRecordLabel(Dictionary<string, object?> values, int? recordId)
     {
-        if (TryGetCaseInsensitive(oldValues, "RoomNumber", out var roomNumberValue) && roomNumberValue != null)
+        if (TryGetCaseInsensitive(values, "RoomNumber", out var roomNumberValue) && roomNumberValue != null)
         {
             return $"#{FormatValue(ToJsonNode(roomNumberValue))}";
         }
 
-        if (TryGetCaseInsensitive(oldValues, "Name", out var nameValue) && nameValue != null)
+        if (TryGetCaseInsensitive(values, "Name", out var nameValue) && nameValue != null)
         {
             return $"\"{FormatValue(ToJsonNode(nameValue))}\"";
         }
@@ -443,6 +670,16 @@ public class AuditLogActionFilter : IAsyncActionFilter
         }
 
         return string.Empty;
+    }
+
+    private static string ComposeEntityLabel(string entityName, string label)
+    {
+        if (string.IsNullOrWhiteSpace(label))
+        {
+            return entityName;
+        }
+
+        return $"{entityName} {label}";
     }
 
     private static string HumanizeFieldName(string fieldName)
