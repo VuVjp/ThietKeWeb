@@ -8,9 +8,11 @@ import type { UserProfile } from '../../api/userProfileApi';
 import type { Booking } from '../../types/models';
 import { getAccessToken, clearAuthTokens } from '../../api/httpClient';
 import momoApi from '../../api/momoApi';
+import { useAppAuth } from '../../auth/useAppAuth';
 
 export function ClientAccountPage() {
     const navigate = useNavigate();
+    const { logout } = useAppAuth();
     const [activeTab, setActiveTab] = useState('profile');
     const [bookings, setBookings] = useState<Booking[]>([]);
     const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -58,8 +60,8 @@ export function ClientAccountPage() {
         }
     };
 
-    const handleLogout = () => {
-        clearAuthTokens();
+    const handleLogout = async () => {
+        await logout();
         localStorage.removeItem('client_guest_email');
         toast.success('Logged out successfully');
         navigate('/');

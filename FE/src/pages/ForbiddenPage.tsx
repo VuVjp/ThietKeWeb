@@ -9,10 +9,10 @@ export const ForbiddenPage = () => {
         <h1 className="mt-3 text-xl font-semibold text-white">Permission Required</h1>
         <p className="mt-2 text-sm text-slate-300">Your account does not have permission to access this feature.</p>
         <Link
-          to="/admin/dashboard"
+          to="/"
           className="mt-6 inline-flex rounded-xl bg-cyan-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-cyan-500"
         >
-          Back to Dashboard
+          Back to Home
         </Link>
       </div>
     </div>
