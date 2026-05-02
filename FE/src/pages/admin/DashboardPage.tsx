@@ -143,6 +143,7 @@ export function DashboardPage() {
         pendingArticles: 0,
         pendingServiceOrders: 0,
         completedServiceOrdersToday: 0,
+        serviceQueue: [],
     };
     const pendingCleaningRooms: DashboardRoomTask[] = managerExtras.pendingCleaningRooms ?? [];
     const inspectingRooms: DashboardRoomTask[] = managerExtras.inspectingRooms ?? [];
@@ -219,9 +220,16 @@ export function DashboardPage() {
                     <MetricCard
                         title="Inspection Requests"
                         value={housekeeper.inspectionRequests}
-                        subValue="Inspecting"
+                        subValue="New requests"
                         icon={ExclamationTriangleIcon}
                         color="rose"
+                    />
+                    <MetricCard
+                        title="Inspecting Count"
+                        value={housekeeper.inspectingCount}
+                        subValue="Currently inspecting"
+                        icon={ClockIcon}
+                        color="blue"
                     />
                 </div>
             </div>
@@ -344,6 +352,50 @@ export function DashboardPage() {
                         color="emerald"
                     />
                 </div>
+                
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <h3 className="text-lg font-bold text-slate-900">Service Queue</h3>
+                    <p className="text-sm text-slate-500 mb-4">Pending orders requiring attention.</p>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left text-sm">
+                            <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+                                <tr>
+                                    <th className="px-4 py-3 font-medium rounded-tl-lg">Order ID</th>
+                                    <th className="px-4 py-3 font-medium">Room</th>
+                                    <th className="px-4 py-3 font-medium">Guest</th>
+                                    <th className="px-4 py-3 font-medium">Order Date</th>
+                                    <th className="px-4 py-3 font-medium rounded-tr-lg text-right">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {receptionist.serviceQueue.map((order) => (
+                                    <tr key={order.id} className="hover:bg-slate-50/50 transition-colors">
+                                        <td className="px-4 py-3 font-medium text-slate-900">#{order.id}</td>
+                                        <td className="px-4 py-3 text-slate-700">Room {order.roomNumber}</td>
+                                        <td className="px-4 py-3 text-slate-700">{order.guestName}</td>
+                                        <td className="px-4 py-3 text-slate-500">{new Date(order.orderDate).toLocaleString()}</td>
+                                        <td className="px-4 py-3 text-right">
+                                            <button 
+                                                type="button"
+                                                onClick={() => navigate(`/admin/reception/order-services/${order.id}`)}
+                                                className="text-cyan-600 hover:text-cyan-800 font-semibold"
+                                            >
+                                                View
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                                {receptionist.serviceQueue.length === 0 && (
+                                    <tr>
+                                        <td colSpan={5} className="px-4 py-8 text-center text-slate-400">
+                                            No pending service orders in the queue.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         );
     }
@@ -369,7 +421,7 @@ export function DashboardPage() {
                 </div>
             </div>
 
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 <MetricCard
                     title="Total Revenue"
                     value={`$${(overview.totalRevenue || 0).toLocaleString()}`}
@@ -378,6 +430,21 @@ export function DashboardPage() {
                     icon={BanknotesIcon}
                     color="cyan"
                 />
+                <MetricCard
+                    title="Loss & Damage"
+                    value={`$${(managerExtras.totalLossPenalty || 0).toLocaleString()}`}
+                    subValue="Total penalties"
+                    icon={ExclamationTriangleIcon}
+                    color="rose"
+                />
+                <MetricCard
+                    title="Net Profit"
+                    value={`$${(overview.netProfit || managerExtras.netProfit || 0).toLocaleString()}`}
+                    subValue="Revenue minus penalties"
+                    icon={BanknotesIcon}
+                    color="emerald"
+                />
+                
                 <MetricCard
                     title="Total Bookings"
                     value={overview.bookingCount || 0}
@@ -401,9 +468,7 @@ export function DashboardPage() {
                     icon={ClipboardDocumentListIcon}
                     color="amber"
                 />
-            </div>
 
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
                 <MetricCard
                     title="Cleaning Requests"
                     value={managerExtras.pendingCleaningRequests || 0}
@@ -412,25 +477,18 @@ export function DashboardPage() {
                     color="amber"
                 />
                 <MetricCard
+                    title="Inspecting Count"
+                    value={overview.inspectingCount || managerExtras.inspectingCount || 0}
+                    subValue="Rooms to check"
+                    icon={ClipboardDocumentListIcon}
+                    color="rose"
+                />
+                <MetricCard
                     title="Service Queue"
                     value={managerExtras.pendingServiceOrders || 0}
                     subValue="Pending orders"
                     icon={ArrowPathIcon}
-                    color="rose"
-                />
-                <MetricCard
-                    title="Loss & Damage"
-                    value={`$${(managerExtras.totalLossPenalty || 0).toLocaleString()}`}
-                    subValue="Total penalties"
-                    icon={ExclamationTriangleIcon}
                     color="cyan"
-                />
-                <MetricCard
-                    title="Pending Articles"
-                    value={managerExtras.pendingArticles || 0}
-                    subValue="Awaiting publish"
-                    icon={ClipboardDocumentListIcon}
-                    color="blue"
                 />
             </div>
 

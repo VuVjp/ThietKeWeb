@@ -213,12 +213,21 @@ public class DashboardService : IDashboardService
             })
             .ToList();
 
+        var totalLossPenalty = await _context.LossAndDamages
+            .AsNoTracking()
+            .SumAsync(item => item.PenaltyAmount);
+
+        var netProfit = totalRevenue - totalLossPenalty;
+        var inspectingCount = rooms.Count(room => string.Equals(room.CleaningStatus, "Inspecting", StringComparison.OrdinalIgnoreCase));
+
         return new DashboardOverviewDto
         {
             TotalRevenue = totalRevenue,
             BookingCount = confirmedBookings.Count,
             OccupancyRate = occupancy.Total == 0 ? 0 : (int)Math.Round((double)occupancy.Occupied / occupancy.Total * 100),
             AuditLogTotal = auditLogCount,
+            NetProfit = netProfit,
+            InspectingCount = inspectingCount,
             Occupancy = occupancy,
             RevenueChartData = revenueChartData,
             StatusChartData = statusChartData,
@@ -270,7 +279,7 @@ public class DashboardService : IDashboardService
         var cleaningRequests = await _context.Rooms.AsNoTracking().CountAsync(room => room.CleaningRequested);
         var inspectionRequests = await _context.Rooms.AsNoTracking()
             .CountAsync(room => room.CleaningStatus != null
-                && room.CleaningStatus.Equals("Inspecting", StringComparison.OrdinalIgnoreCase));
+                && room.CleaningStatus.ToLower() == "inspecting");
 
         if (!userId.HasValue)
         {
@@ -280,6 +289,7 @@ public class DashboardService : IDashboardService
                 CleanedInRange = 0,
                 CleaningRequests = cleaningRequests,
                 InspectionRequests = inspectionRequests,
+                InspectingCount = inspectionRequests,
             };
         }
 
@@ -320,6 +330,7 @@ public class DashboardService : IDashboardService
             CleanedInRange = cleanedInRange,
             CleaningRequests = cleaningRequests,
             InspectionRequests = inspectionRequests,
+            InspectingCount = inspectionRequests,
         };
     }
 
@@ -408,12 +419,26 @@ public class DashboardService : IDashboardService
                 && order.UpdatedAt.HasValue
                 && order.UpdatedAt.Value.Date == today);
 
+        var serviceQueue = await _context.OrderServices
+            .AsNoTracking()
+            .Where(o => o.Status == OrderServiceStatus.Pending)
+            .OrderByDescending(o => o.OrderDate)
+            .Select(o => new DashboardPendingServiceDto
+            {
+                Id = o.Id,
+                RoomNumber = o.BookingDetail != null && o.BookingDetail.Room != null ? o.BookingDetail.Room.RoomNumber! : "N/A",
+                GuestName = o.BookingDetail != null && o.BookingDetail.Booking != null ? o.BookingDetail.Booking.GuestName! : "Unknown",
+                OrderDate = o.OrderDate,
+            })
+            .ToListAsync();
+
         return new ReceptionistDashboardDto
         {
             PublishedArticles = publishedArticles,
             PendingArticles = pendingArticles,
             PendingServiceOrders = pendingServiceOrders,
             CompletedServiceOrdersToday = completedServiceOrdersToday,
+            ServiceQueue = serviceQueue,
         };
     }
 
@@ -466,13 +491,17 @@ public class DashboardService : IDashboardService
             })
             .ToList();
 
+        var netProfit = overview.TotalRevenue - totalLossPenalty;
+
         return new ManagerDashboardDto
         {
             Overview = overview,
             PendingCleaningRequests = pendingCleaningRequests,
             PendingServiceOrders = pendingServiceOrders,
             TotalLossPenalty = totalLossPenalty,
+            NetProfit = netProfit,
             PendingArticles = pendingArticles,
+            InspectingCount = inspectingRooms.Count,
             PendingCleaningRooms = pendingCleaningRooms,
             InspectingRooms = inspectingRooms,
         };

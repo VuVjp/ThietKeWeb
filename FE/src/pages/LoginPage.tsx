@@ -37,9 +37,7 @@ export function LoginPage() {
         if (fromPath) {
             return <Navigate to={fromPath} replace />;
         }
-        const role = user.role?.toLowerCase() ?? '';
-        const isStaff = role !== 'guest' && role !== '';
-        return <Navigate to={isStaff ? '/admin' : '/'} replace />;
+        return <Navigate to="/" replace />;
     }
 
     const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {

@@ -6,6 +6,8 @@ public class DashboardOverviewDto
     public int BookingCount { get; set; }
     public int OccupancyRate { get; set; }
     public int AuditLogTotal { get; set; } = 0;
+    public decimal NetProfit { get; set; }
+    public int InspectingCount { get; set; }
     public RoomOccupancySummaryDto Occupancy { get; set; } = new();
     public List<DashboardRevenuePointDto> RevenueChartData { get; set; } = new();
     public List<DashboardRoomStatusPointDto> StatusChartData { get; set; } = new();
@@ -78,6 +80,7 @@ public class HousekeeperDashboardDto
     public int CleanedInRange { get; set; }
     public int CleaningRequests { get; set; }
     public int InspectionRequests { get; set; }
+    public int InspectingCount { get; set; }
 }
 
 public class DashboardTopInvoiceDto
@@ -103,6 +106,7 @@ public class ReceptionistDashboardDto
     public int PendingArticles { get; set; }
     public int PendingServiceOrders { get; set; }
     public int CompletedServiceOrdersToday { get; set; }
+    public List<DashboardPendingServiceDto> ServiceQueue { get; set; } = new();
 }
 
 public class ManagerDashboardDto
@@ -111,7 +115,9 @@ public class ManagerDashboardDto
     public int PendingCleaningRequests { get; set; }
     public int PendingServiceOrders { get; set; }
     public decimal TotalLossPenalty { get; set; }
+    public decimal NetProfit { get; set; }
     public int PendingArticles { get; set; }
+    public int InspectingCount { get; set; }
     public List<DashboardRoomTaskDto> PendingCleaningRooms { get; set; } = new();
     public List<DashboardRoomTaskDto> InspectingRooms { get; set; } = new();
 }
