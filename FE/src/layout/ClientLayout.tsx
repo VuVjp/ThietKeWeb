@@ -1,15 +1,19 @@
-import { Outlet, Link, useLocation } from 'react-router-dom';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
+import { useAppAuth } from '../auth/useAppAuth';
 
 export function ClientLayout() {
     const [isScrolled, setIsScrolled] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [userMenuOpen, setUserMenuOpen] = useState(false);
+    const userMenuRef = useRef<HTMLDivElement>(null);
     const location = useLocation();
+    const navigate = useNavigate();
 
-    // Mock auth state for UI
-    const isClientLoggedIn = localStorage.getItem('client_auth_mock') === 'true';
+    // Use real auth state for header synchronization
+    const { isAuthenticated, isAuthReady, user, logout } = useAppAuth();
 
     useEffect(() => {
         const handleScroll = () => {
@@ -21,8 +25,27 @@ export function ClientLayout() {
 
     useEffect(() => {
         setMobileMenuOpen(false);
+        setUserMenuOpen(false);
         window.scrollTo(0, 0);
     }, [location]);
+
+    // Close user menu on click outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+                setUserMenuOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const handleLogout = async () => {
+        setUserMenuOpen(false);
+        await logout();
+        toast.success('Signed out successfully');
+        navigate('/');
+    };
 
     const navLinks = [
         { name: 'Home', href: '/' },
@@ -33,6 +56,8 @@ export function ClientLayout() {
         { name: 'News', href: '/news' },
         { name: 'About', href: '/about' },
     ];
+
+    const isStaffUser = isAuthenticated && user && user.role?.toLowerCase() !== 'guest' && user.role !== '';
 
     return (
         <div className="min-h-screen flex flex-col font-['Manrope'] bg-[#F9FAFB] text-slate-800">
@@ -71,10 +96,74 @@ export function ClientLayout() {
                         </nav>
 
                         <div className="hidden lg:flex items-center gap-6">
-                            {isClientLoggedIn ? (
-                                <Link to="/account" className={`text-sm font-semibold transition-colors ${isScrolled ? 'text-slate-700 hover:text-cyan-600' : 'text-white hover:text-cyan-300 drop-shadow-md'}`}>
-                                    My Account
-                                </Link>
+                            {isAuthReady && isAuthenticated && user ? (
+                                <div className="relative" ref={userMenuRef}>
+                                    <button
+                                        type="button"
+                                        onClick={() => setUserMenuOpen(!userMenuOpen)}
+                                        className={`flex items-center gap-2.5 text-sm font-semibold transition-colors ${isScrolled ? 'text-slate-700 hover:text-cyan-600' : 'text-white hover:text-cyan-300 drop-shadow-md'}`}
+                                    >
+                                        {/* Avatar */}
+                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${isScrolled ? 'bg-cyan-100 text-cyan-700' : 'bg-white/20 text-white backdrop-blur-sm'}`}>
+                                            {user.name?.charAt(0)?.toUpperCase() || user.email?.charAt(0)?.toUpperCase() || 'U'}
+                                        </div>
+                                        <span className="max-w-[120px] truncate">{user.name || 'My Account'}</span>
+                                        <svg className={`w-3.5 h-3.5 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                                        </svg>
+                                    </button>
+
+                                    {/* Dropdown */}
+                                    {userMenuOpen && (
+                                        <div className="absolute right-0 top-full mt-3 w-56 bg-white rounded-xl shadow-2xl border border-slate-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
+                                            <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/50">
+                                                <p className="text-sm font-semibold text-slate-800 truncate">{user.name}</p>
+                                                <p className="text-xs text-slate-500 truncate">{user.email}</p>
+                                                {user.role && (
+                                                    <span className="mt-1 inline-block text-[10px] font-bold uppercase tracking-wider text-cyan-600 bg-cyan-50 px-2 py-0.5 rounded-full">
+                                                        {user.role}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="py-1.5">
+                                                <Link
+                                                    to="/account"
+                                                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                                                    onClick={() => setUserMenuOpen(false)}
+                                                >
+                                                    <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                                                    </svg>
+                                                    My Account
+                                                </Link>
+                                                {isStaffUser && (
+                                                    <Link
+                                                        to="/admin"
+                                                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                                                        onClick={() => setUserMenuOpen(false)}
+                                                    >
+                                                        <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
+                                                        </svg>
+                                                        Staff Portal
+                                                    </Link>
+                                                )}
+                                            </div>
+                                            <div className="border-t border-slate-100 py-1.5">
+                                                <button
+                                                    type="button"
+                                                    onClick={handleLogout}
+                                                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors w-full"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+                                                    </svg>
+                                                    Sign Out
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             ) : (
                                 <Link to="/login" className={`text-sm font-semibold transition-colors ${isScrolled ? 'text-slate-700 hover:text-cyan-600' : 'text-white hover:text-cyan-300 drop-shadow-md'}`}>
                                     Sign In
@@ -116,12 +205,29 @@ export function ClientLayout() {
                             <Link to="/rooms" className="block w-full text-center bg-cyan-800 text-white py-4 text-sm tracking-widest uppercase font-bold transition-colors">
                                 Book Your Stay
                             </Link>
-                            <Link to={isClientLoggedIn ? "/account" : "/login"} className="block w-full text-center border border-slate-300 text-slate-800 py-4 mt-4 text-sm tracking-widest uppercase font-bold transition-colors">
-                                {isClientLoggedIn ? "Account Dashboard" : "Sign In / Register"}
-                            </Link>
-                            <Link to="/admin" className="block w-full text-center text-slate-400 font-medium py-6 hover:text-cyan-600 transition-colors text-sm">
-                                Staff Portal
-                            </Link>
+                            {isAuthReady && isAuthenticated && user ? (
+                                <>
+                                    <Link to="/account" className="block w-full text-center border border-slate-300 text-slate-800 py-4 mt-4 text-sm tracking-widest uppercase font-bold transition-colors">
+                                        My Account
+                                    </Link>
+                                    {isStaffUser && (
+                                        <Link to="/admin" className="block w-full text-center text-slate-400 font-medium py-4 mt-2 hover:text-cyan-600 transition-colors text-sm">
+                                            Staff Portal
+                                        </Link>
+                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={handleLogout}
+                                        className="block w-full text-center text-red-500 font-medium py-4 mt-2 hover:text-red-600 transition-colors text-sm uppercase tracking-widest"
+                                    >
+                                        Sign Out
+                                    </button>
+                                </>
+                            ) : (
+                                <Link to="/login" className="block w-full text-center border border-slate-300 text-slate-800 py-4 mt-4 text-sm tracking-widest uppercase font-bold transition-colors">
+                                    Sign In / Register
+                                </Link>
+                            )}
                         </div>
                     </div>
                 )}

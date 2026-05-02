@@ -60,7 +60,6 @@ export function ClientAccountPage() {
 
     const handleLogout = () => {
         clearAuthTokens();
-        localStorage.removeItem('client_auth_mock');
         localStorage.removeItem('client_guest_email');
         toast.success('Logged out successfully');
         navigate('/');

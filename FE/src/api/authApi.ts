@@ -66,6 +66,18 @@ export const authApi = {
         return data;
     },
 
+    async googleLogin(idToken: string) {
+        const { data } = await httpClient.post<TokenEnvelope>('auth/google-login', { idToken });
+        const result = resolveAuthTokens(data);
+        setAccessToken(result.token);
+        setRefreshToken(result.refreshToken);
+        console.log('[AuthApi] Google login tokens saved:', {
+            tokenLength: result.token.length,
+            refreshTokenLength: result.refreshToken.length,
+        });
+        return result;
+    },
+
     async refreshToken(refreshToken = getRefreshToken()) {
         if (!refreshToken) {
             throw new Error('Refresh token is missing');

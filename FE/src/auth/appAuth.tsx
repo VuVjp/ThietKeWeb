@@ -12,6 +12,7 @@ interface AuthContextValue {
     isAuthenticated: boolean;
     isAuthReady: boolean;
     login: (email: string, password: string) => Promise<boolean>;
+    loginWithGoogle: (idToken: string) => Promise<boolean>;
     logout: () => Promise<void>;
     hasPermission: (permission: AppPermission) => boolean;
     hasAnyPermission: (permissions: AppPermission[]) => boolean;
@@ -187,6 +188,23 @@ export function AppAuthProvider({ children }: PropsWithChildren) {
                     await authApi.login({ email: normalizedEmail, password });
 
                     const nextUser = await resolveCurrentUser(normalizedEmail, user);
+
+                    if (!nextUser) {
+                        return false;
+                    }
+
+                    setUser(nextUser);
+                    setIsAuthReady(true);
+                    return true;
+                } catch {
+                    return false;
+                }
+            },
+            loginWithGoogle: async (idToken: string) => {
+                try {
+                    await authApi.googleLogin(idToken);
+
+                    const nextUser = await resolveCurrentUser(undefined, user);
 
                     if (!nextUser) {
                         return false;

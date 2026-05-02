@@ -77,7 +77,7 @@ export function Header({ onSidebarToggle, onMobileToggle, onSearchChange, notifi
                     onClick={async () => {
                       await onSignOut();
                       toast.success('Signed out');
-                      navigate('/admin/login', { replace: true });
+                      navigate('/login', { replace: true });
                     }}
                   >
                     Sign out

@@ -19,7 +19,7 @@ export function RequireAuth() {
     }
 
     if (!isAuthenticated) {
-        return <Navigate to="/admin/login" replace state={{ from: location }} />;
+        return <Navigate to="/login" replace state={{ from: location }} />;
     }
 
     return <Outlet />;

@@ -1,6 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AdminLayout } from '../layout/AdminLayout';
-import { AdminLoginPage } from '../pages/admin/AdminLoginPage';
 import { DashboardPage } from '../pages/admin/DashboardPage';
 import { RoomsPage } from '../pages/admin/RoomsPage';
 import { RoomDetailPage } from '../pages/admin/RoomDetailPage';
@@ -43,13 +42,14 @@ import { ClientAttractionsPage } from '../pages/client/ClientAttractionsPage';
 import { ClientMembershipsPage } from '../pages/client/ClientMembershipsPage';
 import { ClientRoomDetailPage } from '../pages/client/ClientRoomDetailPage';
 import { ClientBookingPage } from '../pages/client/ClientBookingPage';
-import { ClientLoginPage } from '../pages/client/ClientLoginPage';
-import { ClientRegisterPage } from '../pages/client/ClientRegisterPage';
 import { ClientAccountPage } from '../pages/client/ClientAccountPage';
 import { ClientServicesPage } from '../pages/client/ClientServicesPage';
 import { ClientNewsPage } from '../pages/client/ClientNewsPage';
 import { ClientAboutPage } from '../pages/client/ClientAboutPage';
 import { ClientNewsDetailPage } from '../pages/client/ClientNewsDetailPage';
+
+import { LoginPage } from '../pages/LoginPage';
+import { RegisterPage } from '../pages/RegisterPage';
 
 function AdminEntryRedirect() {
     const { user, isAuthReady } = useAppAuth();
@@ -77,7 +77,13 @@ function AdminEntryRedirect() {
 export const AppRouter = () => {
     return (
         <Routes>
-            <Route path="/admin/login" element={<AdminLoginPage />} />
+            {/* Unified Login & Register (outside any layout) */}
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+
+            {/* Legacy admin/login redirect */}
+            <Route path="/admin/login" element={<Navigate to="/login" replace />} />
+
             <Route path="/403" element={<ForbiddenPage />} />
 
             <Route element={<RequireAuth />}>
@@ -176,8 +182,6 @@ export const AppRouter = () => {
                 <Route path="/rooms" element={<ClientRoomsPage />} />
                 <Route path="/rooms/:roomId" element={<ClientRoomDetailPage />} />
                 <Route path="/booking" element={<ClientBookingPage />} />
-                <Route path="/login" element={<ClientLoginPage />} />
-                <Route path="/register" element={<ClientRegisterPage />} />
                 <Route path="/account" element={<ClientAccountPage />} />
                 <Route path="/services" element={<ClientServicesPage />} />
                 <Route path="/news" element={<ClientNewsPage />} />
