@@ -2,11 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import {
     ArrowPathIcon,
+    ArrowDownTrayIcon,
     MagnifyingGlassIcon,
     ClipboardDocumentListIcon,
     FunnelIcon,
     XMarkIcon,
 } from '@heroicons/react/24/outline';
+import * as XLSX from 'xlsx';
 import { Table } from '../../components/Table';
 import { Pagination } from '../../components/Pagination';
 import { Input } from '../../components/Input';
@@ -62,6 +64,26 @@ function formatJson(value: unknown) {
     } catch {
         return String(value);
     }
+}
+
+function getContextValue(context: Record<string, unknown>, key: string) {
+    const value = context[key];
+    return value === undefined || value === null ? '' : String(value);
+}
+
+function buildAuditExportRows(events: AuditLogEvent[]) {
+    return events.map((event) => ({
+        Timestamp: formatDateTime(event.timestamp),
+        Action: String(event.actionType ?? ''),
+        Entity: event.entityType || '',
+        Message: event.message || '',
+        UserId: getContextValue(event.context, 'userId'),
+        UserName: getContextValue(event.context, 'userName'),
+        UserEmail: getContextValue(event.context, 'userEmail'),
+        IpAddress: getContextValue(event.context, 'ipAddress'),
+        OldData: formatJson(event.changes?.oldData),
+        NewData: formatJson(event.changes?.newData),
+    }));
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -167,6 +189,21 @@ export function AuditLogPage() {
     }, [logs, searchQuery, actionFilter, entityFilter, dateFrom, dateTo, canViewFullLogs]);
 
     const paged = paginate(filtered, page, pageSize);
+
+    const exportToExcel = () => {
+        const rows = buildAuditExportRows(filtered);
+
+        if (rows.length === 0) {
+            toast.error('No audit logs to export');
+            return;
+        }
+
+        const worksheet = XLSX.utils.json_to_sheet(rows);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Audit Logs');
+        XLSX.writeFile(workbook, `audit-logs-${new Date().toISOString().slice(0, 10)}.xlsx`);
+        toast.success('Audit log exported to Excel');
+    };
 
     const clearFilters = () => {
         setSearchQuery('');
@@ -276,13 +313,24 @@ export function AuditLogPage() {
                     <h2 className="text-2xl font-bold text-slate-900">Audit Log</h2>
                     <p className="text-sm text-slate-500">Track protected write operations and entity changes.</p>
                 </div>
-                <button
-                    onClick={() => void loadLogs()}
-                    className="p-2 text-slate-500 hover:text-cyan-600 transition bg-white border border-slate-200 rounded-xl"
-                    title="Refresh"
-                >
-                    <ArrowPathIcon className={`h-5 w-5 ${isLoading ? 'animate-spin' : ''}`} />
-                </button>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={exportToExcel}
+                        disabled={filtered.length === 0}
+                        className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+                        title="Export Excel"
+                    >
+                        <ArrowDownTrayIcon className="h-4 w-4" />
+                        Export Excel
+                    </button>
+                    <button
+                        onClick={() => void loadLogs()}
+                        className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition hover:text-cyan-600"
+                        title="Refresh"
+                    >
+                        <ArrowPathIcon className={`h-5 w-5 ${isLoading ? 'animate-spin' : ''}`} />
+                    </button>
+                </div>
             </div>
 
             {canViewFullLogs && (

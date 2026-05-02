@@ -56,7 +56,7 @@ public class AuthService : IAuthService
             throw new UnauthorizedException("User account is deactivated");
         }
 
-        var jwtToken = GenerateJwt(user);
+        var jwtToken = await GenerateJwt(user);
         var refreshToken = await GenerateRefreshTokenAsync(user);
 
 
@@ -91,7 +91,7 @@ public class AuthService : IAuthService
             await _userRepository.SaveChangesAsync();
         }
 
-        var jwtToken = GenerateJwt(user);
+        var jwtToken = await GenerateJwt(user);
         var refreshToken = await GenerateRefreshTokenAsync(user);
 
         return (jwtToken, refreshToken);
@@ -133,7 +133,7 @@ public class AuthService : IAuthService
             throw new UnauthorizedException("Refresh token has been revoked");
         }
 
-        var newJwt = GenerateJwt(matchedUser);
+        var newJwt = await GenerateJwt(matchedUser);
 
         var newRefreshToken = await GenerateRefreshTokenAsync(matchedUser);
 
@@ -169,21 +169,23 @@ public class AuthService : IAuthService
         return Convert.ToBase64String(randomBytes);
     }
 
-    private string GenerateJwt(User user)
+    private async Task<string> GenerateJwt(User user)
     {
         var jwtSettings = _configuration.GetSection("Jwt");
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Key"]!));
 
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
+        var userRole = await _userRepository.GetUserRoleAsync(user.Id);
+
         var claims = new[]
-        {
+            {
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim(ClaimTypes.Email, user.Email),
-                new Claim(ClaimTypes.Role, user.Role?.Name ?? "Guest"),
+                new Claim(ClaimTypes.Role, userRole ?? "Guest"),
                 new Claim("sub", user.Id.ToString()),
                 new Claim("email", user.Email),
-                new Claim("role", user.Role?.Name ?? "Guest")
+                new Claim("role", userRole ?? "Guest")
             };
 
         var token = new JwtSecurityToken(

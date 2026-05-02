@@ -146,7 +146,22 @@ export function AppAuthProvider({ children }: PropsWithChildren) {
             }
         });
 
-        const unsubscribe = subscribeAuthRefresh(() => {
+        const unsubscribe = subscribeAuthRefresh((_token) => {
+            try {
+                const baseUser = getUserBaseFromToken(userRef.current);
+                if (baseUser) {
+                    setUser((prev) => ({
+                        id: baseUser.id,
+                        name: baseUser.name,
+                        email: baseUser.email,
+                        role: baseUser.role,
+                        permissions: prev?.permissions ?? [],
+                    }));
+                }
+            } catch {
+                // swallow parsing errors and continue to resolve full user
+            }
+
             void resolveCurrentUser(undefined, userRef.current).then((nextUser) => {
                 if (active) {
                     setUser(nextUser);
