@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { PencilSquareIcon, CheckCircleIcon, ExclamationTriangleIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import { useSearchParams } from 'react-router-dom';
 import type { InventoryItem, LossRecord, Room } from '../../types/models';
 import { Select } from '../../components/Select';
 import { Modal } from '../../components/Modal';
@@ -48,6 +49,7 @@ const emptyLossDraft: LossDraft = {
 
 export function CleaningPage() {
     const { ensure } = usePermissionCheck();
+    const [searchParams] = useSearchParams();
     const [inspectingRooms, setInspectingRooms] = useState<Room[]>([]);
     const [cleaningRooms, setCleaningRooms] = useState<Room[]>([]);
     const [activeInspectingRoomId, setActiveInspectingRoomId] = useState<number>(0);
@@ -64,6 +66,13 @@ export function CleaningPage() {
     const [pendingLossReportsByRoom, setPendingLossReportsByRoom] = useState<Record<number, PendingLossReport[]>>({});
     const [isSendingPendingReports, setIsSendingPendingReports] = useState(false);
 
+    const requestedRoomId = Number(searchParams.get('roomId') ?? 0);
+    const requestedTab = searchParams.get('tab') === 'cleaning'
+        ? 'cleaning'
+        : searchParams.get('tab') === 'inspecting'
+            ? 'inspecting'
+            : null;
+
     const loadBoards = useCallback(async () => {
         setIsLoading(true);
         try {
@@ -75,15 +84,27 @@ export function CleaningPage() {
             setInspectingRooms(inspecting);
             setCleaningRooms(cleaning);
 
-            setActiveInspectingRoomId((prev) => (inspecting.some((room) => room.id === prev) ? prev : (inspecting[0]?.id ?? 0)));
-            setActiveCleaningRoomId((prev) => (cleaning.some((room) => room.id === prev) ? prev : (cleaning[0]?.id ?? 0)));
+            setActiveInspectingRoomId((prev) => {
+                if (requestedRoomId && inspecting.some((room) => room.id === requestedRoomId) && (requestedTab === 'inspecting' || !requestedTab)) {
+                    return requestedRoomId;
+                }
+
+                return inspecting.some((room) => room.id === prev) ? prev : (inspecting[0]?.id ?? 0);
+            });
+            setActiveCleaningRoomId((prev) => {
+                if (requestedRoomId && cleaning.some((room) => room.id === requestedRoomId) && (requestedTab === 'cleaning' || !requestedTab)) {
+                    return requestedRoomId;
+                }
+
+                return cleaning.some((room) => room.id === prev) ? prev : (cleaning[0]?.id ?? 0);
+            });
         } catch (error) {
             const apiError = toApiError(error);
             toast.error(apiError.message || 'Failed to load cleaning boards');
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [requestedRoomId, requestedTab]);
 
     const loadInspectingState = useCallback(async (roomId: number) => {
         if (!roomId) {
@@ -119,6 +140,12 @@ export function CleaningPage() {
     useEffect(() => {
         void loadBoards();
     }, [loadBoards]);
+
+    useEffect(() => {
+        if (requestedTab) {
+            setActiveTab(requestedTab);
+        }
+    }, [requestedTab]);
 
     useEffect(() => {
         void loadInspectingState(activeInspectingRoomId);

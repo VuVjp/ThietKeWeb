@@ -20,8 +20,8 @@ interface LossDto {
     PenaltyAmount?: number;
     description?: string;
     Description?: string;
-    date?: string;
-    Date?: string;
+    createdAt?: string;
+    CreatedAt?: string;
     evidence?: string;
     Evidence?: string;
     imageUrl?: string;
@@ -47,7 +47,7 @@ function mapLossDtoToRecord(dto: LossDto, index: number): LossRecord {
         quantity: Number(dto.quantity ?? dto.Quantity ?? 1),
         penalty: Number(dto.penaltyAmount ?? dto.PenaltyAmount ?? 0),
         description,
-        date: String(dto.date ?? dto.Date ?? new Date().toISOString().slice(0, 10)),
+        createdAt: String(dto.createdAt ?? dto.CreatedAt ?? new Date().toISOString()),
         evidence: directEvidence,
     };
 }

@@ -7,7 +7,7 @@ import { Pagination } from '../../components/Pagination';
 import type { LossRecord } from '../../types/models';
 import { lossApi } from '../../api/lossApi';
 import { toApiError } from '../../api/httpClient';
-import { formatCurrency } from '../../utils/format';
+import { formatCurrency, formatDate } from '../../utils/format';
 import { paginate, queryIncludes, sortBy } from '../../utils/table';
 import { StatCard } from '../../components/StatCard';
 
@@ -42,8 +42,8 @@ export function LossPage() {
   const filtered = useMemo(() => {
     const nextRows = rows.filter((item) => {
       const matchSearch = queryIncludes(item.id, search) || queryIncludes(item.itemName, search) || queryIncludes(item.room, search);
-      const matchFrom = !dateFrom || item.date >= dateFrom;
-      const matchTo = !dateTo || item.date <= dateTo;
+      const matchFrom = !dateFrom || item.createdAt >= dateFrom;
+      const matchTo = !dateTo || item.createdAt <= dateTo;
       const amount = item.penalty;
       const matchMin = !amountMin || amount >= Number(amountMin);
       const matchMax = !amountMax || amount <= Number(amountMax);
@@ -51,7 +51,7 @@ export function LossPage() {
       return matchSearch && matchFrom && matchTo && matchMin && matchMax && matchImage;
     });
 
-    return sortBy(nextRows, (row) => row.date, 'desc');
+    return sortBy(nextRows, (row) => row.createdAt, 'desc');
   }, [rows, search, dateFrom, dateTo, amountMin, amountMax, hasImage]);
 
   const totalPenalty = filtered.reduce((sum, item) => sum + item.penalty, 0);
@@ -73,7 +73,7 @@ export function LossPage() {
     { key: 'quantity', label: 'Quantity', render: (row: (typeof filtered)[number]) => row.quantity },
     { key: 'penalty', label: 'Penalty', render: (row: (typeof filtered)[number]) => formatCurrency(row.penalty) },
     { key: 'description', label: 'Description', render: (row: (typeof filtered)[number]) => row.description },
-    { key: 'date', label: 'Date', render: (row: (typeof filtered)[number]) => row.date },
+    { key: 'createdAt', label: 'Date', render: (row: (typeof filtered)[number]) => formatDate(row.createdAt) },
     { key: 'actions', label: 'Actions', render: () => <button type="button" className="rounded-lg border border-slate-200 px-2 py-1 text-xs">View</button> },
   ];
 

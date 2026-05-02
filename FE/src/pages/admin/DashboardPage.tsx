@@ -7,7 +7,6 @@ import {
     ExclamationTriangleIcon,
     ClipboardDocumentListIcon,
     ClockIcon,
-    ChevronRightIcon
 } from '@heroicons/react/24/outline';
 import {
     XAxis,
@@ -22,20 +21,20 @@ import {
     Cell,
     Legend
 } from 'recharts';
+import { useNavigate } from 'react-router-dom';
 import { dashboardApi } from '../../api/dashboardApi';
+import type { DashboardOverview, DashboardPendingService, DashboardRecentBooking, DashboardRoomTask, ManagerDashboard } from '../../api/dashboardApi';
 import { toApiError } from '../../api/httpClient';
 import toast from 'react-hot-toast';
+import { useAppAuth } from '../../auth/useAppAuth';
 import { Badge } from '../../components/Badge';
-import { useState } from 'react';
-
-// --- Sub-components for a Premium Look ---
 
 interface MetricCardProps {
     title: string;
     value: string | number;
     subValue?: string;
     trend?: { value: string; positive: boolean };
-    icon: any;
+    icon: React.ComponentType<{ className: string }>;
     color: 'blue' | 'cyan' | 'emerald' | 'rose' | 'amber';
 }
 
@@ -74,7 +73,6 @@ function MetricCard({ title, value, subValue, trend, icon: Icon, color }: Metric
                     <Icon className="h-6 w-6" />
                 </div>
             </div>
-            {/* Subtle background pattern */}
             <div className="absolute -right-4 -bottom-4 opacity-5 h-24 w-24">
                 <Icon className="h-full w-full" />
             </div>
@@ -82,9 +80,15 @@ function MetricCard({ title, value, subValue, trend, icon: Icon, color }: Metric
     );
 }
 
-// --- Main Page Component ---
-
 export function DashboardPage() {
+    const navigate = useNavigate();
+    const { user } = useAppAuth();
+    const role = (user?.role ?? '').toLowerCase();
+    const isHousekeeper = role === 'housekeeping';
+    const isAccountant = role === 'accountant';
+    const isReceptionist = role === 'receptionist';
+    const rangeDays = 7;
+
     const {
         data: stats,
         isLoading,
@@ -92,31 +96,67 @@ export function DashboardPage() {
         error,
         refetch,
     } = useQuery({
-        queryKey: ['dashboard-overview'],
-        queryFn: () => dashboardApi.getOverview(7),
+        queryKey: ['dashboard-role', role],
+        queryFn: () => dashboardApi.getRoleDashboard(rangeDays),
         retry: false,
         refetchOnWindowFocus: false,
     });
 
-    const occupancy = stats?.occupancy ?? { total: 0, occupied: 0, maintenance: 0, available: 0 };
-    const revenueChartData = stats?.revenueChartData ?? [];
-    const statusChartData = stats?.statusChartData ?? [];
-    const recentBookings = stats?.recentBookings ?? [];
-    const criticalAlerts = stats?.criticalAlerts ?? [];
-    const pendingServices = stats?.pendingServices ?? [];
+    const emptyOverview = {
+        totalRevenue: 0,
+        bookingCount: 0,
+        occupancyRate: 0,
+        auditLogTotal: 0,
+        occupancy: { total: 0, occupied: 0, maintenance: 0, available: 0 },
+        revenueChartData: [],
+        statusChartData: [],
+        recentBookings: [],
+        criticalAlerts: [],
+        pendingServices: [],
+    };
 
-    const [lastAsync, setLastAsync] = useState<Date | null>(new Date());
+    const overview: DashboardOverview = stats?.manager?.overview ?? stats?.overview ?? emptyOverview;
+    const managerExtras: ManagerDashboard = stats?.manager ?? {
+        overview: emptyOverview,
+        pendingCleaningRequests: 0,
+        pendingServiceOrders: 0,
+        totalLossPenalty: 0,
+        pendingArticles: 0,
+        pendingCleaningRooms: [],
+        inspectingRooms: [],
+    };
+    const housekeeper = stats?.housekeeper ?? {
+        cleanedToday: 0,
+        cleanedInRange: 0,
+        cleaningRequests: 0,
+        inspectionRequests: 0,
+    };
+    const accountant = stats?.accountant ?? {
+        totalRevenue: 0,
+        totalLossPenalty: 0,
+        netProfit: 0,
+        revenueChartData: [],
+        topInvoices: [],
+    };
+    const receptionist = stats?.receptionist ?? {
+        publishedArticles: 0,
+        pendingArticles: 0,
+        pendingServiceOrders: 0,
+        completedServiceOrdersToday: 0,
+    };
+    const pendingCleaningRooms: DashboardRoomTask[] = managerExtras.pendingCleaningRooms ?? [];
+    const inspectingRooms: DashboardRoomTask[] = managerExtras.inspectingRooms ?? [];
+    const pendingServices: DashboardPendingService[] = overview.pendingServices ?? [];
+    const recentBookings: DashboardRecentBooking[] = overview.recentBookings ?? [];
+
+    const occupancy = overview.occupancy ?? { total: 0, occupied: 0, maintenance: 0, available: 0 };
+    const revenueChartData = overview.revenueChartData ?? [];
+    const statusChartData = overview.statusChartData ?? [];
+    const criticalAlerts = overview.criticalAlerts ?? [];
 
     if (isLoading) {
         return (
             <div className="space-y-8">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <div className="h-8 w-56 animate-pulse rounded-xl bg-slate-200" />
-                        <div className="mt-2 h-4 w-80 animate-pulse rounded-lg bg-slate-100" />
-                    </div>
-                    <div className="h-10 w-28 animate-pulse rounded-xl bg-slate-200" />
-                </div>
                 <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
                     {[...Array(4)].map((_, i) => (
                         <div key={i} className="rounded-2xl border border-slate-200 bg-white p-6">
@@ -125,10 +165,6 @@ export function DashboardPage() {
                             <div className="mt-2 h-3 w-28 animate-pulse rounded bg-slate-100" />
                         </div>
                     ))}
-                </div>
-                <div className="grid gap-6 lg:grid-cols-3">
-                    <div className="rounded-2xl border border-slate-200 bg-white p-6 lg:col-span-2 h-[420px] animate-pulse bg-slate-50" />
-                    <div className="rounded-2xl border border-slate-200 bg-white p-6 h-[420px] animate-pulse bg-slate-50" />
                 </div>
             </div>
         );
@@ -151,24 +187,179 @@ export function DashboardPage() {
         );
     }
 
+    if (isHousekeeper) {
+        return (
+            <div className="space-y-8">
+                <div>
+                    <h2 className="text-3xl font-extrabold tracking-tight text-slate-900">Housekeeping Dashboard</h2>
+                    <p className="text-slate-500">Daily cleaning activity and room requests.</p>
+                </div>
+                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                    <MetricCard
+                        title="Cleaned Today"
+                        value={housekeeper.cleanedToday}
+                        subValue="Rooms completed"
+                        icon={HomeIcon}
+                        color="emerald"
+                    />
+                    <MetricCard
+                        title={`Cleaned (${rangeDays} days)`}
+                        value={housekeeper.cleanedInRange}
+                        subValue="Rooms completed"
+                        icon={ClipboardDocumentListIcon}
+                        color="cyan"
+                    />
+                    <MetricCard
+                        title="Cleaning Requests"
+                        value={housekeeper.cleaningRequests}
+                        subValue="Pending"
+                        icon={ClockIcon}
+                        color="amber"
+                    />
+                    <MetricCard
+                        title="Inspection Requests"
+                        value={housekeeper.inspectionRequests}
+                        subValue="Inspecting"
+                        icon={ExclamationTriangleIcon}
+                        color="rose"
+                    />
+                </div>
+            </div>
+        );
+    }
+
+    if (isAccountant) {
+        return (
+            <div className="space-y-8">
+                <div>
+                    <h2 className="text-3xl font-extrabold tracking-tight text-slate-900">Finance Dashboard</h2>
+                    <p className="text-slate-500">Revenue, penalties, and invoice highlights.</p>
+                </div>
+                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                    <MetricCard
+                        title="Total Revenue"
+                        value={`$${accountant.totalRevenue.toLocaleString()}`}
+                        subValue="All successful payments"
+                        icon={BanknotesIcon}
+                        color="cyan"
+                    />
+                    <MetricCard
+                        title="Loss & Damage"
+                        value={`$${accountant.totalLossPenalty.toLocaleString()}`}
+                        subValue="Total penalties"
+                        icon={ExclamationTriangleIcon}
+                        color="rose"
+                    />
+                    <MetricCard
+                        title="Net Profit"
+                        value={`$${accountant.netProfit.toLocaleString()}`}
+                        subValue="Revenue minus penalties"
+                        icon={ArrowPathIcon}
+                        color="emerald"
+                    />
+                </div>
+                <div className="grid gap-6 lg:grid-cols-3">
+                    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
+                        <div className="flex items-center gap-3">
+                            <div className="rounded-lg bg-cyan-50 p-2">
+                                <BanknotesIcon className="h-5 w-5 text-cyan-600" />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-bold text-slate-900">Revenue Trend</h3>
+                                <p className="text-xs text-slate-500">Last {rangeDays} days</p>
+                            </div>
+                        </div>
+                        <div className="mt-8 h-[300px] w-full">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <AreaChart data={accountant.revenueChartData}>
+                                    <defs>
+                                        <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#0891b2" stopOpacity={0.1} />
+                                            <stop offset="95%" stopColor="#0891b2" stopOpacity={0} />
+                                        </linearGradient>
+                                    </defs>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
+                                    <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
+                                    <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
+                                    <Area type="monotone" dataKey="revenue" stroke="#0891b2" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenue)" />
+                                </AreaChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                        <h3 className="text-lg font-bold text-slate-900">Top Invoices</h3>
+                        <div className="mt-6 space-y-4">
+                            {accountant.topInvoices.length === 0 && <p className="text-sm text-slate-500">No completed invoices found.</p>}
+                            {accountant.topInvoices.map((invoice) => (
+                                <div key={invoice.id} className="flex items-center justify-between rounded-xl border border-slate-100 p-3">
+                                    <div>
+                                        <p className="text-sm font-semibold text-slate-900">{invoice.invoiceCode || `#${invoice.id}`}</p>
+                                        <p className="text-xs text-slate-500">{invoice.completedAt ? new Date(invoice.completedAt).toLocaleDateString() : 'N/A'}</p>
+                                    </div>
+                                    <span className="text-sm font-bold text-emerald-600">${invoice.finalTotal.toLocaleString()}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (isReceptionist) {
+        return (
+            <div className="space-y-8">
+                <div>
+                    <h2 className="text-3xl font-extrabold tracking-tight text-slate-900">Reception Dashboard</h2>
+                    <p className="text-slate-500">Articles and service queue overview.</p>
+                </div>
+                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                    <MetricCard
+                        title="Published Articles"
+                        value={receptionist.publishedArticles}
+                        subValue="Active posts"
+                        icon={ClipboardDocumentListIcon}
+                        color="blue"
+                    />
+                    <MetricCard
+                        title="Pending Articles"
+                        value={receptionist.pendingArticles}
+                        subValue="Awaiting publish"
+                        icon={ExclamationTriangleIcon}
+                        color="amber"
+                    />
+                    <MetricCard
+                        title="Service Queue"
+                        value={receptionist.pendingServiceOrders}
+                        subValue="Pending orders"
+                        icon={ClockIcon}
+                        color="rose"
+                    />
+                    <MetricCard
+                        title="Services Completed"
+                        value={receptionist.completedServiceOrdersToday}
+                        subValue="Today"
+                        icon={ArrowPathIcon}
+                        color="emerald"
+                    />
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-8">
-            {/* --- Header Section --- */}
             <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                 <div>
                     <h2 className="text-3xl font-extrabold tracking-tight text-slate-900">Executive Overview</h2>
                     <p className="text-slate-500">Real-time performance metrics and operational monitoring.</p>
                 </div>
                 <div className="flex items-center gap-3">
-                    <div className="hidden md:flex flex-col items-end px-4 border-r border-slate-200">
-                        <span className="text-xs font-bold text-slate-400 tracking-widest uppercase">Last Sync</span>
-                        <span className="text-sm font-semibold text-slate-600">{lastAsync?.toLocaleTimeString() || 'Never'}</span>
-                    </div>
                     <button
                         onClick={() => {
                             toast.loading('Syncing latest data...', { duration: 1000 });
                             void refetch();
-                            setLastAsync(new Date());
                         }}
                         className="group flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 font-semibold text-slate-700 transition-all hover:bg-slate-50 hover:shadow-md active:scale-95"
                     >
@@ -178,11 +369,10 @@ export function DashboardPage() {
                 </div>
             </div>
 
-            {/* --- Phase 1: Metric Cards --- */}
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
                 <MetricCard
                     title="Total Revenue"
-                    value={`$${(stats?.totalRevenue || 0).toLocaleString()}`}
+                    value={`$${(overview.totalRevenue || 0).toLocaleString()}`}
                     subValue="All active invoices"
                     trend={{ value: '12.5%', positive: true }}
                     icon={BanknotesIcon}
@@ -190,7 +380,7 @@ export function DashboardPage() {
                 />
                 <MetricCard
                     title="Total Bookings"
-                    value={stats?.bookingCount || 0}
+                    value={overview.bookingCount || 0}
                     subValue="Confirmed stays"
                     trend={{ value: '5.2%', positive: true }}
                     icon={CalendarDaysIcon}
@@ -198,7 +388,7 @@ export function DashboardPage() {
                 />
                 <MetricCard
                     title="Occupancy Rate"
-                    value={`${stats?.occupancyRate || 0}%`}
+                    value={`${overview.occupancyRate || 0}%`}
                     subValue={`${occupancy.occupied} of ${occupancy.total} rooms`}
                     trend={{ value: '2.1%', positive: false }}
                     icon={HomeIcon}
@@ -206,16 +396,134 @@ export function DashboardPage() {
                 />
                 <MetricCard
                     title="Staff Actions"
-                    value={stats?.auditLogTotal || 0}
+                    value={overview.auditLogTotal || 0}
                     subValue="Audit logs"
                     icon={ClipboardDocumentListIcon}
                     color="amber"
                 />
             </div>
 
-            {/* --- Phase 2: Charts Section --- */}
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                <MetricCard
+                    title="Cleaning Requests"
+                    value={managerExtras.pendingCleaningRequests || 0}
+                    subValue="Awaiting"
+                    icon={ClockIcon}
+                    color="amber"
+                />
+                <MetricCard
+                    title="Service Queue"
+                    value={managerExtras.pendingServiceOrders || 0}
+                    subValue="Pending orders"
+                    icon={ArrowPathIcon}
+                    color="rose"
+                />
+                <MetricCard
+                    title="Loss & Damage"
+                    value={`$${(managerExtras.totalLossPenalty || 0).toLocaleString()}`}
+                    subValue="Total penalties"
+                    icon={ExclamationTriangleIcon}
+                    color="cyan"
+                />
+                <MetricCard
+                    title="Pending Articles"
+                    value={managerExtras.pendingArticles || 0}
+                    subValue="Awaiting publish"
+                    icon={ClipboardDocumentListIcon}
+                    color="blue"
+                />
+            </div>
+
             <div className="grid gap-6 lg:grid-cols-3">
-                {/* Revenue Evolution */}
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h3 className="text-lg font-bold text-slate-900">Rooms to Clean</h3>
+                            <p className="text-xs text-slate-500">Click to open cleaning board</p>
+                        </div>
+                        <Badge value={`${pendingCleaningRooms.length} Pending`} />
+                    </div>
+                    <div className="mt-6 space-y-3">
+                        {pendingCleaningRooms.map((room) => (
+                            <button
+                                key={room.id}
+                                type="button"
+                                onClick={() => navigate(`/admin/cleaning?roomId=${room.id}&tab=cleaning`)}
+                                className="flex w-full items-center justify-between rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-left transition hover:-translate-y-0.5 hover:shadow-sm"
+                            >
+                                <div>
+                                    <p className="text-sm font-bold text-slate-900">Room {room.roomNumber}</p>
+                                    <p className="text-xs text-slate-500">Cleaning requested</p>
+                                </div>
+                                <Badge value={room.cleaningStatus || room.status || 'Pending'} />
+                            </button>
+                        ))}
+                        {pendingCleaningRooms.length === 0 && (
+                            <p className="py-6 text-center text-sm text-slate-400">No rooms waiting for cleaning.</p>
+                        )}
+                    </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h3 className="text-lg font-bold text-slate-900">Rooms Inspecting</h3>
+                            <p className="text-xs text-slate-500">Click to open inspection board</p>
+                        </div>
+                        <Badge value={`${inspectingRooms.length} Inspecting`} />
+                    </div>
+                    <div className="mt-6 space-y-3">
+                        {inspectingRooms.map((room) => (
+                            <button
+                                key={room.id}
+                                type="button"
+                                onClick={() => navigate(`/admin/cleaning?roomId=${room.id}&tab=inspecting`)}
+                                className="flex w-full items-center justify-between rounded-xl border border-sky-100 bg-sky-50 px-4 py-3 text-left transition hover:-translate-y-0.5 hover:shadow-sm"
+                            >
+                                <div>
+                                    <p className="text-sm font-bold text-slate-900">Room {room.roomNumber}</p>
+                                    <p className="text-xs text-slate-500">Waiting for inspection</p>
+                                </div>
+                                <Badge value={room.cleaningStatus || room.status || 'Inspecting'} />
+                            </button>
+                        ))}
+                        {inspectingRooms.length === 0 && (
+                            <p className="py-6 text-center text-sm text-slate-400">No rooms currently inspecting.</p>
+                        )}
+                    </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h3 className="text-lg font-bold text-slate-900">Service Queue</h3>
+                            <p className="text-xs text-slate-500">Click to open order details</p>
+                        </div>
+                        <Badge value={`${pendingServices.length} Pending`} />
+                    </div>
+                    <div className="mt-6 space-y-3">
+                        {pendingServices.map((order) => (
+                            <button
+                                key={order.id}
+                                type="button"
+                                onClick={() => navigate(`/admin/reception/order-services/${order.id}`)}
+                                className="flex w-full items-center justify-between rounded-xl border border-cyan-100 bg-cyan-50 px-4 py-3 text-left transition hover:-translate-y-0.5 hover:shadow-sm"
+                            >
+                                <div>
+                                    <p className="text-sm font-bold text-slate-900">Room {order.roomNumber}</p>
+                                    <p className="text-xs text-slate-500">{order.guestName}</p>
+                                </div>
+                                <Badge value="Pending" />
+                            </button>
+                        ))}
+                        {pendingServices.length === 0 && (
+                            <p className="py-6 text-center text-sm text-slate-400">No pending service orders.</p>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-3">
                 <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
@@ -227,12 +535,7 @@ export function DashboardPage() {
                                 <p className="text-xs text-slate-500">Daily financial performance trend</p>
                             </div>
                         </div>
-                        <div className="flex rounded-lg bg-slate-100 p-1">
-                            <button className="rounded-md bg-white px-3 py-1 text-xs font-bold text-slate-700 shadow-sm">Daily</button>
-                            <button className="px-3 py-1 text-xs font-bold text-slate-500 hover:text-slate-700">Monthly</button>
-                        </div>
                     </div>
-
                     <div className="mt-8 h-[300px] w-full">
                         <ResponsiveContainer width="100%" height="100%">
                             <AreaChart data={revenueChartData}>
@@ -245,16 +548,13 @@ export function DashboardPage() {
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
                                 <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
-                                <Tooltip
-                                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                                />
+                                <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
                                 <Area type="monotone" dataKey="revenue" stroke="#0891b2" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenue)" />
                             </AreaChart>
                         </ResponsiveContainer>
                     </div>
                 </div>
 
-                {/* Room Status Distribution */}
                 <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                     <div className="flex items-center gap-3">
                         <div className="rounded-lg bg-indigo-50 p-2">
@@ -265,19 +565,10 @@ export function DashboardPage() {
                             <p className="text-xs text-slate-500">Real-time inventory split</p>
                         </div>
                     </div>
-
                     <div className="mt-6 flex h-[250px] items-center justify-center">
                         <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
-                                <Pie
-                                    data={statusChartData}
-                                    cx="50%"
-                                    cy="50%"
-                                    innerRadius={60}
-                                    outerRadius={80}
-                                    paddingAngle={8}
-                                    dataKey="value"
-                                >
+                                <Pie data={statusChartData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={8} dataKey="value">
                                     {statusChartData.map((entry, index) => (
                                         <Cell key={`cell-${index}`} fill={entry.color} />
                                     ))}
@@ -287,145 +578,42 @@ export function DashboardPage() {
                             </PieChart>
                         </ResponsiveContainer>
                     </div>
-
-                    <div className="mt-6 space-y-3">
-                        <div className="flex items-center justify-between rounded-xl bg-slate-50 p-3">
-                            <div className="flex items-center gap-2">
-                                <div className="h-2 w-2 rounded-full bg-cyan-500"></div>
-                                <span className="text-sm font-medium text-slate-600">Available</span>
-                            </div>
-                            <span className="font-bold text-slate-900">{occupancy.available}</span>
-                        </div>
-                        <div className="flex items-center justify-between rounded-xl bg-slate-50 p-3">
-                            <div className="flex items-center gap-2">
-                                <div className="h-2 w-2 rounded-full bg-indigo-500"></div>
-                                <span className="text-sm font-medium text-slate-600">Occupied</span>
-                            </div>
-                            <span className="font-bold text-slate-900">{occupancy.occupied}</span>
-                        </div>
-                        <div className="flex items-center justify-between rounded-xl bg-slate-50 p-3">
-                            <div className="flex items-center gap-2">
-                                <div className="h-2 w-2 rounded-full bg-amber-500"></div>
-                                <span className="text-sm font-medium text-slate-600">Maintenance</span>
-                            </div>
-                            <span className="font-bold text-slate-900">{occupancy.maintenance}</span>
-                        </div>
-                    </div>
                 </div>
             </div>
 
-            {/* --- Phase 3: Bottom Section (Tables & Lists) --- */}
-            <div className="grid gap-6 lg:grid-cols-3">
-                {/* Recent Bookings */}
-                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <div className="rounded-lg bg-blue-50 p-2">
-                                <CalendarDaysIcon className="h-5 w-5 text-blue-600" />
+            <div className="grid gap-6 lg:grid-cols-2">
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <h3 className="text-lg font-bold text-slate-900">Recent Bookings</h3>
+                    <div className="mt-6 space-y-3">
+                        {recentBookings.map((booking) => (
+                            <div key={booking.id} className="rounded-xl border border-slate-100 p-3 transition hover:bg-slate-50">
+                                <div className="flex items-start justify-between gap-3">
+                                    <div>
+                                        <p className="text-sm font-semibold text-slate-900">{booking.guestName}</p>
+                                        <p className="mt-1 text-xs text-slate-500">
+                                            {new Date(booking.checkInDate).toLocaleDateString()} - {new Date(booking.checkOutDate).toLocaleDateString()}
+                                        </p>
+                                    </div>
+                                    <Badge value={booking.status} />
+                                </div>
+                                <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
+                                    <span>Booking #{booking.id}</span>
+                                    <span className="font-semibold text-slate-900">${booking.totalAmount.toLocaleString()}</span>
+                                </div>
                             </div>
-                            <div>
-                                <h3 className="text-lg font-bold text-slate-900">Latest Bookings</h3>
-                                <p className="text-xs text-slate-500">Recently confirmed reservations</p>
-                            </div>
-                        </div>
-                        <button className="text-sm font-bold text-cyan-600 hover:text-cyan-700">View All</button>
-                    </div>
-
-                    <div className="mt-6 overflow-x-auto">
-                        <table className="w-full text-left text-sm">
-                            <thead>
-                                <tr className="border-b border-slate-100 text-xs font-bold uppercase tracking-wider text-slate-400">
-                                    <th className="pb-3 text-left">Ref</th>
-                                    <th className="pb-3 text-left">Guest Name</th>
-                                    <th className="pb-3 text-left">Dates</th>
-                                    <th className="pb-3 text-left">Amount</th>
-                                    <th className="pb-3 text-right">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-50">
-                                {recentBookings.map((booking) => (
-                                    <tr key={booking.id} className="group hover:bg-slate-50/50 transition-colors">
-                                        <td className="py-4 font-mono font-bold text-slate-400">#{booking.id}</td>
-                                        <td className="py-4 font-semibold text-slate-900">{booking.guestName}</td>
-                                        <td className="py-4">
-                                            <div className="flex flex-col">
-                                                <span className="text-slate-600">{new Date(booking.checkInDate).toLocaleDateString()}</span>
-                                                <span className="text-[10px] text-slate-400">Total: {Math.ceil((new Date(booking.checkOutDate).getTime() - new Date(booking.checkInDate).getTime()) / (1000 * 3600 * 24))} nights</span>
-                                            </div>
-                                        </td>
-                                        <td className="py-4 font-bold text-slate-900">${booking.totalAmount.toLocaleString()}</td>
-                                        <td className="py-4 text-right">
-                                            <Badge value={booking.status} />
-                                        </td>
-                                    </tr>
-                                ))}
-                                {recentBookings.length === 0 && (
-                                    <tr>
-                                        <td colSpan={5} className="py-12 text-center text-slate-400 italic">No recent bookings found.</td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
+                        ))}
                     </div>
                 </div>
 
-                {/* Combined Alerts Column */}
-                <div className="space-y-6">
-                    {/* Alerts / Maintenance List */}
-                    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm font-sans">
-                        <div className="flex items-center justify-between">
-                            <h3 className="text-lg font-bold text-slate-900">Critical Alerts</h3>
-                            <div className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-600">
-                                {criticalAlerts.length} Issues
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <h3 className="text-lg font-bold text-slate-900">Critical Alerts</h3>
+                    <div className="mt-6 space-y-3">
+                        {criticalAlerts.map((alert) => (
+                            <div key={alert.id} className="rounded-xl border border-rose-100 bg-rose-50 p-3">
+                                <p className="text-sm font-semibold text-rose-900">{alert.itemName}</p>
+                                <p className="text-xs text-rose-700">${alert.penalty.toLocaleString()}</p>
                             </div>
-                        </div>
-
-                        <div className="mt-6 space-y-4">
-                            {criticalAlerts.map((loss) => (
-                                <div key={loss.id} className="group flex items-start gap-4 rounded-xl border border-slate-100 bg-slate-50 p-3 transition-all hover:border-rose-200">
-                                    <div className="rounded-lg bg-white p-2 text-rose-500 shadow-sm transition-colors group-hover:bg-rose-500 group-hover:text-white">
-                                        <ExclamationTriangleIcon className="h-5 w-5" />
-                                    </div>
-                                    <div className="flex-1 overflow-hidden">
-                                        <p className="truncate text-sm font-bold text-slate-900">{loss.itemName}</p>
-                                        <p className="truncate text-xs text-slate-500">Room {loss.room} • Penalty: ${loss.penalty}</p>
-                                        <p className="mt-1 line-clamp-2 text-[10px] text-slate-400 italic">"{loss.description}"</p>
-                                    </div>
-                                </div>
-                            ))}
-                            {criticalAlerts.length === 0 && (
-                                <div className="py-8 text-center text-sm text-slate-400">Everything looks good!</div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Pending Services */}
-                    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                        <h3 className="text-lg font-bold text-slate-900">Service Queue</h3>
-                        <div className="mt-6 space-y-4">
-                            {pendingServices.map((order) => (
-                                <a href={`/admin/reception/order-services/${order.id}`} key={order.id} className="block">
-                                    <div key={order.id} className="flex items-center gap-4 rounded-xl border border-cyan-100 bg-cyan-50/30 p-3">
-                                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-cyan-100 text-cyan-700">
-                                            <ClockIcon className="h-5 w-5" />
-                                        </div>
-                                        <div className="flex-1">
-                                            <div className="flex justify-between">
-                                                <p className="text-sm font-bold text-slate-900">Order #{order.id}</p>
-                                                <span className="text-[10px] font-bold text-cyan-600">{new Date(order.orderDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                                            </div>
-                                            <p className="text-xs text-slate-500">Room {order.roomNumber} • {order.guestName}</p>
-                                        </div>
-                                        <button className="rounded-lg bg-white p-1 text-slate-400 hover:text-cyan-600 shadow-sm border border-slate-100">
-                                            <ChevronRightIcon className="h-4 w-4" />
-                                        </button>
-                                    </div>
-                                </a>
-                            ))}
-                            {pendingServices.length === 0 && (
-                                <div className="py-8 text-center text-sm text-slate-400">No pending services.</div>
-                            )}
-                        </div>
+                        ))}
                     </div>
                 </div>
             </div>

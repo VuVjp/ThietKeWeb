@@ -3,6 +3,8 @@ using HotelManagement.Dtos;
 using HotelManagement.Enums;
 using HotelManagement.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace HotelManagement.Services.Implementations;
 
@@ -16,6 +18,10 @@ public class DashboardService : IDashboardService
     };
 
     private readonly AppDbContext _context;
+    private readonly JsonSerializerOptions _jsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        WriteIndented = false,
+    };
 
     private sealed class BookingProjection
     {
@@ -39,8 +45,11 @@ public class DashboardService : IDashboardService
 
     private sealed class RoomProjection
     {
+        public int Id { get; set; }
+        public string? RoomNumber { get; set; }
         public string? Status { get; set; }
         public string? CleaningStatus { get; set; }
+        public bool CleaningRequested { get; set; }
     }
 
     private sealed class PaymentProjection
@@ -49,6 +58,21 @@ public class DashboardService : IDashboardService
         public DateTime? PaymentDate { get; set; }
         public string? Status { get; set; }
         public string? PaymentForType { get; set; }
+    }
+
+    private sealed class AuditLogBucketPayload
+    {
+        public int TotalEvents { get; set; }
+        public List<AuditLogEventDto> Events { get; set; } = new();
+    }
+
+    private sealed class InvoiceProjection
+    {
+        public int Id { get; set; }
+        public string? InvoiceCode { get; set; }
+        public decimal? FinalTotal { get; set; }
+        public DateTime? CompletedAt { get; set; }
+        public string? Status { get; set; }
     }
 
     public DashboardService(AppDbContext context)
@@ -102,8 +126,11 @@ public class DashboardService : IDashboardService
             .AsNoTracking()
             .Select(room => new RoomProjection
             {
+                Id = room.Id,
+                RoomNumber = room.RoomNumber,
                 Status = room.Status,
                 CleaningStatus = room.CleaningStatus,
+                CleaningRequested = room.CleaningRequested,
             })
             .ToListAsync();
 
@@ -201,6 +228,256 @@ public class DashboardService : IDashboardService
         };
     }
 
+    public async Task<RoleDashboardDto> GetRoleDashboardAsync(RoleName role, int? userId, int days = 7)
+    {
+        return role switch
+        {
+            RoleName.Housekeeping => new RoleDashboardDto
+            {
+                Role = role.ToString(),
+                Housekeeper = await BuildHousekeeperDashboardAsync(userId, days),
+            },
+            RoleName.Accountant => new RoleDashboardDto
+            {
+                Role = role.ToString(),
+                Accountant = await BuildAccountantDashboardAsync(days),
+            },
+            RoleName.Receptionist => new RoleDashboardDto
+            {
+                Role = role.ToString(),
+                Receptionist = await BuildReceptionistDashboardAsync(),
+            },
+            RoleName.Manager or RoleName.Admin => new RoleDashboardDto
+            {
+                Role = role.ToString(),
+                Manager = await BuildManagerDashboardAsync(days),
+                Overview = await GetOverviewAsync(days),
+            },
+            _ => new RoleDashboardDto
+            {
+                Role = role.ToString(),
+                Overview = await GetOverviewAsync(days),
+            },
+        };
+    }
+
+    private async Task<HousekeeperDashboardDto> BuildHousekeeperDashboardAsync(int? userId, int days)
+    {
+        var normalizedDays = Math.Clamp(days, 1, 31);
+        var endDate = DateTime.Today;
+        var startDate = endDate.AddDays(-(normalizedDays - 1));
+
+        var cleaningRequests = await _context.Rooms.AsNoTracking().CountAsync(room => room.CleaningRequested);
+        var inspectionRequests = await _context.Rooms.AsNoTracking()
+            .CountAsync(room => room.CleaningStatus != null
+                && room.CleaningStatus.Equals("Inspecting", StringComparison.OrdinalIgnoreCase));
+
+        if (!userId.HasValue)
+        {
+            return new HousekeeperDashboardDto
+            {
+                CleanedToday = 0,
+                CleanedInRange = 0,
+                CleaningRequests = cleaningRequests,
+                InspectionRequests = inspectionRequests,
+            };
+        }
+
+        var auditBuckets = await _context.AuditLogs
+            .AsNoTracking()
+            .Where(log => log.UserId == userId.Value && log.AuditDate >= startDate && log.AuditDate <= endDate)
+            .Select(log => log.EventJson)
+            .ToListAsync();
+
+        var cleanedToday = 0;
+        var cleanedInRange = 0;
+
+        foreach (var json in auditBuckets)
+        {
+            var payload = DeserializePayload(json);
+            foreach (var evt in payload.Events)
+            {
+                if (!IsCleaningCompletedEvent(evt))
+                {
+                    continue;
+                }
+
+                if (evt.Timestamp.Date == endDate)
+                {
+                    cleanedToday++;
+                }
+
+                if (evt.Timestamp.Date >= startDate && evt.Timestamp.Date <= endDate)
+                {
+                    cleanedInRange++;
+                }
+            }
+        }
+
+        return new HousekeeperDashboardDto
+        {
+            CleanedToday = cleanedToday,
+            CleanedInRange = cleanedInRange,
+            CleaningRequests = cleaningRequests,
+            InspectionRequests = inspectionRequests,
+        };
+    }
+
+    private async Task<AccountantDashboardDto> BuildAccountantDashboardAsync(int days)
+    {
+        var normalizedDays = Math.Clamp(days, 1, 31);
+        var endDate = DateTime.Today;
+        var startDate = endDate.AddDays(-(normalizedDays - 1));
+
+        var payments = await _context.Payments
+            .AsNoTracking()
+            .Select(payment => new PaymentProjection
+            {
+                AmountPaid = payment.AmountPaid,
+                PaymentDate = payment.PaymentDate,
+                Status = payment.Status,
+                PaymentForType = payment.PaymentForType,
+            })
+            .ToListAsync();
+
+        var successfulPayments = payments.Where(IsSuccessfulPayment).ToList();
+        var totalRevenue = successfulPayments.Sum(item => item.AmountPaid);
+
+        var totalLossPenalty = await _context.LossAndDamages
+            .AsNoTracking()
+            .SumAsync(item => item.PenaltyAmount);
+
+        var revenueChartData = BuildRevenueChartData(startDate, normalizedDays, successfulPayments);
+
+        var invoices = await _context.Invoices
+            .AsNoTracking()
+            .Select(invoice => new InvoiceProjection
+            {
+                Id = invoice.Id,
+                InvoiceCode = invoice.InvoiceCode,
+                FinalTotal = invoice.FinalTotal,
+                CompletedAt = invoice.CompletedAt,
+                Status = invoice.Status,
+            })
+            .ToListAsync();
+
+        var topInvoices = invoices
+            .Where(item => item.FinalTotal.HasValue)
+            .Where(item => item.CompletedAt.HasValue
+                || string.Equals(item.Status, "Completed", StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(item => item.FinalTotal)
+            .Take(5)
+            .Select(item => new DashboardTopInvoiceDto
+            {
+                Id = item.Id,
+                InvoiceCode = item.InvoiceCode ?? string.Empty,
+                FinalTotal = item.FinalTotal ?? 0,
+                CompletedAt = item.CompletedAt,
+            })
+            .ToList();
+
+        return new AccountantDashboardDto
+        {
+            TotalRevenue = totalRevenue,
+            TotalLossPenalty = totalLossPenalty,
+            NetProfit = totalRevenue - totalLossPenalty,
+            RevenueChartData = revenueChartData,
+            TopInvoices = topInvoices,
+        };
+    }
+
+    private async Task<ReceptionistDashboardDto> BuildReceptionistDashboardAsync()
+    {
+        var today = DateTime.Today;
+
+        var publishedArticles = await _context.Articles
+            .AsNoTracking()
+            .CountAsync(article => article.PublishedAt != null && article.IsActive);
+
+        var pendingArticles = await _context.Articles
+            .AsNoTracking()
+            .CountAsync(article => article.PublishedAt == null);
+
+        var pendingServiceOrders = await _context.OrderServices
+            .AsNoTracking()
+            .CountAsync(order => order.Status == OrderServiceStatus.Pending);
+
+        var completedServiceOrdersToday = await _context.OrderServices
+            .AsNoTracking()
+            .CountAsync(order => order.Status == OrderServiceStatus.Completed
+                && order.UpdatedAt.HasValue
+                && order.UpdatedAt.Value.Date == today);
+
+        return new ReceptionistDashboardDto
+        {
+            PublishedArticles = publishedArticles,
+            PendingArticles = pendingArticles,
+            PendingServiceOrders = pendingServiceOrders,
+            CompletedServiceOrdersToday = completedServiceOrdersToday,
+        };
+    }
+
+    private async Task<ManagerDashboardDto> BuildManagerDashboardAsync(int days)
+    {
+        var overview = await GetOverviewAsync(days);
+        var rooms = await _context.Rooms
+            .AsNoTracking()
+            .Select(room => new RoomProjection
+            {
+                Id = room.Id,
+                RoomNumber = room.RoomNumber,
+                Status = room.Status,
+                CleaningStatus = room.CleaningStatus,
+                CleaningRequested = room.CleaningRequested,
+            })
+            .ToListAsync();
+
+        var pendingCleaningRequests = rooms.Count(room => room.CleaningRequested);
+        var pendingServiceOrders = await _context.OrderServices.AsNoTracking()
+            .CountAsync(order => order.Status == OrderServiceStatus.Pending);
+        var totalLossPenalty = await _context.LossAndDamages.AsNoTracking()
+            .SumAsync(item => item.PenaltyAmount);
+        var pendingArticles = await _context.Articles.AsNoTracking()
+            .CountAsync(article => article.PublishedAt == null);
+
+        var pendingCleaningRooms = rooms
+            .Where(room => room.CleaningRequested)
+            .OrderBy(room => room.RoomNumber)
+            .Select(room => new DashboardRoomTaskDto
+            {
+                Id = room.Id,
+                RoomNumber = room.RoomNumber ?? string.Empty,
+                Status = room.Status ?? string.Empty,
+                CleaningStatus = room.CleaningStatus ?? string.Empty,
+                CleaningRequested = room.CleaningRequested,
+            })
+            .ToList();
+
+        var inspectingRooms = rooms
+            .Where(room => string.Equals(room.CleaningStatus, "Inspecting", StringComparison.OrdinalIgnoreCase))
+            .OrderBy(room => room.RoomNumber)
+            .Select(room => new DashboardRoomTaskDto
+            {
+                Id = room.Id,
+                RoomNumber = room.RoomNumber ?? string.Empty,
+                Status = room.Status ?? string.Empty,
+                CleaningStatus = room.CleaningStatus ?? string.Empty,
+                CleaningRequested = room.CleaningRequested,
+            })
+            .ToList();
+
+        return new ManagerDashboardDto
+        {
+            Overview = overview,
+            PendingCleaningRequests = pendingCleaningRequests,
+            PendingServiceOrders = pendingServiceOrders,
+            TotalLossPenalty = totalLossPenalty,
+            PendingArticles = pendingArticles,
+            PendingCleaningRooms = pendingCleaningRooms,
+            InspectingRooms = inspectingRooms,
+        };
+    }
+
     private static RoomOccupancySummaryDto BuildOccupancySummary(IEnumerable<RoomProjection> rooms)
     {
         var roomList = rooms.ToList();
@@ -265,5 +542,48 @@ public class DashboardService : IDashboardService
         // Backward compatibility: older rows may not have status but are already valid payments.
         return string.IsNullOrWhiteSpace(payment.Status)
             || string.Equals(payment.Status, "Completed", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private AuditLogBucketPayload DeserializePayload(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return new AuditLogBucketPayload();
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<AuditLogBucketPayload>(json, _jsonOptions) ?? new AuditLogBucketPayload();
+        }
+        catch
+        {
+            return new AuditLogBucketPayload();
+        }
+    }
+
+    private static bool IsCleaningCompletedEvent(AuditLogEventDto evt)
+    {
+        if (!evt.EntityType.Equals("Rooms", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(evt.Message)
+            && evt.Message.Contains("cleaning completed", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var newDataNode = JsonSerializer.SerializeToNode(evt.Changes.NewData);
+        if (newDataNode is JsonObject obj
+            && obj.TryGetPropertyValue("CleaningStatus", out var cleaningNode)
+            && cleaningNode != null)
+        {
+            var value = cleaningNode.ToString();
+            return value.Equals("Clean", StringComparison.OrdinalIgnoreCase)
+                || value.Equals("Completed", StringComparison.OrdinalIgnoreCase);
+        }
+
+        return false;
     }
 }

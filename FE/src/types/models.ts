@@ -45,7 +45,7 @@ export interface LossRecord {
   quantity: number;
   penalty: number;
   description: string;
-  date: string;
+  createdAt: string;
 }
 
 export interface CleaningRoom {

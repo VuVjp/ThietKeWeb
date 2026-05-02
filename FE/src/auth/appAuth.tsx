@@ -1,4 +1,4 @@
-import { createContext, useEffect, useMemo, useState, type PropsWithChildren } from 'react';
+import { createContext, useEffect, useMemo, useRef, useState, type PropsWithChildren } from 'react';
 import { authApi } from '../api/authApi';
 import { rolesApi } from '../api/rolesApi';
 import { getAccessToken } from '../api/httpClient';
@@ -53,7 +53,7 @@ function toKnownPermissions(items: string[] | null | undefined): AppPermission[]
     return Array.from(normalized);
 }
 
-function getUserBaseFromToken(): Omit<AppUser, 'permissions'> | null {
+function getUserBaseFromToken(previousUser?: AppUser | null): Omit<AppUser, 'permissions'> | null {
     const token = getAccessToken();
     if (!token) {
         return null;
@@ -63,7 +63,7 @@ function getUserBaseFromToken(): Omit<AppUser, 'permissions'> | null {
     const roleClaim =
         payload?.role ??
         payload?.['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'];
-    const role = roleClaim ?? '';
+    const role = String(roleClaim ?? previousUser?.role ?? '').trim() || String(previousUser?.role ?? '');
 
     const idClaim =
         payload?.nameid ??
@@ -82,19 +82,19 @@ function getUserBaseFromToken(): Omit<AppUser, 'permissions'> | null {
         id: Number(idClaim ?? Date.now()),
         name: String(nameClaim),
         email: String(emailClaim ?? ''),
-        role: String(role),
+        role,
     };
 }
 
-async function resolveCurrentUser(emailOverride?: string): Promise<AppUser | null> {
-    let baseUser = getUserBaseFromToken();
+async function resolveCurrentUser(emailOverride?: string, previousUser?: AppUser | null): Promise<AppUser | null> {
+    let baseUser = getUserBaseFromToken(previousUser);
 
     if (!baseUser) {
         try {
             const refreshToken = localStorage.getItem('refreshToken');
             if (refreshToken) {
                 await authApi.refreshToken();
-                baseUser = getUserBaseFromToken();
+                baseUser = getUserBaseFromToken(previousUser);
             }
         } catch {
             return null;
@@ -105,19 +105,10 @@ async function resolveCurrentUser(emailOverride?: string): Promise<AppUser | nul
         return null;
     }
 
-    try {
-        // This is a fallback in case the permissions are not in localStorage for some reason (e.g. cleared, or user logged in from another tab)
+    const cachedPermissionsRaw = localStorage.getItem(PERMISSIONS_STORAGE_KEY);
+    const cachedPermissions = cachedPermissionsRaw ? toKnownPermissions(JSON.parse(cachedPermissionsRaw) as string[]) : [];
 
-        // const permissions = localStorage.getItem(PERMISSIONS_STORAGE_KEY);
-        // if (permissions) {
-        //     const parsed = JSON.parse(permissions) as string[];
-        //     const normalized = toKnownPermissions(parsed);
-        //     return {
-        //         ...baseUser,
-        //         email: emailOverride?.trim().toLowerCase() || baseUser.email,
-        //         permissions: normalized,
-        //     };
-        // }
+    try {
         const apiPermissions = await rolesApi.getMyPermissions();
         const normalizedPermissions = toKnownPermissions(apiPermissions);
         localStorage.setItem(PERMISSIONS_STORAGE_KEY, JSON.stringify(normalizedPermissions));
@@ -128,13 +119,22 @@ async function resolveCurrentUser(emailOverride?: string): Promise<AppUser | nul
             permissions: normalizedPermissions,
         };
     } catch {
-        return null;
+        return {
+            ...baseUser,
+            email: emailOverride?.trim().toLowerCase() || baseUser.email,
+            permissions: cachedPermissions,
+        };
     }
 }
 
 export function AppAuthProvider({ children }: PropsWithChildren) {
     const [user, setUser] = useState<AppUser | null>(null);
     const [isAuthReady, setIsAuthReady] = useState(false);
+    const userRef = useRef<AppUser | null>(null);
+
+    useEffect(() => {
+        userRef.current = user;
+    }, [user]);
 
     useEffect(() => {
         let active = true;
@@ -147,7 +147,7 @@ export function AppAuthProvider({ children }: PropsWithChildren) {
         });
 
         const unsubscribe = subscribeAuthRefresh(() => {
-            void resolveCurrentUser().then((nextUser) => {
+            void resolveCurrentUser(undefined, userRef.current).then((nextUser) => {
                 if (active) {
                     setUser(nextUser);
                 }
@@ -171,7 +171,7 @@ export function AppAuthProvider({ children }: PropsWithChildren) {
                 try {
                     await authApi.login({ email: normalizedEmail, password });
 
-                    const nextUser = await resolveCurrentUser(normalizedEmail);
+                    const nextUser = await resolveCurrentUser(normalizedEmail, user);
 
                     if (!nextUser) {
                         return false;

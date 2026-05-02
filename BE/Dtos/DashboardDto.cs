@@ -62,3 +62,66 @@ public class DashboardPendingServiceDto
     public string GuestName { get; set; } = string.Empty;
     public DateTime OrderDate { get; set; }
 }
+
+public class DashboardRoomTaskDto
+{
+    public int Id { get; set; }
+    public string RoomNumber { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public string CleaningStatus { get; set; } = string.Empty;
+    public bool CleaningRequested { get; set; }
+}
+
+public class HousekeeperDashboardDto
+{
+    public int CleanedToday { get; set; }
+    public int CleanedInRange { get; set; }
+    public int CleaningRequests { get; set; }
+    public int InspectionRequests { get; set; }
+}
+
+public class DashboardTopInvoiceDto
+{
+    public int Id { get; set; }
+    public string InvoiceCode { get; set; } = string.Empty;
+    public decimal FinalTotal { get; set; }
+    public DateTime? CompletedAt { get; set; }
+}
+
+public class AccountantDashboardDto
+{
+    public decimal TotalRevenue { get; set; }
+    public decimal TotalLossPenalty { get; set; }
+    public decimal NetProfit { get; set; }
+    public List<DashboardRevenuePointDto> RevenueChartData { get; set; } = new();
+    public List<DashboardTopInvoiceDto> TopInvoices { get; set; } = new();
+}
+
+public class ReceptionistDashboardDto
+{
+    public int PublishedArticles { get; set; }
+    public int PendingArticles { get; set; }
+    public int PendingServiceOrders { get; set; }
+    public int CompletedServiceOrdersToday { get; set; }
+}
+
+public class ManagerDashboardDto
+{
+    public DashboardOverviewDto Overview { get; set; } = new();
+    public int PendingCleaningRequests { get; set; }
+    public int PendingServiceOrders { get; set; }
+    public decimal TotalLossPenalty { get; set; }
+    public int PendingArticles { get; set; }
+    public List<DashboardRoomTaskDto> PendingCleaningRooms { get; set; } = new();
+    public List<DashboardRoomTaskDto> InspectingRooms { get; set; } = new();
+}
+
+public class RoleDashboardDto
+{
+    public string Role { get; set; } = string.Empty;
+    public DashboardOverviewDto? Overview { get; set; }
+    public HousekeeperDashboardDto? Housekeeper { get; set; }
+    public AccountantDashboardDto? Accountant { get; set; }
+    public ReceptionistDashboardDto? Receptionist { get; set; }
+    public ManagerDashboardDto? Manager { get; set; }
+}
