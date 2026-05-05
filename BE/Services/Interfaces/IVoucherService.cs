@@ -10,4 +10,5 @@ public interface IVoucherService
     Task<bool> UpdateAsync(int id, UpdateVoucherDto dto);
     Task<bool> ToggleActiveAsync(int id);
     Task<VoucherDto> ValidateCodeAsync(string code, decimal? bookingAmount = null);
+    Task<bool> SendVoucherToUsersAsync(SendVoucherToUsersDto dto);
 }

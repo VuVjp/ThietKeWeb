@@ -2,16 +2,24 @@ using HotelManagement.Dtos;
 using HotelManagement.Entities;
 using HotelManagement.Repositories.Interfaces;
 using HotelManagement.Services.Interfaces;
+using Microsoft.EntityFrameworkCore;
 
 namespace HotelManagement.Services.Implementations;
 
 public class VoucherService : IVoucherService
 {
     private readonly IVoucherRepository _repo;
+    private readonly IUserRepository _userRepo;
+    private readonly IEmailService _emailService;
 
-    public VoucherService(IVoucherRepository repo)
+    public VoucherService(
+        IVoucherRepository repo,
+        IUserRepository userRepo,
+        IEmailService emailService)
     {
         _repo = repo;
+        _userRepo = userRepo;
+        _emailService = emailService;
     }
 
     public async Task<IEnumerable<VoucherDto>> GetAllAsync()
@@ -229,6 +237,63 @@ public class VoucherService : IVoucherService
             throw new ArgumentException($"Minimum booking amount for this voucher is {voucher.MinBookingValue.Value}.");
         }
         return voucher;
+    }
+
+    public async Task<bool> SendVoucherToUsersAsync(SendVoucherToUsersDto dto)
+    {
+        // 1. Create the voucher first
+        var voucherOk = await CreateAsync(dto.VoucherData);
+        if (!voucherOk) return false;
+
+        var voucherCode = dto.VoucherData.Code.Trim().ToUpperInvariant();
+
+        // 2. Get users
+        var users = await _userRepo.GetQueryable()
+            .Where(u => dto.UserIds.Contains(u.Id))
+            .ToListAsync();
+
+        if (!users.Any()) return true; // Nothing to send to
+
+        // 3. Prepare email body
+        var discountText = dto.VoucherData.DiscountType == "Percentage" 
+            ? $"{dto.VoucherData.DiscountValue}% OFF" 
+            : $"${dto.VoucherData.DiscountValue} OFF";
+
+        var validityText = "";
+        if (dto.VoucherData.ValidFrom.HasValue && dto.VoucherData.ValidTo.HasValue)
+        {
+            validityText = $"Valid from {dto.VoucherData.ValidFrom.Value:dd/MM/yyyy} to {dto.VoucherData.ValidTo.Value:dd/MM/yyyy}";
+        }
+
+        foreach (var user in users)
+        {
+            try
+            {
+                var emailBody = $@"
+                    <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;'>
+                        <h2 style='color: #00838f; text-align: center;'>A Special Gift For You! 🎁</h2>
+                        <p>Hello {user.FullName},</p>
+                        <p>We are excited to share a special voucher with you for your next stay at Nhom8 Hotel.</p>
+                        <div style='background-color: #e0f7fa; border: 2px dashed #00acc1; padding: 15px; text-align: center; margin: 20px 0;'>
+                            <span style='font-size: 24px; font-weight: bold; color: #006064;'>{voucherCode}</span>
+                            <p style='margin-top: 10px; color: #00838f;'><strong>{discountText}</strong> your next booking</p>
+                        </div>
+                        <p style='font-size: 14px; color: #666;'>
+                            {validityText}<br/>
+                            * Usage limit: {dto.VoucherData.UsageLimit ?? 1} time(s).
+                        </p>
+                        <p style='margin-top: 30px; text-align: center;'>We look forward to seeing you soon!<br/><strong>The Nhom8 Hotel Team</strong></p>
+                    </div>";
+
+                await _emailService.SendAsync(user.Email, "Special Gift: Your Exclusive Voucher", emailBody);
+            }
+            catch (Exception)
+            {
+                // Log error or continue to next user
+            }
+        }
+
+        return true;
     }
 
     private static void ValidateUpdate(UpdateVoucherDto dto, Voucher current)

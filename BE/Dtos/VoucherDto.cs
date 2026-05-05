@@ -38,3 +38,9 @@ public class UpdateVoucherDto
     public DateTime? ValidTo { get; set; }
     public int? UsageLimit { get; set; }
 }
+
+public class SendVoucherToUsersDto
+{
+    public List<int> UserIds { get; set; } = new();
+    public CreateVoucherDto VoucherData { get; set; } = new();
+}

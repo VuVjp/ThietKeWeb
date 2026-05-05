@@ -16,6 +16,17 @@ export interface UpdateVoucherPayload extends Partial<CreateVoucherPayload> {
   isActive?: boolean;
 }
 
+export interface SendVoucherToUsersPayload {
+  userIds: number[];
+  voucherData: CreateVoucherPayload;
+}
+
+export interface VoucherUserItem {
+  id: number;
+  fullName: string;
+  email: string;
+}
+
 export const vouchersApi = {
   async getAll() {
     const { data } = await httpClient.get<Voucher[]>('vouchers');
@@ -38,7 +49,19 @@ export const vouchersApi = {
   },
 
   async validate(code: string, bookingAmount?: number) {
-    const { data } = await httpClient.get<Voucher>(`vouchers/validate?code=${code}${bookingAmount !== undefined ? `&bookingAmount=${bookingAmount}` : ''}`);
+    const { data } = await httpClient.get<Voucher>(
+      `vouchers/validate?code=${code}${bookingAmount !== undefined ? `&bookingAmount=${bookingAmount}` : ''}`
+    );
     return data;
-  }
+  },
+
+  async sendToUsers(payload: SendVoucherToUsersPayload) {
+    const { data } = await httpClient.post<{ message: string }>('vouchers/send-to-users', payload);
+    return data;
+  },
+
+  async getUsers(): Promise<VoucherUserItem[]> {
+    const { data } = await httpClient.get<VoucherUserItem[]>('vouchers/users');
+    return data;
+  },
 };

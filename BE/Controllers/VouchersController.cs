@@ -1,6 +1,8 @@
 using HotelManagement.Dtos;
+using HotelManagement.Repositories.Interfaces;
 using HotelManagement.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace HotelManagement.Controllers;
 
@@ -142,5 +144,47 @@ public class VouchersController : ControllerBase
             });
 
         return Ok(new { message = "Voucher active status toggled successfully." });
+    }
+
+    [Permission(PermissionNames.ManageVouchers)]
+    [HttpPost("send-to-users")]
+    public async Task<IActionResult> SendToUsers([FromBody] SendVoucherToUsersDto dto)
+    {
+        var ok = await _service.SendVoucherToUsersAsync(dto);
+        if (!ok)
+        {
+            return BadRequest(new { message = "Failed to create or send voucher." });
+        }
+
+        await TryNotifyRolesAsync(
+            GetVoucherRoles(),
+            new CreateNotificationDto
+            {
+                Title = "Vouchers sent to users",
+                Content = $"Voucher {dto.VoucherData.Code} was sent to {dto.UserIds.Count} users.",
+                Type = NotificationAction.VoucherCreated,
+                ReferenceLink = "admin/vouchers"
+            });
+
+        return Ok(new { message = "Voucher created and sent to users successfully." });
+    }
+
+    [Permission(PermissionNames.ManageVouchers)]
+    [HttpGet("users")]
+    public async Task<IActionResult> GetUsersForVoucher()
+    {
+        using var scope = HttpContext.RequestServices.CreateScope();
+        var userRepo = scope.ServiceProvider.GetRequiredService<IUserRepository>();
+        var users = await userRepo.GetQueryable()
+            .Where(u => u.IsActive)
+            .Select(u => new
+            {
+                u.Id,
+                u.FullName,
+                u.Email,
+            })
+            .ToListAsync();
+
+        return Ok(users);
     }
 }
