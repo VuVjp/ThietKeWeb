@@ -518,6 +518,12 @@ public class BookingService : IBookingService
                 .Select(id => id!.Value)
                 .Distinct()
                 .ToList(),
+            RoomTypeIds = orderedDetails
+                .Select(item => item.RoomTypeId)
+                .Where(id => id.HasValue)
+                .Select(id => id!.Value)
+                .Distinct()
+                .ToList(),
             CreatedAt = booking.CreatedAt,
         };
     }

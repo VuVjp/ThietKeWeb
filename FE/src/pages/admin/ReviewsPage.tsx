@@ -92,14 +92,8 @@ export function ReviewsPage() {
 
         try {
             await reviewsApi.toggleActive(item.id);
-            setRows((prev) =>
-                prev.map((row) =>
-                    row.id === item.id
-                        ? { ...row, isActive: !row.isActive }
-                        : row,
-                ),
-            );
-            toast.success(`Review #${item.id} is now ${item.isActive ? 'Inactive' : 'Active'}`);
+            toast.success(`Review #${item.id} status updated`);
+            void loadData();
         } catch (error) {
             const apiError = toApiError(error);
             toast.error(apiError.message || 'Failed to toggle review status');
@@ -171,16 +165,26 @@ export function ReviewsPage() {
         {
             key: 'status',
             label: 'Status',
-            render: (row: ReviewItem) => (
-                <button
-                    type="button"
-                    style={{ cursor: 'pointer' }}
-                    onClick={() => void toggleStatus(row)}
-                    title="Toggle Status"
-                >
-                    <Badge value={row.isActive ? 'Active' : 'Inactive'} />
-                </button>
-            ),
+            render: (row: ReviewItem) => {
+                const getStatusColor = (status?: string) => {
+                    switch (status) {
+                        case 'Active': return 'success';
+                        case 'Pending': return 'warning';
+                        case 'Inactive': return 'error';
+                        default: return 'neutral';
+                    }
+                };
+                return (
+                    <button
+                        type="button"
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => void toggleStatus(row)}
+                        title="Toggle Status"
+                    >
+                        <Badge value={row.status || (row.isActive ? 'Active' : 'Inactive')} color={getStatusColor(row.status)} />
+                    </button>
+                );
+            },
         },
     ];
 

@@ -7,13 +7,15 @@ import { CategoryMultiSelect } from '../components/CategoryMultiSelect';
 import { ArticlePreviewPanel } from '../components/ArticlePreviewPanel';
 import { articleService } from '../services/articleService';
 import { articleCategoryService } from '../services/articleCategoryService';
+import { attractionService } from '../services/attractionService';
+import { AttractionMultiSelect } from '../components/AttractionMultiSelect';
 import { usePermissionCheck } from '../../../hooks/usePermissionCheck';
 import { toApiError } from '../../../api/httpClient';
 import { Modal } from '../../../components/Modal';
 import { removeImages, hasImages, countHtmlLines } from '../utils/htmlUtils';
 import { processContentImages } from '../utils/imageHandler';
 import { useArticleStore } from '../hooks/useArticleStore';
-import type { ArticleCategory, ArticleStatus } from '../types/article.types';
+import type { ArticleCategory, ArticleStatus, Attraction } from '../types/article.types';
 
 export function ArticleFormPage() {
     const { id } = useParams<{ id?: string }>();
@@ -26,20 +28,25 @@ export function ArticleFormPage() {
     const [content, setContent] = useState('');
     const [status, setStatus] = useState<ArticleStatus>('Active');
     const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
+    const [selectedAttractionIds, setSelectedAttractionIds] = useState<number[]>([]);
     const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
     const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
 
     // Meta state
     const [categories, setCategories] = useState<ArticleCategory[]>([]);
+    const [attractions, setAttractions] = useState<Attraction[]>([]);
     const [isSaving, setIsSaving] = useState(false);
     const [isUploadingThumbnail, setIsUploadingThumbnail] = useState(false);
     const [isLoading, setIsLoading] = useState(isEditing);
     const [showPreview, setShowPreview] = useState(false);
 
-    // Load categories
+    // Load categories & attractions
     useEffect(() => {
         void articleCategoryService.getAll().then(setCategories).catch(() => {
             toast.error('Failed to load categories');
+        });
+        void attractionService.getAll().then(setAttractions).catch(() => {
+            toast.error('Failed to load attractions');
         });
     }, []);
 
@@ -53,6 +60,7 @@ export function ArticleFormPage() {
             setContent(article.content);
             setStatus(article.status);
             setSelectedCategoryIds(article.categories.map((c) => c.id));
+            setSelectedAttractionIds(article.attractions.map((a) => a.id));
             if (article.thumbnailUrl) {
                 setThumbnailPreview(article.thumbnailUrl);
             }
@@ -124,6 +132,7 @@ export function ArticleFormPage() {
                 content: processedContent,
                 status,
                 categoryIds: selectedCategoryIds,
+                attractionIds: selectedAttractionIds,
                 // Only send the file if it hasn't been uploaded to cloud yet (e.g. if it's still a local blob/base64)
                 thumbnail: (thumbnailPreview && !thumbnailPreview.startsWith('http')) ? thumbnailFile ?? undefined : undefined,
                 thumbnailUrl: thumbnailPreview ?? '',
@@ -276,6 +285,19 @@ export function ArticleFormPage() {
                             categories={categories.filter(c => c.isActive || selectedCategoryIds.includes(c.id))}
                             selected={selectedCategoryIds}
                             onChange={setSelectedCategoryIds}
+                        />
+                    </section>
+
+                    {/* Attractions */}
+                    <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-5">
+                        <div>
+                            <h3 className="text-sm font-semibold text-slate-900">Attractions</h3>
+                            <p className="text-xs text-slate-500">Link one or more attractions.</p>
+                        </div>
+                        <AttractionMultiSelect
+                            attractions={attractions.filter(a => a.isActive || selectedAttractionIds.includes(a.id))}
+                            selected={selectedAttractionIds}
+                            onChange={setSelectedAttractionIds}
                         />
                     </section>
 

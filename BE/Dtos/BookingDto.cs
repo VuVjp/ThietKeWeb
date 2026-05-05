@@ -61,5 +61,6 @@ public class BookingSummaryDto
     public decimal VoucherDiscount { get; set; }
     public List<string> RoomNumbers { get; set; } = new();
     public List<int> RoomIds { get; set; } = new();
+    public List<int> RoomTypeIds { get; set; } = new();
     public DateTime CreatedAt { get; set; }
 }

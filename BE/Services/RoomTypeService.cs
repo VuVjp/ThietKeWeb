@@ -281,6 +281,10 @@ public class RoomTypeService : IRoomTypeService
             BedType = roomType.BedType,
             SizeM2 = roomType.SizeM2,
             IsActive = roomType.IsActive,
+            AverageRating = roomType.Reviews != null && roomType.Reviews.Any(r => r.IsActive)
+                ? Math.Round(roomType.Reviews.Where(r => r.IsActive).Average(r => r.Rating ?? 0), 1)
+                : 0,
+            ReviewCount = roomType.Reviews?.Count(r => r.IsActive) ?? 0,
             Amenities = roomType.RoomTypeAmenities
                 .Where(x => x.Amenity != null)
                 .Select(x => new AmenityDto

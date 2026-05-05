@@ -44,6 +44,21 @@ public class ArticleService : IArticleService
                 IsActive = m.Category.IsActive,
             })
             .ToList(),
+        Attractions  = a.ArticleAttractionMaps
+            .Where(m => m.Attraction != null)
+            .Select(m => new AttractionDto
+            {
+                Id           = m.Attraction!.Id,
+                Name         = m.Attraction.Name,
+                Description  = m.Attraction.Description,
+                DistanceKm   = m.Attraction.DistanceKm,
+                IsActive     = m.Attraction.IsActive,
+                MapEmbedLink = m.Attraction.MapEmbedLink,
+                Latitude     = m.Attraction.Latitude,
+                Longitude    = m.Attraction.Longitude,
+                ImageUrl     = m.Attraction.ImageUrl,
+            })
+            .ToList(),
     };
 
     private static ArticleDto MapToDtoWithContent(Article a) => new()
@@ -66,6 +81,21 @@ public class ArticleService : IArticleService
                 IsActive = m.Category.IsActive,
             })
             .ToList(),
+        Attractions  = a.ArticleAttractionMaps
+            .Where(m => m.Attraction != null)
+            .Select(m => new AttractionDto
+            {
+                Id           = m.Attraction!.Id,
+                Name         = m.Attraction.Name,
+                Description  = m.Attraction.Description,
+                DistanceKm   = m.Attraction.DistanceKm,
+                IsActive     = m.Attraction.IsActive,
+                MapEmbedLink = m.Attraction.MapEmbedLink,
+                Latitude     = m.Attraction.Latitude,
+                Longitude    = m.Attraction.Longitude,
+                ImageUrl     = m.Attraction.ImageUrl,
+            })
+            .ToList(),
     };
 
     /// <summary>
@@ -84,24 +114,38 @@ public class ArticleService : IArticleService
         }
     }
 
-    /// <summary>
-    /// Replaces the entire set of junction rows for an article with the new list.
-    /// </summary>
+    /// <summary>Replaces the entire set of junction rows for an article with the new list.</summary>
     private async Task SyncCategoryMapsAsync(int articleId, IEnumerable<int> newCategoryIds)
     {
-        // Remove existing mappings for this article
         var existing = await _context.Set<ArticleCategoryMap>()
             .Where(m => m.ArticleId == articleId)
             .ToListAsync();
         _context.Set<ArticleCategoryMap>().RemoveRange(existing);
 
-        // Insert the new set (composite PK prevents duplicates at DB level)
         foreach (var catId in newCategoryIds.Distinct())
         {
             await _context.Set<ArticleCategoryMap>().AddAsync(new ArticleCategoryMap
             {
                 ArticleId  = articleId,
                 CategoryId = catId,
+            });
+        }
+    }
+
+    /// <summary>Replaces the entire set of attraction junction rows for an article.</summary>
+    private async Task SyncAttractionMapsAsync(int articleId, IEnumerable<int> newAttractionIds)
+    {
+        var existing = await _context.Set<ArticleAttractionMap>()
+            .Where(m => m.ArticleId == articleId)
+            .ToListAsync();
+        _context.Set<ArticleAttractionMap>().RemoveRange(existing);
+
+        foreach (var attrId in newAttractionIds.Distinct())
+        {
+            await _context.Set<ArticleAttractionMap>().AddAsync(new ArticleAttractionMap
+            {
+                ArticleId    = articleId,
+                AttractionId = attrId,
             });
         }
     }
@@ -143,8 +187,10 @@ public class ArticleService : IArticleService
         await _repo.AddAsync(entity);
         await _repo.SaveChangesAsync(); // entity.Id is now set
 
-        // Insert junction rows
+        // Insert category junction rows
         await SyncCategoryMapsAsync(entity.Id, dto.CategoryIds);
+        // Insert attraction junction rows
+        await SyncAttractionMapsAsync(entity.Id, dto.AttractionIds);
         await _context.SaveChangesAsync();
 
         return true;
@@ -177,6 +223,8 @@ public class ArticleService : IArticleService
 
         // Replace junction rows atomically
         await SyncCategoryMapsAsync(entity.Id, dto.CategoryIds);
+        // Replace attraction junction rows
+        await SyncAttractionMapsAsync(entity.Id, dto.AttractionIds);
         await _context.SaveChangesAsync();
 
         return true;

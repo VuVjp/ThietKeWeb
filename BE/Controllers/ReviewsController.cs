@@ -2,6 +2,8 @@ using HotelManagement.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using HotelManagement.Dtos;
 using System;
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
 namespace HotelManagement.Controllers;
 
@@ -41,6 +43,17 @@ public class ReviewsController : ControllerBase
         return new[] { RoleName.Admin, RoleName.Manager };
     }
 
+    private int? GetCurrentUserId()
+    {
+        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return int.TryParse(userIdStr, out var userId) ? userId : (int?)null;
+    }
+
+    private string? GetCurrentUserEmail()
+    {
+        return User.FindFirst(ClaimTypes.Email)?.Value;
+    }
+
     [HttpGet]
     public async Task<IActionResult> GetPaged([FromQuery] ReviewQueryDto query)
     {
@@ -53,6 +66,40 @@ public class ReviewsController : ControllerBase
         var data = await _service.GetByIdAsync(id);
         if (data == null) return NotFound();
         return Ok(data);
+    }
+
+    [HttpGet("room-type/{roomTypeId}")]
+    public async Task<IActionResult> GetRoomTypeReviews(int roomTypeId)
+    {
+        var userId = GetCurrentUserId();
+        var reviews = await _service.GetRoomTypeReviewsAsync(roomTypeId, userId);
+        return Ok(reviews);
+    }
+
+    [Authorize]
+    [HttpPost]
+    public async Task<IActionResult> Create([FromBody] CreateReviewDto dto)
+    {
+        var userId = GetCurrentUserId();
+        if (!userId.HasValue) return Unauthorized();
+
+        var ok = await _service.CreateAsync(userId.Value, dto);
+        if (!ok) return BadRequest("Unable to create review. Ensure you have checked out of this room and haven't reviewed it yet.");
+
+        return Ok(new { message = "Review submitted for moderation." });
+    }
+
+    [Authorize]
+    [HttpPut("{id}")]
+    public async Task<IActionResult> Update(int id, [FromBody] UpdateReviewDto dto)
+    {
+        var userId = GetCurrentUserId();
+        if (!userId.HasValue) return Unauthorized();
+
+        var ok = await _service.UpdateAsync(id, userId.Value, dto);
+        if (!ok) return BadRequest("Unable to update review. Reviews can only be edited within 12 hours of submission.");
+
+        return Ok(new { message = "Review updated successfully." });
     }
 
     [Permission(PermissionNames.ManageReviews)]

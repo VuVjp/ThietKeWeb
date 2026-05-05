@@ -14,6 +14,20 @@ export interface UpdateArticleCategoryPayload {
     name: string;
 }
 
+// ─── Attraction ──────────────────────────────────────────────────────────────
+
+export interface Attraction {
+    id: number;
+    name: string;
+    description?: string;
+    distanceKm?: number;
+    isActive: boolean;
+    mapEmbedLink?: string;
+    latitude?: string;
+    longitude?: string;
+    imageUrl?: string;
+}
+
 // ─── Article ─────────────────────────────────────────────────────────────────
 
 export type ArticleStatus = 'Active' | 'Inactive';
@@ -27,6 +41,7 @@ export interface ArticleItem {
     authorName: string;
     authorId: number;
     categories: ArticleCategory[];
+    attractions: Attraction[];
     createdAt: string;
     updatedAt?: string;
     isActive: boolean;
@@ -54,6 +69,7 @@ export interface CreateArticlePayload {
     content: string;
     status: ArticleStatus;
     categoryIds: number[];
+    attractionIds: number[];
     thumbnail?: File | null;
     thumbnailUrl?: string | null;
 }
@@ -63,6 +79,7 @@ export interface UpdateArticlePayload {
     content: string;
     status: ArticleStatus;
     categoryIds: number[];
+    attractionIds: number[];
     thumbnail?: File | null;
     thumbnailUrl?: string | null;
 }

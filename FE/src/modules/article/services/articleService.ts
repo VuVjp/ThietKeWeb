@@ -2,6 +2,7 @@ import { httpClient } from '../../../api/httpClient';
 import type {
     ArticleCategory,
     ArticleItem,
+    Attraction,
     CreateArticlePayload,
     UpdateArticlePayload,
 } from '../types/article.types';
@@ -15,6 +16,27 @@ interface ArticleCategoryDto {
     Name?: string;
     isActive?: boolean;
     IsActive?: boolean;
+}
+
+interface AttractionDto {
+    id?: number;
+    Id?: number;
+    name?: string;
+    Name?: string;
+    description?: string;
+    Description?: string;
+    distanceKm?: number;
+    DistanceKm?: number;
+    isActive?: boolean;
+    IsActive?: boolean;
+    mapEmbedLink?: string;
+    MapEmbedLink?: string;
+    latitude?: string;
+    Latitude?: string;
+    longitude?: string;
+    Longitude?: string;
+    imageUrl?: string;
+    ImageUrl?: string;
 }
 
 interface ArticleDto {
@@ -52,10 +74,25 @@ function normalizeCategory(dto: ArticleCategoryDto): ArticleCategory {
     };
 }
 
+function normalizeAttraction(dto: AttractionDto): Attraction {
+    return {
+        id: Number(dto.id ?? dto.Id ?? 0),
+        name: String(dto.name ?? dto.Name ?? ''),
+        description: dto.description ?? dto.Description,
+        distanceKm: dto.distanceKm ?? dto.DistanceKm,
+        isActive: Boolean(dto.isActive ?? dto.IsActive ?? true),
+        mapEmbedLink: dto.mapEmbedLink ?? dto.MapEmbedLink,
+        latitude: dto.latitude ?? dto.Latitude,
+        longitude: dto.longitude ?? dto.Longitude,
+        imageUrl: dto.imageUrl ?? dto.ImageUrl,
+    };
+}
+
 // ─── Normalizers ─────────────────────────────────────────────────────────────
 
 function normalizeArticle(dto: ArticleDto): ArticleItem {
     const rawCategories = dto.categories ?? dto.Categories ?? [];
+    const rawAttractions = dto.attractions ?? dto.Attractions ?? [];
     const isActive = Boolean(dto.isActive ?? dto.IsActive ?? true);
     return {
         id: Number(dto.id ?? dto.Id ?? 0),
@@ -66,6 +103,7 @@ function normalizeArticle(dto: ArticleDto): ArticleItem {
         authorName: String(dto.authorName ?? dto.AuthorName ?? ''),
         authorId: Number(dto.authorId ?? dto.AuthorId ?? 0),
         categories: rawCategories.map(normalizeCategory),
+        attractions: rawAttractions.map(normalizeAttraction),
         createdAt: String(dto.createdAt ?? dto.CreatedAt ?? ''),
         updatedAt: dto.updatedAt ?? dto.UpdatedAt ?? undefined,
         isActive: isActive,
@@ -80,6 +118,7 @@ function toArticleFormData(payload: CreateArticlePayload | UpdateArticlePayload)
     form.append('Content', payload.content);
     form.append('IsActive', payload.status === 'Active' ? 'true' : 'false');
     payload.categoryIds.forEach((id) => form.append('CategoryIds', String(id)));
+    payload.attractionIds.forEach((id) => form.append('AttractionIds', String(id)));
     if (payload.thumbnail) {
         form.append('ThumbnailFile', payload.thumbnail);
     }

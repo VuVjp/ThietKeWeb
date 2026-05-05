@@ -13,6 +13,7 @@ public class RoomTypeRepository : Repository<RoomType>, IRoomTypeRepository
         return await _dbSet
             .Where(x => x.IsActive)
             .Include(r => r.RoomImages)
+            .Include(r => r.Reviews)
             .ToListAsync();
     }
 
@@ -26,6 +27,7 @@ public class RoomTypeRepository : Repository<RoomType>, IRoomTypeRepository
             .Include(r => r.Rooms)
                 .ThenInclude(rm => rm.RoomInventories)
                     .ThenInclude(ri => ri.Equipment)
+            .Include(r => r.Reviews)
             .ToListAsync();
     }
 
@@ -38,6 +40,7 @@ public class RoomTypeRepository : Repository<RoomType>, IRoomTypeRepository
             .Include(r => r.Rooms)
                 .ThenInclude(rm => rm.RoomInventories)
                     .ThenInclude(ri => ri.Equipment)
+            .Include(r => r.Reviews)
             .ToListAsync();
     }
 
@@ -50,6 +53,7 @@ public class RoomTypeRepository : Repository<RoomType>, IRoomTypeRepository
             .Include(r => r.Rooms)
                 .ThenInclude(rm => rm.RoomInventories)
                     .ThenInclude(ri => ri.Equipment)
+            .Include(r => r.Reviews)
             .FirstOrDefaultAsync(r => r.Id == id);
     }
 

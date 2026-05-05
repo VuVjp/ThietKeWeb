@@ -11,6 +11,7 @@ public class AppDbContext : DbContext
     public DbSet<ArticleCategory> ArticleCategories { get; set; }
     public DbSet<Article> Articles { get; set; }
     public DbSet<ArticleCategoryMap> ArticleCategoryMaps { get; set; }
+    public DbSet<ArticleAttractionMap> ArticleAttractionMaps { get; set; }
     public DbSet<Attraction> Attractions { get; set; }
     public DbSet<AuditLog> AuditLogs { get; set; }
     public DbSet<BookingDetail> BookingDetails { get; set; }
@@ -56,6 +57,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<ArticleCategory>().ToTable("Article_Categories");
         modelBuilder.Entity<Article>().ToTable("Articles");
         modelBuilder.Entity<ArticleCategoryMap>().ToTable("Article_Category_Map");
+        modelBuilder.Entity<ArticleAttractionMap>().ToTable("Article_Attraction_Map");
         modelBuilder.Entity<Attraction>().ToTable("Attractions");
         modelBuilder.Entity<AuditLog>().ToTable("Audit_Logs");
         modelBuilder.Entity<BookingDetail>().ToTable("Booking_Details");
@@ -122,6 +124,18 @@ public class AppDbContext : DbContext
             // Indexes for query performance
             e.HasIndex(x => x.ArticleId).HasDatabaseName("IX_Article_Category_Map_ArticleId");
             e.HasIndex(x => x.CategoryId).HasDatabaseName("IX_Article_Category_Map_CategoryId");
+        });
+
+        // Junction table: Article_Attraction_Map
+        modelBuilder.Entity<ArticleAttractionMap>(e =>
+        {
+            // Composite PK prevents duplicate mappings
+            e.HasKey(x => new { x.ArticleId, x.AttractionId });
+            e.Property(x => x.ArticleId).HasColumnName("article_id");
+            e.Property(x => x.AttractionId).HasColumnName("attraction_id");
+            // Indexes for query performance
+            e.HasIndex(x => x.ArticleId).HasDatabaseName("IX_Article_Attraction_Map_ArticleId");
+            e.HasIndex(x => x.AttractionId).HasDatabaseName("IX_Article_Attraction_Map_AttractionId");
         });
 
         modelBuilder.Entity<Attraction>(e =>
@@ -308,9 +322,12 @@ public class AppDbContext : DbContext
             e.Property(x => x.Id).HasColumnName("id");
             e.Property(x => x.UserId).HasColumnName("user_id");
             e.Property(x => x.RoomTypeId).HasColumnName("room_type_id");
+            e.Property(x => x.BookingId).HasColumnName("booking_id");
             e.Property(x => x.Rating).HasColumnName("rating");
             e.Property(x => x.Comment).HasColumnName("comment");
+            e.Property(x => x.Status).HasColumnName("status").HasDefaultValue("Pending");
             e.Property(x => x.CreatedAt).HasColumnName("created_at");
+            e.Property(x => x.UpdatedAt).HasColumnName("updated_at");
         });
 
         modelBuilder.Entity<Role>(e =>
@@ -536,6 +553,9 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Review>()
             .HasOne(r => r.RoomType).WithMany(rt => rt.Reviews).HasForeignKey(r => r.RoomTypeId).OnDelete(DeleteBehavior.SetNull);
 
+        modelBuilder.Entity<Review>()
+            .HasOne(r => r.Booking).WithMany().HasForeignKey(r => r.BookingId).OnDelete(DeleteBehavior.SetNull);
+
         modelBuilder.Entity<LossAndDamage>()
             .HasOne(l => l.BookingDetail).WithMany(bd => bd.LossAndDamages).HasForeignKey(l => l.BookingDetailId).OnDelete(DeleteBehavior.SetNull);
 
@@ -556,6 +576,19 @@ public class AppDbContext : DbContext
             .HasOne(m => m.Category)
             .WithMany(ac => ac.ArticleCategoryMaps)
             .HasForeignKey(m => m.CategoryId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // Many-to-many: Article ↔ Attraction via junction ArticleAttractionMap
+        modelBuilder.Entity<ArticleAttractionMap>()
+            .HasOne(m => m.Article)
+            .WithMany(a => a.ArticleAttractionMaps)
+            .HasForeignKey(m => m.ArticleId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ArticleAttractionMap>()
+            .HasOne(m => m.Attraction)
+            .WithMany() // Attraction doesn't necessarily need a navigation back unless wanted
+            .HasForeignKey(m => m.AttractionId)
             .OnDelete(DeleteBehavior.Cascade);
 
         modelBuilder.Entity<Article>()

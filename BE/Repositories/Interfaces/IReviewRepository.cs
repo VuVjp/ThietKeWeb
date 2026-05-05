@@ -7,4 +7,5 @@ public interface IReviewRepository : IRepository<Review>
     Task<IEnumerable<Review>> GetAllWithDetailsAsync();
     Task<Review?> GetByIdWithDetailsAsync(int id);
     IQueryable<Review> GetQueryable();
+    Task<Review?> GetByBookingIdAsync(int bookingId);
 }

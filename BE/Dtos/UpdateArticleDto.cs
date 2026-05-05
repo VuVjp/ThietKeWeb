@@ -2,6 +2,8 @@ public class UpdateArticleDto
 {
     /// <summary>IDs of active categories to assign to the article (many-to-many).</summary>
     public List<int> CategoryIds { get; set; } = new();
+    /// <summary>IDs of attractions to link to the article (many-to-many).</summary>
+    public List<int> AttractionIds { get; set; } = new();
     public int? AuthorId { get; set; }
 
     [System.ComponentModel.DataAnnotations.MaxLength(200)]

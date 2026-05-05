@@ -98,6 +98,27 @@ namespace BE.Migrations
                     b.ToTable("Articles", (string)null);
                 });
 
+            modelBuilder.Entity("HotelManagement.Entities.ArticleAttractionMap", b =>
+                {
+                    b.Property<int>("ArticleId")
+                        .HasColumnType("int")
+                        .HasColumnName("article_id");
+
+                    b.Property<int>("AttractionId")
+                        .HasColumnType("int")
+                        .HasColumnName("attraction_id");
+
+                    b.HasKey("ArticleId", "AttractionId");
+
+                    b.HasIndex("ArticleId")
+                        .HasDatabaseName("IX_Article_Attraction_Map_ArticleId");
+
+                    b.HasIndex("AttractionId")
+                        .HasDatabaseName("IX_Article_Attraction_Map_AttractionId");
+
+                    b.ToTable("Article_Attraction_Map", (string)null);
+                });
+
             modelBuilder.Entity("HotelManagement.Entities.ArticleCategory", b =>
                 {
                     b.Property<int>("Id")
@@ -860,6 +881,10 @@ namespace BE.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int?>("BookingId")
+                        .HasColumnType("int")
+                        .HasColumnName("booking_id");
+
                     b.Property<string>("Comment")
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("comment");
@@ -879,11 +904,24 @@ namespace BE.Migrations
                         .HasColumnType("int")
                         .HasColumnName("room_type_id");
 
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("nvarchar(max)")
+                        .HasDefaultValue("Pending")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_at");
+
                     b.Property<int?>("UserId")
                         .HasColumnType("int")
                         .HasColumnName("user_id");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("BookingId");
 
                     b.HasIndex("RoomTypeId");
 
@@ -1351,6 +1389,25 @@ namespace BE.Migrations
                     b.Navigation("Author");
                 });
 
+            modelBuilder.Entity("HotelManagement.Entities.ArticleAttractionMap", b =>
+                {
+                    b.HasOne("HotelManagement.Entities.Article", "Article")
+                        .WithMany("ArticleAttractionMaps")
+                        .HasForeignKey("ArticleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("HotelManagement.Entities.Attraction", "Attraction")
+                        .WithMany()
+                        .HasForeignKey("AttractionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Article");
+
+                    b.Navigation("Attraction");
+                });
+
             modelBuilder.Entity("HotelManagement.Entities.ArticleCategoryMap", b =>
                 {
                     b.HasOne("HotelManagement.Entities.Article", "Article")
@@ -1522,6 +1579,11 @@ namespace BE.Migrations
 
             modelBuilder.Entity("HotelManagement.Entities.Review", b =>
                 {
+                    b.HasOne("HotelManagement.Entities.Booking", "Booking")
+                        .WithMany()
+                        .HasForeignKey("BookingId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("HotelManagement.Entities.RoomType", "RoomType")
                         .WithMany("Reviews")
                         .HasForeignKey("RoomTypeId")
@@ -1531,6 +1593,8 @@ namespace BE.Migrations
                         .WithMany("Reviews")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Booking");
 
                     b.Navigation("RoomType");
 
@@ -1655,6 +1719,8 @@ namespace BE.Migrations
 
             modelBuilder.Entity("HotelManagement.Entities.Article", b =>
                 {
+                    b.Navigation("ArticleAttractionMaps");
+
                     b.Navigation("ArticleCategoryMaps");
                 });
 

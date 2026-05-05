@@ -12,6 +12,8 @@ public class RoomTypeDto
     public string? BedType { get; set; }
     public int? SizeM2 { get; set; }
     public bool IsActive { get; set; }
+    public double AverageRating { get; set; }
+    public int ReviewCount { get; set; }
 
     public List<AmenityDto> Amenities { get; set; } = new();
     public List<RoomImageDto> RoomImages { get; set; } = new();

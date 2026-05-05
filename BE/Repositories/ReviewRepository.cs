@@ -31,4 +31,9 @@ public class ReviewRepository : Repository<Review>, IReviewRepository
     {
         return _dbSet.AsQueryable();
     }
+
+    public async Task<Review?> GetByBookingIdAsync(int bookingId)
+    {
+        return await _dbSet.FirstOrDefaultAsync(r => r.BookingId == bookingId);
+    }
 }

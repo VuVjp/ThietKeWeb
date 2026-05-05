@@ -15,4 +15,7 @@ public class ArticleDto
 
     /// <summary>Active categories assigned to this article.</summary>
     public List<ArticleCategoryDto> Categories { get; set; } = new();
+
+    /// <summary>Attractions linked to this article.</summary>
+    public List<AttractionDto> Attractions { get; set; } = new();
 }

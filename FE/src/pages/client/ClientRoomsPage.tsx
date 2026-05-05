@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { roomTypesApi, type RoomTypeItem } from '../../api/roomTypesApi';
 import { Spin } from 'antd';
 import { UserIcon, MagnifyingGlassIcon, AdjustmentsHorizontalIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 
 const SORT_OPTIONS = [
     { value: 'default', label: 'Default' },
@@ -290,7 +291,16 @@ export function ClientRoomsPage() {
                                     </div>
 
                                     <div className="p-7 flex-1 flex flex-col">
-                                        <h2 className="text-xl font-bold text-slate-900 mb-2">{rt.name}</h2>
+                                        <div className="flex justify-between items-start mb-2">
+                                            <h2 className="text-xl font-bold text-slate-900">{rt.name}</h2>
+                                            {rt.reviewCount > 0 && (
+                                                <div className="flex items-center gap-1 text-amber-500 font-bold text-sm bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-100">
+                                                    <StarIconSolid className="w-4 h-4" />
+                                                    <span>{rt.averageRating}</span>
+                                                    <span className="text-slate-400 font-normal text-xs ml-0.5">({rt.reviewCount})</span>
+                                                </div>
+                                            )}
+                                        </div>
 
                                         <p className="text-slate-500 mb-5 flex-1 text-sm leading-relaxed line-clamp-2">
                                             {rt.description || 'Experience ultimate luxury in our elegantly appointed rooms featuring premium bedding and state-of-the-art amenities.'}

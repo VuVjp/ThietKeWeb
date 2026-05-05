@@ -10,7 +10,23 @@ export interface ReviewItem {
     rating: number;
     comment?: string;
     createdAt?: string;
+    updatedAt?: string;
+    status?: string;
     isActive: boolean;
+    canEdit?: boolean;
+    bookingId?: number;
+}
+
+export interface CreateReviewPayload {
+    roomTypeId: number;
+    bookingId: number;
+    rating: number;
+    comment?: string;
+}
+
+export interface UpdateReviewPayload {
+    rating: number;
+    comment?: string;
 }
 
 export interface ReviewQueryPayload {
@@ -54,6 +70,14 @@ interface ReviewDto {
     Comment?: string;
     createdAt?: string;
     CreatedAt?: string;
+    updatedAt?: string;
+    UpdatedAt?: string;
+    status?: string;
+    Status?: string;
+    canEdit?: boolean;
+    CanEdit?: boolean;
+    bookingId?: number;
+    BookingId?: number;
 }
 
 function normalizeReview(dto: ReviewDto): ReviewItem {
@@ -67,7 +91,11 @@ function normalizeReview(dto: ReviewDto): ReviewItem {
         rating: Number(dto.rating ?? dto.Rating ?? 0),
         comment: dto.comment ?? dto.Comment,
         createdAt: dto.createdAt ?? dto.CreatedAt,
+        updatedAt: dto.updatedAt ?? dto.UpdatedAt,
+        status: dto.status ?? dto.Status,
         isActive: Boolean(dto.isActive ?? dto.IsActive ?? false),
+        canEdit: dto.canEdit ?? dto.CanEdit ?? false,
+        bookingId: dto.bookingId ?? dto.BookingId,
     };
 }
 
@@ -95,5 +123,18 @@ export const reviewsApi = {
 
     async toggleActive(id: number) {
         await httpClient.patch(`reviews/${id}/toggle-active`);
+    },
+
+    async getByRoomType(roomTypeId: number) {
+        const { data } = await httpClient.get<ReviewDto[]>(`reviews/room-type/${roomTypeId}`);
+        return data.map(normalizeReview);
+    },
+
+    async create(payload: CreateReviewPayload) {
+        await httpClient.post('reviews', payload);
+    },
+
+    async update(id: number, payload: UpdateReviewPayload) {
+        await httpClient.put(`reviews/${id}`, payload);
     },
 };

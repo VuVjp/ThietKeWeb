@@ -13,6 +13,8 @@ public class ArticleRepository : Repository<Article>, IArticleRepository
         return await _dbSet
             .Include(a => a.ArticleCategoryMaps)
                 .ThenInclude(m => m.Category)
+            .Include(a => a.ArticleAttractionMaps)
+                .ThenInclude(m => m.Attraction)
             .Include(a => a.Author)
             .ToListAsync();
     }
@@ -22,6 +24,8 @@ public class ArticleRepository : Repository<Article>, IArticleRepository
         return await _dbSet
             .Include(a => a.ArticleCategoryMaps)
                 .ThenInclude(m => m.Category)
+            .Include(a => a.ArticleAttractionMaps)
+                .ThenInclude(m => m.Attraction)
             .Include(a => a.Author)
             .FirstOrDefaultAsync(a => a.Id == id);
     }

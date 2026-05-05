@@ -68,7 +68,14 @@
 
     // Auto-fill for logged-in users
     useEffect(() => {
-        if (isAuthenticated && user?.email) {
+        if (isAuthenticated && user) {
+            // Set initial data from auth user
+            setFormData(prev => ({
+                ...prev,
+                fullName: user.name !== 'User' ? user.name : prev.fullName,
+                email: user.email || prev.email
+            }));
+
             const fetchMembership = async () => {
                 try {
                     const info = await usersApi.isAvailable(user.email);
@@ -210,7 +217,8 @@
 
     const handleConfirm = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!formData.fullName || !formData.email || !formData.phone) {
+        const { fullName, email, phone } = formData;
+        if (!isAuthenticated && (!fullName || !email || !phone)) {
             toast.error("Vui lòng điền đầy đủ thông tin cá nhân!");
             return;
         }
@@ -461,15 +469,15 @@
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-6">
                                         <div className="space-y-2">
                                             <label className="block text-sm font-bold text-slate-500 uppercase tracking-wider">Full Name *</label>
-                                            <input required name="fullName" value={formData.fullName} onChange={handleChange} type="text" readOnly={isAuthenticated} className={`w-full px-5 py-4 border-2 border-slate-100 rounded-xl focus:border-cyan-500 focus:bg-white focus:outline-none transition-all font-medium ${isAuthenticated ? 'bg-slate-100 cursor-not-allowed' : 'bg-slate-50'}`} placeholder="e.g. John Smith" />
+                                            <input required={!isAuthenticated} name="fullName" value={formData.fullName} onChange={handleChange} type="text" readOnly={isAuthenticated} className={`w-full px-5 py-4 border-2 border-slate-100 rounded-xl focus:border-cyan-500 focus:bg-white focus:outline-none transition-all font-medium ${isAuthenticated ? 'bg-slate-100 cursor-not-allowed' : 'bg-slate-50'}`} placeholder="e.g. John Smith" />
                                         </div>
                                         <div className="space-y-2">
                                             <label className="block text-sm font-bold text-slate-500 uppercase tracking-wider">Email Address *</label>
-                                            <input required name="email" value={formData.email} onChange={handleChange} type="email" readOnly={isAuthenticated} className={`w-full px-5 py-4 border-2 border-slate-100 rounded-xl focus:border-cyan-500 focus:bg-white focus:outline-none transition-all font-medium ${isAuthenticated ? 'bg-slate-100 cursor-not-allowed' : 'bg-slate-50'}`} placeholder="john@example.com" />
+                                            <input required={!isAuthenticated} name="email" value={formData.email} onChange={handleChange} type="email" readOnly={isAuthenticated} className={`w-full px-5 py-4 border-2 border-slate-100 rounded-xl focus:border-cyan-500 focus:bg-white focus:outline-none transition-all font-medium ${isAuthenticated ? 'bg-slate-100 cursor-not-allowed' : 'bg-slate-50'}`} placeholder="john@example.com" />
                                         </div>
                                         <div className="space-y-2">
                                             <label className="block text-sm font-bold text-slate-500 uppercase tracking-wider">Phone Number *</label>
-                                            <input required name="phone" value={formData.phone} onChange={handleChange} type="tel" readOnly={isAuthenticated} className={`w-full px-5 py-4 border-2 border-slate-100 rounded-xl focus:border-cyan-500 focus:bg-white focus:outline-none transition-all font-medium ${isAuthenticated ? 'bg-slate-100 cursor-not-allowed' : 'bg-slate-50'}`} placeholder="+84 123 456 789" />
+                                            <input required={!isAuthenticated} name="phone" value={formData.phone} onChange={handleChange} type="tel" readOnly={isAuthenticated} className={`w-full px-5 py-4 border-2 border-slate-100 rounded-xl focus:border-cyan-500 focus:bg-white focus:outline-none transition-all font-medium ${isAuthenticated ? 'bg-slate-100 cursor-not-allowed' : 'bg-slate-50'}`} placeholder="+84 123 456 789" />
                                         </div>
                                         <div className="space-y-2">
                                             <label className="block text-sm font-bold text-slate-500 uppercase tracking-wider">Guests *</label>

@@ -22,6 +22,8 @@ export interface RoomTypeItem {
     images: RoomTypeImage[];
     equipments: EquipmentItem[];
     isActive: boolean;
+    averageRating: number;
+    reviewCount: number;
 }
 
 export interface RoomTypePayload {
@@ -66,6 +68,10 @@ interface RoomTypeDto {
     RoomImages?: Array<{ id?: number; Id?: number; url?: string; Url?: string; imageUrl?: string; ImageUrl?: string; isPrimary?: boolean; IsPrimary?: boolean }>;
     equipments?: Array<{ id?: number; Id?: number; name?: string; Name?: string; imageUrl?: string; ImageUrl?: string; category?: string; Category?: string }>;
     Equipments?: Array<{ id?: number; Id?: number; name?: string; Name?: string; imageUrl?: string; ImageUrl?: string; category?: string; Category?: string }>;
+    averageRating?: number;
+    AverageRating?: number;
+    reviewCount?: number;
+    ReviewCount?: number;
 }
 
 interface RoomTypeAmenityPayload {
@@ -130,6 +136,8 @@ function normalizeRoomType(dto: RoomTypeDto): RoomTypeItem {
         images: rawImages.map(normalizeImage),
         equipments: (dto.equipments ?? dto.Equipments ?? []).map(normalizeEquipment),
         isActive: Boolean(dto.isActive ?? dto.IsActive ?? false),
+        averageRating: Number(dto.averageRating ?? dto.AverageRating ?? 0),
+        reviewCount: Number(dto.reviewCount ?? dto.ReviewCount ?? 0),
     };
 }
 

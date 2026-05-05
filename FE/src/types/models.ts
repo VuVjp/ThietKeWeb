@@ -86,6 +86,7 @@ export interface Booking {
   membershipDiscount: number;
   voucherDiscount: number;
   roomIds: number[];
+  roomTypeIds: number[];
   roomNumbers: string[];
   createdAt: string;
 }
