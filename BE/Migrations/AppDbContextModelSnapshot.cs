@@ -78,6 +78,9 @@ namespace BE.Migrations
                         .HasColumnType("nvarchar(450)")
                         .HasColumnName("slug");
 
+                    b.Property<string>("Subtitle")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("ThumbnailUrl")
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("thumbnail_url");

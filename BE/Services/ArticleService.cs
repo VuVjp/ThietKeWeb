@@ -29,6 +29,7 @@ public class ArticleService : IArticleService
         Id           = a.Id,
         AuthorId     = a.AuthorId,
         Title        = a.Title,
+        Subtitle     = a.Subtitle,
         Slug         = a.Slug,
         Content      = null, // Omitted in list — use GetByIdAsync for full content
         ThumbnailUrl = a.ThumbnailUrl,
@@ -66,6 +67,7 @@ public class ArticleService : IArticleService
         Id           = a.Id,
         AuthorId     = a.AuthorId,
         Title        = a.Title,
+        Subtitle     = a.Subtitle,
         Slug         = a.Slug,
         Content      = a.Content,
         ThumbnailUrl = a.ThumbnailUrl,
@@ -179,9 +181,11 @@ public class ArticleService : IArticleService
         {
             AuthorId     = dto.AuthorId,
             Title        = dto.Title,
+            Subtitle     = dto.Subtitle,
             Content      = dto.Content,
             ThumbnailUrl = thumbnailUrl,
             IsActive     = dto.IsActive ?? true,
+            PublishedAt  = (dto.IsActive ?? true) ? DateTime.UtcNow : null
         };
 
         await _repo.AddAsync(entity);
@@ -214,10 +218,15 @@ public class ArticleService : IArticleService
         if (dto.AuthorId.HasValue)
             entity.AuthorId = dto.AuthorId.Value;
         entity.Title        = dto.Title;
+        entity.Subtitle     = dto.Subtitle;
         entity.Content      = dto.Content;
         entity.ThumbnailUrl = thumbnailUrl;
-        if (dto.IsActive.HasValue)
+        if (dto.IsActive.HasValue) {
             entity.IsActive = dto.IsActive.Value;
+            if (entity.IsActive && entity.PublishedAt == null) {
+                entity.PublishedAt = DateTime.UtcNow;
+            }
+        }
 
         _repo.Update(entity);
 

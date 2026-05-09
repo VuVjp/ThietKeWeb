@@ -270,7 +270,6 @@ export function AttractionsPage() {
     };
 
     const handleDelete = async (id: number) => {
-        if (!window.confirm('Are you sure you want to delete this attraction?')) return;
         try {
             await attractionsApi.delete(id);
             toast.success('Attraction deleted');

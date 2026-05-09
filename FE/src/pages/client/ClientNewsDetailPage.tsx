@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import DOMPurify from "dompurify";
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { CalendarDaysIcon, TagIcon, ArrowLeftIcon, ShareIcon, BookmarkIcon, UserIcon } from '@heroicons/react/24/outline';
+import { CalendarDaysIcon, TagIcon, ArrowLeftIcon, ShareIcon, BookmarkIcon, UserIcon, PhotoIcon } from '@heroicons/react/24/outline';
 import { articleService } from '../../modules/article/services/articleService';
 import type { ArticleItem } from '../../modules/article/types/article.types';
 
@@ -13,10 +13,7 @@ function formatDate(iso: string) {
     return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
-function readTime(content: string) {
-    const words = content?.replace(/<[^>]*>/g, '').split(/\s+/).length ?? 0;
-    return `${Math.max(1, Math.ceil(words / 200))} min read`;
-}
+
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
@@ -82,12 +79,16 @@ export function ClientNewsDetailPage() {
     return (
         <div className="w-full bg-[#f8fafc] text-slate-800 pb-24 font-sans min-h-screen">
             {/* ── Hero Image ──────────────────────────────────────────── */}
-            <div className="relative h-[280px] md:h-[360px] overflow-hidden">
-                <img
-                    src={article.thumbnailUrl || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1600&q=80'}
-                    alt={article.title}
-                    className="w-full h-full object-cover"
-                />
+            <div className="relative h-[280px] md:h-[360px] overflow-hidden bg-slate-200 flex items-center justify-center">
+                {article.thumbnailUrl ? (
+                    <img
+                        src={article.thumbnailUrl}
+                        alt={article.title}
+                        className="w-full h-full object-cover"
+                    />
+                ) : (
+                    <PhotoIcon className="w-20 h-20 text-slate-400" />
+                )}
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/40 to-slate-900/20" />
 
                 {/* Back Button */}
@@ -110,7 +111,7 @@ export function ClientNewsDetailPage() {
                         ))}
                     </div>
                     <h1 className="text-2xl md:text-4xl lg:text-5xl font-extrabold text-white leading-tight mb-4">
-                        <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(article.title) }} />
+                        {article.title}
                     </h1>
                     <div className="flex flex-wrap items-center gap-4 text-xs text-slate-300 font-medium">
                         <span className="flex items-center gap-1">
@@ -118,9 +119,6 @@ export function ClientNewsDetailPage() {
                         </span>
                         <span className="flex items-center gap-1">
                             <CalendarDaysIcon className="w-4 h-4" /> {formatDate(article.createdAt)}
-                        </span>
-                        <span className="flex items-center gap-1">
-                            <TagIcon className="w-4 h-4" /> {readTime(article.content)}
                         </span>
                     </div>
                 </div>
@@ -149,6 +147,14 @@ export function ClientNewsDetailPage() {
                 </div>
 
                 {/* Content từ rich text editor của admin */}
+                {article.subtitle && (
+                    <div className="mb-12 border-l-4 border-cyan-500 pl-6 py-2">
+                        <p className="text-xl md:text-2xl font-semibold text-slate-700 italic leading-relaxed">
+                            {article.subtitle}
+                        </p>
+                    </div>
+                )}
+
                 <div
                     className="prose prose-slate max-w-none
                         prose-headings:font-extrabold prose-headings:text-slate-900
@@ -159,9 +165,43 @@ export function ClientNewsDetailPage() {
                         prose-blockquote:border-l-cyan-500 prose-blockquote:text-slate-600
                         prose-strong:text-slate-900
                         prose-ul:text-slate-700 prose-ol:text-slate-700
-                        prose-li:my-1"
+                        prose-li:my-1 mb-16"
                     dangerouslySetInnerHTML={{ __html: article.content }}
                 />
+
+                {/* Related Attractions Section */}
+                {article.attractions && article.attractions.length > 0 && (
+                    <div className="mb-16 pt-12 border-t border-slate-200">
+                        <div className="flex items-center gap-3 mb-8">
+                            <span className="w-8 h-px bg-cyan-500"></span>
+                            <h3 className="text-lg font-bold text-slate-900 uppercase tracking-widest">Recommended Nearby</h3>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                            {article.attractions.map((attr) => (
+                                <div key={attr.id} className="flex gap-5 p-5 rounded-2xl border border-slate-100 bg-white shadow-sm hover:shadow-md transition-shadow">
+                                    {attr.imageUrl && (
+                                        <div className="w-24 h-24 flex-shrink-0 overflow-hidden rounded-xl">
+                                            <img src={attr.imageUrl} alt={attr.name} className="w-full h-full object-cover" />
+                                        </div>
+                                    )}
+                                    <div className="flex flex-col justify-center">
+                                        <h4 className="font-bold text-slate-900 text-base mb-1">{attr.name}</h4>
+                                        <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed mb-2">{attr.description}</p>
+                                        {attr.distanceKm && (
+                                            <div className="flex items-center gap-1 text-[10px] font-bold text-cyan-600 bg-cyan-50 w-fit px-2 py-0.5 rounded">
+                                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                </svg>
+                                                {attr.distanceKm} km from hotel
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
                 {/* Tags */}
                 <div className="mt-12 pt-8 border-t border-slate-200 flex flex-wrap gap-2">
@@ -241,10 +281,10 @@ export function ClientNewsDetailPage() {
                                 </div>
                                 <div className="p-5 flex flex-col flex-1">
                                     <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-2 flex items-center gap-1">
-                                        <CalendarDaysIcon className="w-3 h-3" /> {formatDate(item.createdAt)} · {readTime(item.content)}
+                                        <CalendarDaysIcon className="w-3 h-3" /> {formatDate(item.createdAt)}
                                     </p>
                                     <h3 className="text-sm font-extrabold text-slate-900 leading-snug group-hover:text-cyan-700 transition-colors line-clamp-2 mb-3">
-                                        <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(item.title) }} />
+                                        {item.title}
                                     </h3>
                                     <span className="mt-auto text-[10px] font-bold uppercase tracking-widest text-cyan-600">
                                         Read Article →
