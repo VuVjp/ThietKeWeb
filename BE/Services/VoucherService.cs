@@ -217,12 +217,12 @@ public class VoucherService : IVoucherService
             throw new ArgumentException("Invalid voucher code.");
         }
 
-        if (voucher.ValidFrom.HasValue && voucher.ValidFrom > DateTime.UtcNow)
+        if (voucher.ValidFrom.HasValue && voucher.ValidFrom > DateTime.Now)
         {
             throw new ArgumentException("Voucher is not valid yet.");
         }
 
-        if (voucher.ValidTo.HasValue && voucher.ValidTo < DateTime.UtcNow)
+        if (voucher.ValidTo.HasValue && voucher.ValidTo < DateTime.Now)
         {
             throw new ArgumentException("Voucher has expired.");
         }

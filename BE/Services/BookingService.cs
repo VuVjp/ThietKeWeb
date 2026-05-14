@@ -603,6 +603,6 @@ public class BookingService : IBookingService
 
     private static string GenerateBookingCode()
     {
-        return $"BK{DateTime.UtcNow:yyyyMMddHHmmssfff}";
+        return $"BK{DateTime.Now:yyyyMMddHHmmssfff}";
     }
 }

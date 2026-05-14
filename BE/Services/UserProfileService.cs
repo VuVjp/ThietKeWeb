@@ -50,7 +50,7 @@ public class UserProfileService : IUserProfileService
                 throw new BadRequestException("Birthday can only be updated once.");
             }
 
-            var now = DateTime.UtcNow;
+            var now = DateTime.Now;
             var newBirthday = updateProfileDto.Birthday.Value;
             var currentYear = now.Year;
 

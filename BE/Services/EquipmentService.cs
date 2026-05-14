@@ -71,7 +71,7 @@ public class EquipmentService : IEquipmentService
                     existing.ImageUrl = await _cloudinary.UploadImageAsync(dto.File, "equipments", normalizedCode);
                 }
 
-                existing.UpdatedAt = DateTime.UtcNow;
+                existing.UpdatedAt = DateTime.Now;
                 _repo.Update(existing);
                 await _repo.SaveChangesAsync();
                 return true;
@@ -95,7 +95,7 @@ public class EquipmentService : IEquipmentService
                 existing.ImageUrl = await _cloudinary.UploadImageAsync(dto.File, "equipments", normalizedCode);
             }
 
-            existing.UpdatedAt = DateTime.UtcNow;
+            existing.UpdatedAt = DateTime.Now;
             _repo.Update(existing);
             await _repo.SaveChangesAsync();
             return true;
@@ -121,8 +121,8 @@ public class EquipmentService : IEquipmentService
             DefaultPriceIfLost = dto.DefaultPriceIfLost,
             Supplier = dto.Supplier?.Trim() ?? string.Empty,
             IsActive = true,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow,
+            CreatedAt = DateTime.Now,
+            UpdatedAt = DateTime.Now,
             ImageUrl = imageUrl,
         };
 
@@ -169,7 +169,7 @@ public class EquipmentService : IEquipmentService
             entity.ImageUrl = await _cloudinary.UploadImageAsync(dto.File, "equipments", NormalizeCodeKey(entity.ItemCode));
         }
 
-        entity.UpdatedAt = DateTime.UtcNow;
+        entity.UpdatedAt = DateTime.Now;
 
         _repo.Update(entity);
         await _repo.SaveChangesAsync();
@@ -185,7 +185,7 @@ public class EquipmentService : IEquipmentService
         }
 
         entity.IsActive = !entity.IsActive;
-        entity.UpdatedAt = DateTime.UtcNow;
+        entity.UpdatedAt = DateTime.Now;
 
         _repo.Update(entity);
         await _repo.SaveChangesAsync();

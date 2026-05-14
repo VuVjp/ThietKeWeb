@@ -44,12 +44,90 @@ export interface DashboardRoomTask {
     cleaningRequested: boolean;
 }
 
+export interface DashboardEvent {
+    id: number;
+    type: string;
+    message: string;
+    timestamp: string;
+    severity: string;
+}
+
+export interface DashboardMetricComparison {
+    current: number;
+    previous: number;
+    difference: number;
+    growthRate: number;
+    trend: 'up' | 'down' | 'flat';
+    directionMeaning: 'positive' | 'negative' | 'neutral';
+}
+
+export interface DashboardComparison {
+    base: {
+        comparisonType: string;
+        currentPeriodKey: string;
+        previousPeriodKey: string;
+    };
+    metrics: {
+        revenue?: DashboardMetricComparison;
+        bookings?: DashboardMetricComparison;
+        netProfit?: DashboardMetricComparison;
+        damageReports?: DashboardMetricComparison;
+        lowStockItems?: DashboardMetricComparison;
+        cleaningRequests?: DashboardMetricComparison;
+        articles?: DashboardMetricComparison;
+        serviceOrders?: DashboardMetricComparison;
+    };
+}
+
+export interface DashboardOverview {
+    meta: {
+        schemaVersion: number;
+        dashboardCode: string;
+        roleName: string;
+        periodType: string;
+        periodKey: string;
+        periodStart: string;
+        periodEnd: string;
+        status: string;
+        generatedAt: string;
+    };
+    summary: {
+        totalRevenue: number;
+        bookingCount: number;
+        netProfit: number;
+        auditLogTotal: number;
+        articlesCount: number;
+        serviceOrdersCount: number;
+        comparison: DashboardComparison;
+    };
+    widgets: {
+        revenueChart: DashboardRevenuePoint[];
+        roomStatusChart: DashboardRoomStatusPoint[];
+        recentBookings: DashboardRecentBooking[];
+        pendingServices: DashboardPendingService[];
+    };
+    breakdown: {
+        occupancy: {
+            total: number;
+            occupied: number;
+            maintenance: number;
+            available: number;
+        };
+        inspectingCount: number;
+        pendingCleaningRooms: DashboardRoomTask[];
+    };
+    alerts: DashboardCriticalAlert[];
+    events: DashboardEvent[];
+}
+
 export interface HousekeeperDashboard {
     cleanedToday: number;
     cleanedInRange: number;
     cleaningRequests: number;
     inspectionRequests: number;
     inspectingCount: number;
+    pendingCleaningRooms: DashboardRoomTask[];
+    inspectingRooms: DashboardRoomTask[];
 }
 
 export interface DashboardTopInvoice {
@@ -73,10 +151,10 @@ export interface ReceptionistDashboard {
     pendingServiceOrders: number;
     completedServiceOrdersToday: number;
     serviceQueue: DashboardPendingService[];
+    pendingCleaningRooms: DashboardRoomTask[];
 }
 
 export interface ManagerDashboard {
-    overview: DashboardOverview;
     pendingCleaningRequests: number;
     pendingServiceOrders: number;
     totalLossPenalty: number;
@@ -96,160 +174,193 @@ export interface RoleDashboard {
     manager?: ManagerDashboard;
 }
 
-export interface DashboardOverview {
-    totalRevenue: number;
-    bookingCount: number;
-    occupancyRate: number;
-    auditLogTotal: number;
-    netProfit: number;
-    inspectingCount: number;
-    occupancy: {
-        total: number;
-        occupied: number;
-        maintenance: number;
-        available: number;
-    };
-    revenueChartData: DashboardRevenuePoint[];
-    statusChartData: DashboardRoomStatusPoint[];
-    recentBookings: DashboardRecentBooking[];
-    criticalAlerts: DashboardCriticalAlert[];
-    pendingServices: DashboardPendingService[];
-}
-
-const emptyOverview: DashboardOverview = {
-    totalRevenue: 0,
-    bookingCount: 0,
-    occupancyRate: 0,
-    auditLogTotal: 0,
-    netProfit: 0,
-    inspectingCount: 0,
-    occupancy: {
-        total: 0,
-        occupied: 0,
-        maintenance: 0,
-        available: 0,
-    },
-    revenueChartData: [],
-    statusChartData: [],
-    recentBookings: [],
-    criticalAlerts: [],
-    pendingServices: [],
-};
-
 function pick<T = unknown>(source: Record<string, unknown>, camel: string, pascal: string): T | undefined {
     return (source[camel] as T | undefined) ?? (source[pascal] as T | undefined);
 }
 
+const emptyOverview: DashboardOverview = {
+    meta: { schemaVersion: 1, dashboardCode: '', roleName: '', periodType: '', periodKey: '', periodStart: '', periodEnd: '', status: '', generatedAt: '' },
+    summary: { totalRevenue: 0, bookingCount: 0, netProfit: 0, auditLogTotal: 0, comparison: { base: { comparisonType: '', currentPeriodKey: '', previousPeriodKey: '' }, metrics: {} } },
+    widgets: { revenueChart: [], roomStatusChart: [], recentBookings: [], pendingServices: [] },
+    breakdown: { occupancy: { total: 0, occupied: 0, maintenance: 0, available: 0 }, inspectingCount: 0 },
+    alerts: [],
+    events: [],
+};
+
 function normalizeDashboardOverview(raw: unknown): DashboardOverview {
-    if (!raw || typeof raw !== 'object') {
-        return emptyOverview;
-    }
-
+    if (!raw || typeof raw !== 'object') return emptyOverview;
     const src = raw as Record<string, unknown>;
-    const occupancyRaw = pick<Record<string, unknown>>(src, 'occupancy', 'Occupancy') ?? {};
 
-    const revenueRaw = pick<unknown[]>(src, 'revenueChartData', 'RevenueChartData');
-    const statusRaw = pick<unknown[]>(src, 'statusChartData', 'StatusChartData');
-    const bookingsRaw = pick<unknown[]>(src, 'recentBookings', 'RecentBookings');
-    const alertsRaw = pick<unknown[]>(src, 'criticalAlerts', 'CriticalAlerts');
-    const pendingRaw = pick<unknown[]>(src, 'pendingServices', 'PendingServices');
+    const metaRaw = pick<Record<string, unknown>>(src, 'meta', 'Meta') ?? {};
+    const summaryRaw = pick<Record<string, unknown>>(src, 'summary', 'Summary') ?? {};
+    const widgetsRaw = pick<Record<string, unknown>>(src, 'widgets', 'Widgets') ?? {};
+    const breakdownRaw = pick<Record<string, unknown>>(src, 'breakdown', 'Breakdown') ?? {};
+    
+    const comparisonRaw = pick<Record<string, unknown>>(summaryRaw, 'comparison', 'Comparison') ?? {};
+    const compBaseRaw = pick<Record<string, unknown>>(comparisonRaw, 'base', 'Base') ?? {};
+    const compMetricsRaw = pick<Record<string, unknown>>(comparisonRaw, 'metrics', 'Metrics') ?? {};
 
-    const revenueChartData = Array.isArray(revenueRaw) ? revenueRaw : [];
-    const statusChartData = Array.isArray(statusRaw) ? statusRaw : [];
-    const recentBookings = Array.isArray(bookingsRaw) ? bookingsRaw : [];
-    const criticalAlerts = Array.isArray(alertsRaw) ? alertsRaw : [];
-    const pendingServices = Array.isArray(pendingRaw) ? pendingRaw : [];
+    const normalizeMetric = (mRaw: any): DashboardMetricComparison | undefined => {
+        if (!mRaw) return undefined;
+        return {
+            current: Number(pick(mRaw, 'current', 'Current') ?? 0),
+            previous: Number(pick(mRaw, 'previous', 'Previous') ?? 0),
+            difference: Number(pick(mRaw, 'difference', 'Difference') ?? 0),
+            growthRate: Number(pick(mRaw, 'growthRate', 'GrowthRate') ?? 0),
+            trend: (pick<string>(mRaw, 'trend', 'Trend') ?? 'flat') as any,
+            directionMeaning: (pick<string>(mRaw, 'directionMeaning', 'DirectionMeaning') ?? 'neutral') as any,
+        };
+    };
+
+    const occupancyRaw = pick<Record<string, unknown>>(breakdownRaw, 'occupancy', 'Occupancy') ?? {};
+    const revenueRaw = pick<unknown[]>(widgetsRaw, 'revenueChart', 'RevenueChart') ?? [];
+    const statusRaw = pick<unknown[]>(widgetsRaw, 'roomStatusChart', 'RoomStatusChart') ?? [];
+    const bookingsRaw = pick<unknown[]>(widgetsRaw, 'recentBookings', 'RecentBookings') ?? [];
+    const pendingRaw = pick<unknown[]>(widgetsRaw, 'pendingServices', 'PendingServices') ?? [];
+    const alertsRaw = pick<unknown[]>(src, 'alerts', 'Alerts') ?? [];
+    const eventsRaw = pick<unknown[]>(src, 'events', 'Events') ?? [];
 
     return {
-        totalRevenue: Number(pick(src, 'totalRevenue', 'TotalRevenue') ?? 0),
-        bookingCount: Number(pick(src, 'bookingCount', 'BookingCount') ?? 0),
-        occupancyRate: Number(pick(src, 'occupancyRate', 'OccupancyRate') ?? 0),
-        auditLogTotal: Number(pick(src, 'auditLogTotal', 'AuditLogTotal') ?? 0),
-        netProfit: Number(pick(src, 'netProfit', 'NetProfit') ?? 0),
-        inspectingCount: Number(pick(src, 'inspectingCount', 'InspectingCount') ?? 0),
-        occupancy: {
-            total: Number(pick(occupancyRaw, 'total', 'Total') ?? 0),
-            occupied: Number(pick(occupancyRaw, 'occupied', 'Occupied') ?? 0),
-            maintenance: Number(pick(occupancyRaw, 'maintenance', 'Maintenance') ?? 0),
-            available: Number(pick(occupancyRaw, 'available', 'Available') ?? 0),
+        meta: {
+            schemaVersion: Number(pick(metaRaw, 'schemaVersion', 'SchemaVersion') ?? 1),
+            dashboardCode: String(pick(metaRaw, 'dashboardCode', 'DashboardCode') ?? ''),
+            roleName: String(pick(metaRaw, 'roleName', 'RoleName') ?? ''),
+            periodType: String(pick(metaRaw, 'periodType', 'PeriodType') ?? ''),
+            periodKey: String(pick(metaRaw, 'periodKey', 'PeriodKey') ?? ''),
+            periodStart: String(pick(metaRaw, 'periodStart', 'PeriodStart') ?? ''),
+            periodEnd: String(pick(metaRaw, 'periodEnd', 'PeriodEnd') ?? ''),
+            status: String(pick(metaRaw, 'status', 'Status') ?? ''),
+            generatedAt: String(pick(metaRaw, 'generatedAt', 'GeneratedAt') ?? ''),
         },
-        revenueChartData: revenueChartData.map((item: any) => ({
-            name: String(item?.name ?? item?.Name ?? ''),
-            revenue: Number(item?.revenue ?? item?.Revenue ?? 0),
-            bookings: Number(item?.bookings ?? item?.Bookings ?? 0),
-        })),
-        statusChartData: statusChartData.map((item: any) => ({
-            name: String(item?.name ?? item?.Name ?? ''),
-            value: Number(item?.value ?? item?.Value ?? 0),
-            color: String(item?.color ?? item?.Color ?? '#0ea5e9'),
-        })),
-        recentBookings: recentBookings.map((item: any) => ({
-            id: Number(item?.id ?? item?.Id ?? 0),
-            guestName: String(item?.guestName ?? item?.GuestName ?? 'Unknown'),
-            checkInDate: String(item?.checkInDate ?? item?.CheckInDate ?? ''),
-            checkOutDate: String(item?.checkOutDate ?? item?.CheckOutDate ?? ''),
-            totalAmount: Number(item?.totalAmount ?? item?.TotalAmount ?? 0),
-            status: String(item?.status ?? item?.Status ?? 'Pending'),
-        })),
-        criticalAlerts: criticalAlerts.map((item: any) => ({
+        summary: {
+            totalRevenue: Number(pick(summaryRaw, 'totalRevenue', 'TotalRevenue') ?? 0),
+            bookingCount: Number(pick(summaryRaw, 'bookingCount', 'BookingCount') ?? 0),
+            netProfit: Number(pick(summaryRaw, 'netProfit', 'NetProfit') ?? 0),
+            auditLogTotal: Number(pick(summaryRaw, 'auditLogTotal', 'AuditLogTotal') ?? 0),
+            articlesCount: Number(pick(summaryRaw, 'articlesCount', 'ArticlesCount') ?? 0),
+            serviceOrdersCount: Number(pick(summaryRaw, 'serviceOrdersCount', 'ServiceOrdersCount') ?? 0),
+            comparison: {
+                base: {
+                    comparisonType: String(pick(compBaseRaw, 'comparisonType', 'ComparisonType') ?? ''),
+                    currentPeriodKey: String(pick(compBaseRaw, 'currentPeriodKey', 'CurrentPeriodKey') ?? ''),
+                    previousPeriodKey: String(pick(compBaseRaw, 'previousPeriodKey', 'PreviousPeriodKey') ?? ''),
+                },
+                metrics: {
+                    revenue: normalizeMetric(pick(compMetricsRaw, 'revenue', 'Revenue')),
+                    bookings: normalizeMetric(pick(compMetricsRaw, 'bookings', 'Bookings')),
+                    netProfit: normalizeMetric(pick(compMetricsRaw, 'netProfit', 'NetProfit')),
+                    damageReports: normalizeMetric(pick(compMetricsRaw, 'damageReports', 'DamageReports')),
+                    lowStockItems: normalizeMetric(pick(compMetricsRaw, 'lowStockItems', 'LowStockItems')),
+                    cleaningRequests: normalizeMetric(pick(compMetricsRaw, 'cleaningRequests', 'CleaningRequests')),
+                    articles: normalizeMetric(pick(compMetricsRaw, 'articles', 'Articles')),
+                    serviceOrders: normalizeMetric(pick(compMetricsRaw, 'serviceOrders', 'ServiceOrders')),
+                },
+            },
+        },
+        widgets: {
+            revenueChart: (Array.isArray(revenueRaw) ? revenueRaw : []).map((item: any) => ({
+                name: String(item?.name ?? item?.Name ?? ''),
+                revenue: Number(item?.revenue ?? item?.Revenue ?? 0),
+                bookings: Number(item?.bookings ?? item?.Bookings ?? 0),
+            })),
+            roomStatusChart: (Array.isArray(statusRaw) ? statusRaw : []).map((item: any) => ({
+                name: String(item?.name ?? item?.Name ?? ''),
+                value: Number(item?.value ?? item?.Value ?? 0),
+                color: String(item?.color ?? item?.Color ?? '#0ea5e9'),
+            })),
+            recentBookings: (Array.isArray(bookingsRaw) ? bookingsRaw : []).map((item: any) => ({
+                id: Number(item?.id ?? item?.Id ?? 0),
+                guestName: String(item?.guestName ?? item?.GuestName ?? 'Unknown'),
+                checkInDate: String(item?.checkInDate ?? item?.CheckInDate ?? ''),
+                checkOutDate: String(item?.checkOutDate ?? item?.CheckOutDate ?? ''),
+                totalAmount: Number(item?.totalAmount ?? item?.TotalAmount ?? 0),
+                status: String(item?.status ?? item?.Status ?? 'Pending'),
+            })),
+            pendingServices: (Array.isArray(pendingRaw) ? pendingRaw : []).map((item: any) => ({
+                id: Number(item?.id ?? item?.Id ?? 0),
+                roomNumber: String(item?.roomNumber ?? item?.RoomNumber ?? 'N/A'),
+                guestName: String(item?.guestName ?? item?.GuestName ?? 'Unknown'),
+                orderDate: String(item?.orderDate ?? item?.OrderDate ?? ''),
+            })),
+        },
+        breakdown: {
+            occupancy: {
+                total: Number(pick(occupancyRaw, 'total', 'Total') ?? 0),
+                occupied: Number(pick(occupancyRaw, 'occupied', 'Occupied') ?? 0),
+                maintenance: Number(pick(occupancyRaw, 'maintenance', 'Maintenance') ?? 0),
+                available: Number(pick(occupancyRaw, 'available', 'Available') ?? 0),
+            },
+            inspectingCount: Number(pick(breakdownRaw, 'inspectingCount', 'InspectingCount') ?? 0),
+            pendingCleaningRooms: (Array.isArray(pick(breakdownRaw, 'pendingCleaningRooms', 'PendingCleaningRooms')) ? pick<any[]>(breakdownRaw, 'pendingCleaningRooms', 'PendingCleaningRooms')! : []).map((item: any) => ({
+                id: Number(item?.id ?? item?.Id ?? 0),
+                roomNumber: String(item?.roomNumber ?? item?.RoomNumber ?? ''),
+                status: String(item?.status ?? item?.Status ?? ''),
+                cleaningStatus: String(item?.cleaningStatus ?? item?.CleaningStatus ?? ''),
+                cleaningRequested: Boolean(item?.cleaningRequested ?? item?.CleaningRequested ?? false),
+            })),
+        },
+        alerts: (Array.isArray(alertsRaw) ? alertsRaw : []).map((item: any) => ({
             id: Number(item?.id ?? item?.Id ?? 0),
             itemName: String(item?.itemName ?? item?.ItemName ?? 'Unknown'),
             room: String(item?.room ?? item?.Room ?? 'Unknown'),
             penalty: Number(item?.penalty ?? item?.Penalty ?? 0),
             description: String(item?.description ?? item?.Description ?? ''),
         })),
-        pendingServices: pendingServices.map((item: any) => ({
+        events: (Array.isArray(eventsRaw) ? eventsRaw : []).map((item: any) => ({
             id: Number(item?.id ?? item?.Id ?? 0),
-            roomNumber: String(item?.roomNumber ?? item?.RoomNumber ?? 'N/A'),
-            guestName: String(item?.guestName ?? item?.GuestName ?? 'Unknown'),
-            orderDate: String(item?.orderDate ?? item?.OrderDate ?? ''),
+            type: String(item?.type ?? item?.Type ?? 'ACTIVITY'),
+            message: String(item?.message ?? item?.Message ?? ''),
+            timestamp: String(item?.timestamp ?? item?.Timestamp ?? ''),
+            severity: String(item?.severity ?? item?.Severity ?? 'Info'),
         })),
     };
 }
 
 function normalizeHousekeeper(raw: unknown): HousekeeperDashboard {
-    if (!raw || typeof raw !== 'object') {
-        return { cleanedToday: 0, cleanedInRange: 0, cleaningRequests: 0, inspectionRequests: 0, inspectingCount: 0 };
-    }
-
+    if (!raw || typeof raw !== 'object') return { cleanedToday: 0, cleanedInRange: 0, cleaningRequests: 0, inspectionRequests: 0, inspectingCount: 0, pendingCleaningRooms: [], inspectingRooms: [] };
     const src = raw as Record<string, unknown>;
+    const pendingCleaningRoomsRaw = pick<unknown[]>(src, 'pendingCleaningRooms', 'PendingCleaningRooms') ?? [];
+    const inspectingRoomsRaw = pick<unknown[]>(src, 'inspectingRooms', 'InspectingRooms') ?? [];
+
     return {
         cleanedToday: Number(pick(src, 'cleanedToday', 'CleanedToday') ?? 0),
         cleanedInRange: Number(pick(src, 'cleanedInRange', 'CleanedInRange') ?? 0),
         cleaningRequests: Number(pick(src, 'cleaningRequests', 'CleaningRequests') ?? 0),
         inspectionRequests: Number(pick(src, 'inspectionRequests', 'InspectionRequests') ?? 0),
         inspectingCount: Number(pick(src, 'inspectingCount', 'InspectingCount') ?? 0),
+        pendingCleaningRooms: (Array.isArray(pendingCleaningRoomsRaw) ? pendingCleaningRoomsRaw : []).map((item: any) => ({
+            id: Number(item?.id ?? item?.Id ?? 0),
+            roomNumber: String(item?.roomNumber ?? item?.RoomNumber ?? ''),
+            status: String(item?.status ?? item?.Status ?? ''),
+            cleaningStatus: String(item?.cleaningStatus ?? item?.CleaningStatus ?? ''),
+            cleaningRequested: Boolean(item?.cleaningRequested ?? item?.CleaningRequested ?? false),
+        })),
+        inspectingRooms: (Array.isArray(inspectingRoomsRaw) ? inspectingRoomsRaw : []).map((item: any) => ({
+            id: Number(item?.id ?? item?.Id ?? 0),
+            roomNumber: String(item?.roomNumber ?? item?.RoomNumber ?? ''),
+            status: String(item?.status ?? item?.Status ?? ''),
+            cleaningStatus: String(item?.cleaningStatus ?? item?.CleaningStatus ?? ''),
+            cleaningRequested: Boolean(item?.cleaningRequested ?? item?.CleaningRequested ?? false),
+        })),
     };
 }
 
 function normalizeAccountant(raw: unknown): AccountantDashboard {
-    if (!raw || typeof raw !== 'object') {
-        return {
-            totalRevenue: 0,
-            totalLossPenalty: 0,
-            netProfit: 0,
-            revenueChartData: [],
-            topInvoices: [],
-        };
-    }
-
+    if (!raw || typeof raw !== 'object') return { totalRevenue: 0, totalLossPenalty: 0, netProfit: 0, revenueChartData: [], topInvoices: [] };
     const src = raw as Record<string, unknown>;
-    const revenueRaw = pick<unknown[]>(src, 'revenueChartData', 'RevenueChartData');
-    const invoicesRaw = pick<unknown[]>(src, 'topInvoices', 'TopInvoices');
-
-    const revenueChartData = Array.isArray(revenueRaw) ? revenueRaw : [];
-    const topInvoices = Array.isArray(invoicesRaw) ? invoicesRaw : [];
+    const revenueRaw = pick<unknown[]>(src, 'revenueChartData', 'RevenueChartData') ?? [];
+    const invoicesRaw = pick<unknown[]>(src, 'topInvoices', 'TopInvoices') ?? [];
 
     return {
         totalRevenue: Number(pick(src, 'totalRevenue', 'TotalRevenue') ?? 0),
         totalLossPenalty: Number(pick(src, 'totalLossPenalty', 'TotalLossPenalty') ?? 0),
         netProfit: Number(pick(src, 'netProfit', 'NetProfit') ?? 0),
-        revenueChartData: revenueChartData.map((item: any) => ({
+        revenueChartData: (Array.isArray(revenueRaw) ? revenueRaw : []).map((item: any) => ({
             name: String(item?.name ?? item?.Name ?? ''),
             revenue: Number(item?.revenue ?? item?.Revenue ?? 0),
             bookings: Number(item?.bookings ?? item?.Bookings ?? 0),
         })),
-        topInvoices: topInvoices.map((item: any) => ({
+        topInvoices: (Array.isArray(invoicesRaw) ? invoicesRaw : []).map((item: any) => ({
             id: Number(item?.id ?? item?.Id ?? 0),
             invoiceCode: String(item?.invoiceCode ?? item?.InvoiceCode ?? ''),
             finalTotal: Number(item?.finalTotal ?? item?.FinalTotal ?? 0),
@@ -259,66 +370,52 @@ function normalizeAccountant(raw: unknown): AccountantDashboard {
 }
 
 function normalizeReceptionist(raw: unknown): ReceptionistDashboard {
-    if (!raw || typeof raw !== 'object') {
-        return { publishedArticles: 0, pendingArticles: 0, pendingServiceOrders: 0, completedServiceOrdersToday: 0, serviceQueue: [] };
-    }
-
+    if (!raw || typeof raw !== 'object') return { publishedArticles: 0, pendingArticles: 0, pendingServiceOrders: 0, completedServiceOrdersToday: 0, serviceQueue: [] };
     const src = raw as Record<string, unknown>;
-    const serviceQueueRaw = pick<unknown[]>(src, 'serviceQueue', 'ServiceQueue');
-    const serviceQueue = Array.isArray(serviceQueueRaw) ? serviceQueueRaw : [];
+    const serviceQueueRaw = pick<unknown[]>(src, 'serviceQueue', 'ServiceQueue') ?? [];
 
     return {
         publishedArticles: Number(pick(src, 'publishedArticles', 'PublishedArticles') ?? 0),
         pendingArticles: Number(pick(src, 'pendingArticles', 'PendingArticles') ?? 0),
         pendingServiceOrders: Number(pick(src, 'pendingServiceOrders', 'PendingServiceOrders') ?? 0),
         completedServiceOrdersToday: Number(pick(src, 'completedServiceOrdersToday', 'CompletedServiceOrdersToday') ?? 0),
-        serviceQueue: serviceQueue.map((item: any) => ({
+        serviceQueue: (Array.isArray(serviceQueueRaw) ? serviceQueueRaw : []).map((item: any) => ({
             id: Number(item?.id ?? item?.Id ?? 0),
             roomNumber: String(item?.roomNumber ?? item?.RoomNumber ?? 'N/A'),
             guestName: String(item?.guestName ?? item?.GuestName ?? 'Unknown'),
             orderDate: String(item?.orderDate ?? item?.OrderDate ?? ''),
         })),
-    };
-}
-
-function normalizeManager(raw: unknown): ManagerDashboard {
-    if (!raw || typeof raw !== 'object') {
-        return {
-            overview: emptyOverview,
-            pendingCleaningRequests: 0,
-            pendingServiceOrders: 0,
-            totalLossPenalty: 0,
-            netProfit: 0,
-            pendingArticles: 0,
-            inspectingCount: 0,
-            pendingCleaningRooms: [],
-            inspectingRooms: [],
-        };
-    }
-
-    const src = raw as Record<string, unknown>;
-    const pendingCleaningRoomsRaw = pick<unknown[]>(src, 'pendingCleaningRooms', 'PendingCleaningRooms');
-    const inspectingRoomsRaw = pick<unknown[]>(src, 'inspectingRooms', 'InspectingRooms');
-
-    const pendingCleaningRooms = Array.isArray(pendingCleaningRoomsRaw) ? pendingCleaningRoomsRaw : [];
-    const inspectingRooms = Array.isArray(inspectingRoomsRaw) ? inspectingRoomsRaw : [];
-
-    return {
-        overview: normalizeDashboardOverview(pick(src, 'overview', 'Overview')),
-        pendingCleaningRequests: Number(pick(src, 'pendingCleaningRequests', 'PendingCleaningRequests') ?? 0),
-        pendingServiceOrders: Number(pick(src, 'pendingServiceOrders', 'PendingServiceOrders') ?? 0),
-        totalLossPenalty: Number(pick(src, 'totalLossPenalty', 'TotalLossPenalty') ?? 0),
-        netProfit: Number(pick(src, 'netProfit', 'NetProfit') ?? 0),
-        pendingArticles: Number(pick(src, 'pendingArticles', 'PendingArticles') ?? 0),
-        inspectingCount: Number(pick(src, 'inspectingCount', 'InspectingCount') ?? 0),
-        pendingCleaningRooms: pendingCleaningRooms.map((item: any) => ({
+        pendingCleaningRooms: (Array.isArray(pick(src, 'pendingCleaningRooms', 'PendingCleaningRooms')) ? pick<any[]>(src, 'pendingCleaningRooms', 'PendingCleaningRooms')! : []).map((item: any) => ({
             id: Number(item?.id ?? item?.Id ?? 0),
             roomNumber: String(item?.roomNumber ?? item?.RoomNumber ?? ''),
             status: String(item?.status ?? item?.Status ?? ''),
             cleaningStatus: String(item?.cleaningStatus ?? item?.CleaningStatus ?? ''),
             cleaningRequested: Boolean(item?.cleaningRequested ?? item?.CleaningRequested ?? false),
         })),
-        inspectingRooms: inspectingRooms.map((item: any) => ({
+    };
+}
+
+function normalizeManager(raw: unknown): ManagerDashboard {
+    if (!raw || typeof raw !== 'object') return { pendingCleaningRequests: 0, pendingServiceOrders: 0, totalLossPenalty: 0, netProfit: 0, pendingArticles: 0, inspectingCount: 0, pendingCleaningRooms: [], inspectingRooms: [] };
+    const src = raw as Record<string, unknown>;
+    const pendingCleaningRoomsRaw = pick<unknown[]>(src, 'pendingCleaningRooms', 'PendingCleaningRooms') ?? [];
+    const inspectingRoomsRaw = pick<unknown[]>(src, 'inspectingRooms', 'InspectingRooms') ?? [];
+
+    return {
+        pendingCleaningRequests: Number(pick(src, 'pendingCleaningRequests', 'PendingCleaningRequests') ?? 0),
+        pendingServiceOrders: Number(pick(src, 'pendingServiceOrders', 'PendingServiceOrders') ?? 0),
+        totalLossPenalty: Number(pick(src, 'totalLossPenalty', 'TotalLossPenalty') ?? 0),
+        netProfit: Number(pick(src, 'netProfit', 'NetProfit') ?? 0),
+        pendingArticles: Number(pick(src, 'pendingArticles', 'PendingArticles') ?? 0),
+        inspectingCount: Number(pick(src, 'inspectingCount', 'InspectingCount') ?? 0),
+        pendingCleaningRooms: (Array.isArray(pendingCleaningRoomsRaw) ? pendingCleaningRoomsRaw : []).map((item: any) => ({
+            id: Number(item?.id ?? item?.Id ?? 0),
+            roomNumber: String(item?.roomNumber ?? item?.RoomNumber ?? ''),
+            status: String(item?.status ?? item?.Status ?? ''),
+            cleaningStatus: String(item?.cleaningStatus ?? item?.CleaningStatus ?? ''),
+            cleaningRequested: Boolean(item?.cleaningRequested ?? item?.CleaningRequested ?? false),
+        })),
+        inspectingRooms: (Array.isArray(inspectingRoomsRaw) ? inspectingRoomsRaw : []).map((item: any) => ({
             id: Number(item?.id ?? item?.Id ?? 0),
             roomNumber: String(item?.roomNumber ?? item?.RoomNumber ?? ''),
             status: String(item?.status ?? item?.Status ?? ''),
@@ -329,10 +426,7 @@ function normalizeManager(raw: unknown): ManagerDashboard {
 }
 
 function normalizeRoleDashboard(raw: unknown): RoleDashboard {
-    if (!raw || typeof raw !== 'object') {
-        return { role: '' };
-    }
-
+    if (!raw || typeof raw !== 'object') return { role: '' };
     const src = raw as Record<string, unknown>;
     return {
         role: String(pick(src, 'role', 'Role') ?? ''),
@@ -345,18 +439,20 @@ function normalizeRoleDashboard(raw: unknown): RoleDashboard {
 }
 
 export const dashboardApi = {
-    async getOverview(days = 7): Promise<DashboardOverview> {
+    async getOverview(days = 7, refresh = false): Promise<DashboardOverview> {
         const { data } = await httpClient.get<unknown>('dashboard/overview', {
-            params: { days },
+            params: { days, refresh },
         });
-
         return normalizeDashboardOverview(data);
     },
-    async getRoleDashboard(days = 7): Promise<RoleDashboard> {
+    async getRoleDashboard(days = 7, refresh = false): Promise<RoleDashboard> {
         const { data } = await httpClient.get<unknown>('dashboard/role', {
-            params: { days },
+            params: { days, refresh },
         });
-
         return normalizeRoleDashboard(data);
     },
+    async forceRefresh(): Promise<{ message: string }> {
+        const { data } = await httpClient.post<{ message: string }>('dashboard/refresh');
+        return data;
+    }
 };

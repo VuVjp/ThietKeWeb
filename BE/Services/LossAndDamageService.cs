@@ -63,7 +63,7 @@ public class LossAndDamageService : ILossAndDamageService
             if (equipment != null)
             {
                 equipment.DamagedQuantity += dto.Quantity;
-                equipment.UpdatedAt = DateTime.UtcNow;
+                equipment.UpdatedAt = DateTime.Now;
                 _context.Equipments.Update(equipment);
             }
         }
@@ -75,7 +75,7 @@ public class LossAndDamageService : ILossAndDamageService
             PenaltyAmount = dto.PenaltyAmount,
             Description = dto.Description?.Trim(),
             ImageUrl = dto.ImageUrl?.Trim(),
-            CreatedAt = DateTime.UtcNow,
+            CreatedAt = DateTime.Now,
         };
 
         // Find the active/recent booking detail for this room to associate the penalty

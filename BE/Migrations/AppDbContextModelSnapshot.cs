@@ -1235,6 +1235,32 @@ namespace BE.Migrations
                     b.ToTable("Service_Categories", (string)null);
                 });
 
+            modelBuilder.Entity("HotelManagement.Entities.Snapshots.DashboardSnapshot", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("LastUpdated")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("last_updated");
+
+                    b.Property<DateTime>("SnapshotDate")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("snapshot_date");
+
+                    b.Property<int>("SnapshotType")
+                        .HasColumnType("int")
+                        .HasColumnName("snapshot_type");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Dashboard_Snapshots", (string)null);
+                });
+
             modelBuilder.Entity("HotelManagement.Entities.User", b =>
                 {
                     b.Property<int>("Id")
@@ -1694,6 +1720,595 @@ namespace BE.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Category");
+                });
+
+            modelBuilder.Entity("HotelManagement.Entities.Snapshots.DashboardSnapshot", b =>
+                {
+                    b.OwnsOne("HotelManagement.Dtos.DashboardOverviewDto", "Data", b1 =>
+                        {
+                            b1.Property<int>("DashboardSnapshotId");
+
+                            b1.HasKey("DashboardSnapshotId");
+
+                            b1.ToTable("Dashboard_Snapshots");
+
+                            b1
+                                .ToJson("Data")
+                                .HasColumnType("nvarchar(max)");
+
+                            b1.WithOwner()
+                                .HasForeignKey("DashboardSnapshotId");
+
+                            b1.OwnsOne("HotelManagement.Dtos.DashboardBreakdownDto", "Breakdown", b2 =>
+                                {
+                                    b2.Property<int>("DashboardOverviewDtoDashboardSnapshotId");
+
+                                    b2.Property<int>("InspectingCount");
+
+                                    b2.HasKey("DashboardOverviewDtoDashboardSnapshotId");
+
+                                    b2.ToTable("Dashboard_Snapshots");
+
+                                    b2.WithOwner()
+                                        .HasForeignKey("DashboardOverviewDtoDashboardSnapshotId");
+
+                                    b2.OwnsOne("HotelManagement.Dtos.RoomOccupancySummaryDto", "Occupancy", b3 =>
+                                        {
+                                            b3.Property<int>("DashboardBreakdownDtoDashboardOverviewDtoDashboardSnapshotId");
+
+                                            b3.Property<int>("Available");
+
+                                            b3.Property<int>("Maintenance");
+
+                                            b3.Property<int>("Occupied");
+
+                                            b3.Property<int>("Total");
+
+                                            b3.HasKey("DashboardBreakdownDtoDashboardOverviewDtoDashboardSnapshotId");
+
+                                            b3.ToTable("Dashboard_Snapshots");
+
+                                            b3.WithOwner()
+                                                .HasForeignKey("DashboardBreakdownDtoDashboardOverviewDtoDashboardSnapshotId");
+                                        });
+
+                                    b2.Navigation("Occupancy")
+                                        .IsRequired();
+                                });
+
+                            b1.OwnsMany("HotelManagement.Dtos.DashboardCriticalAlertDto", "Alerts", b2 =>
+                                {
+                                    b2.Property<int>("DashboardOverviewDtoDashboardSnapshotId");
+
+                                    b2.Property<int>("__synthesizedOrdinal")
+                                        .ValueGeneratedOnAddOrUpdate();
+
+                                    b2.Property<string>("Description")
+                                        .IsRequired();
+
+                                    b2.Property<int>("Id");
+
+                                    b2.Property<string>("ItemName")
+                                        .IsRequired();
+
+                                    b2.Property<decimal>("Penalty");
+
+                                    b2.Property<string>("Room")
+                                        .IsRequired();
+
+                                    b2.HasKey("DashboardOverviewDtoDashboardSnapshotId", "__synthesizedOrdinal");
+
+                                    b2.ToTable("Dashboard_Snapshots");
+
+                                    b2.WithOwner()
+                                        .HasForeignKey("DashboardOverviewDtoDashboardSnapshotId");
+                                });
+
+                            b1.OwnsMany("HotelManagement.Dtos.DashboardEventDto", "Events", b2 =>
+                                {
+                                    b2.Property<int>("DashboardOverviewDtoDashboardSnapshotId");
+
+                                    b2.Property<int>("__synthesizedOrdinal")
+                                        .ValueGeneratedOnAddOrUpdate();
+
+                                    b2.Property<int>("Id");
+
+                                    b2.Property<string>("Message")
+                                        .IsRequired();
+
+                                    b2.Property<string>("Severity")
+                                        .IsRequired();
+
+                                    b2.Property<DateTime>("Timestamp");
+
+                                    b2.Property<string>("Type")
+                                        .IsRequired();
+
+                                    b2.HasKey("DashboardOverviewDtoDashboardSnapshotId", "__synthesizedOrdinal");
+
+                                    b2.ToTable("Dashboard_Snapshots");
+
+                                    b2.WithOwner()
+                                        .HasForeignKey("DashboardOverviewDtoDashboardSnapshotId");
+                                });
+
+                            b1.OwnsOne("HotelManagement.Dtos.DashboardMetaDto", "Meta", b2 =>
+                                {
+                                    b2.Property<int>("DashboardOverviewDtoDashboardSnapshotId");
+
+                                    b2.Property<string>("DashboardCode")
+                                        .IsRequired();
+
+                                    b2.Property<DateTime>("GeneratedAt");
+
+                                    b2.Property<DateTime>("PeriodEnd");
+
+                                    b2.Property<string>("PeriodKey")
+                                        .IsRequired();
+
+                                    b2.Property<DateTime>("PeriodStart");
+
+                                    b2.Property<string>("PeriodType")
+                                        .IsRequired();
+
+                                    b2.Property<string>("RoleName")
+                                        .IsRequired();
+
+                                    b2.Property<int>("SchemaVersion");
+
+                                    b2.Property<string>("Status")
+                                        .IsRequired();
+
+                                    b2.HasKey("DashboardOverviewDtoDashboardSnapshotId");
+
+                                    b2.ToTable("Dashboard_Snapshots");
+
+                                    b2.WithOwner()
+                                        .HasForeignKey("DashboardOverviewDtoDashboardSnapshotId");
+                                });
+
+                            b1.OwnsOne("HotelManagement.Dtos.DashboardSummaryDto", "Summary", b2 =>
+                                {
+                                    b2.Property<int>("DashboardOverviewDtoDashboardSnapshotId");
+
+                                    b2.Property<int>("ArticlesCount");
+
+                                    b2.Property<int>("AuditLogTotal");
+
+                                    b2.Property<int>("BookingCount");
+
+                                    b2.Property<int>("CleaningRequestsCount");
+
+                                    b2.Property<decimal>("NetProfit");
+
+                                    b2.Property<int>("ServiceOrdersCount");
+
+                                    b2.Property<decimal>("TotalRevenue");
+
+                                    b2.HasKey("DashboardOverviewDtoDashboardSnapshotId");
+
+                                    b2.ToTable("Dashboard_Snapshots");
+
+                                    b2.WithOwner()
+                                        .HasForeignKey("DashboardOverviewDtoDashboardSnapshotId");
+
+                                    b2.OwnsOne("HotelManagement.Dtos.DashboardComparisonDto", "Comparison", b3 =>
+                                        {
+                                            b3.Property<int>("DashboardSummaryDtoDashboardOverviewDtoDashboardSnapshotId");
+
+                                            b3.HasKey("DashboardSummaryDtoDashboardOverviewDtoDashboardSnapshotId");
+
+                                            b3.ToTable("Dashboard_Snapshots");
+
+                                            b3.WithOwner()
+                                                .HasForeignKey("DashboardSummaryDtoDashboardOverviewDtoDashboardSnapshotId");
+
+                                            b3.OwnsOne("HotelManagement.Dtos.DashboardComparisonBaseDto", "Base", b4 =>
+                                                {
+                                                    b4.Property<int>("DashboardComparisonDtoDashboardSummaryDtoDashboardOverviewDtoDashboardSnapshotId");
+
+                                                    b4.Property<string>("ComparisonType")
+                                                        .IsRequired();
+
+                                                    b4.Property<string>("CurrentPeriodKey")
+                                                        .IsRequired();
+
+                                                    b4.Property<string>("PreviousPeriodKey")
+                                                        .IsRequired();
+
+                                                    b4.HasKey("DashboardComparisonDtoDashboardSummaryDtoDashboardOverviewDtoDashboardSnapshotId");
+
+                                                    b4.ToTable("Dashboard_Snapshots");
+
+                                                    b4.WithOwner()
+                                                        .HasForeignKey("DashboardComparisonDtoDashboardSummaryDtoDashboardOverviewDtoDashboardSnapshotId");
+                                                });
+
+                                            b3.OwnsOne("HotelManagement.Dtos.DashboardMetricsComparisonContainer", "Metrics", b4 =>
+                                                {
+                                                    b4.Property<int>("DashboardComparisonDtoDashboardSummaryDtoDashboardOverviewDtoDashboardSnapshotId");
+
+                                                    b4.HasKey("DashboardComparisonDtoDashboardSummaryDtoDashboardOverviewDtoDashboardSnapshotId");
+
+                                                    b4.ToTable("Dashboard_Snapshots");
+
+                                                    b4.WithOwner()
+                                                        .HasForeignKey("DashboardComparisonDtoDashboardSummaryDtoDashboardOverviewDtoDashboardSnapshotId");
+
+                                                    b4.OwnsOne("HotelManagement.Dtos.DashboardMetricComparisonDto", "Articles", b5 =>
+                                                        {
+                                                            b5.Property<int>("DashboardMetricsComparisonContainerDashboardComparisonDtoDashboardSummaryDtoDashboardOverviewDtoDashboardSnapshotId");
+
+                                                            b5.Property<decimal>("Current");
+
+                                                            b5.Property<decimal>("Difference");
+
+                                                            b5.Property<string>("DirectionMeaning")
+                                                                .IsRequired();
+
+                                                            b5.Property<decimal>("GrowthRate");
+
+                                                            b5.Property<decimal>("Previous");
+
+                                                            b5.Property<string>("Trend")
+                                                                .IsRequired();
+
+                                                            b5.HasKey("DashboardMetricsComparisonContainerDashboardComparisonDtoDashboardSummaryDtoDashboardOverviewDtoDashboardSnapshotId");
+
+                                                            b5.ToTable("Dashboard_Snapshots");
+
+                                                            b5.WithOwner()
+                                                                .HasForeignKey("DashboardMetricsComparisonContainerDashboardComparisonDtoDashboardSummaryDtoDashboardOverviewDtoDashboardSnapshotId");
+                                                        });
+
+                                                    b4.OwnsOne("HotelManagement.Dtos.DashboardMetricComparisonDto", "Bookings", b5 =>
+                                                        {
+                                                            b5.Property<int>("DashboardMetricsComparisonContainerDashboardComparisonDtoDashboardSummaryDtoDashboardOverviewDtoDashboardSnapshotId");
+
+                                                            b5.Property<decimal>("Current");
+
+                                                            b5.Property<decimal>("Difference");
+
+                                                            b5.Property<string>("DirectionMeaning")
+                                                                .IsRequired();
+
+                                                            b5.Property<decimal>("GrowthRate");
+
+                                                            b5.Property<decimal>("Previous");
+
+                                                            b5.Property<string>("Trend")
+                                                                .IsRequired();
+
+                                                            b5.HasKey("DashboardMetricsComparisonContainerDashboardComparisonDtoDashboardSummaryDtoDashboardOverviewDtoDashboardSnapshotId");
+
+                                                            b5.ToTable("Dashboard_Snapshots");
+
+                                                            b5.WithOwner()
+                                                                .HasForeignKey("DashboardMetricsComparisonContainerDashboardComparisonDtoDashboardSummaryDtoDashboardOverviewDtoDashboardSnapshotId");
+                                                        });
+
+                                                    b4.OwnsOne("HotelManagement.Dtos.DashboardMetricComparisonDto", "CleaningRequests", b5 =>
+                                                        {
+                                                            b5.Property<int>("DashboardMetricsComparisonContainerDashboardComparisonDtoDashboardSummaryDtoDashboardOverviewDtoDashboardSnapshotId");
+
+                                                            b5.Property<decimal>("Current");
+
+                                                            b5.Property<decimal>("Difference");
+
+                                                            b5.Property<string>("DirectionMeaning")
+                                                                .IsRequired();
+
+                                                            b5.Property<decimal>("GrowthRate");
+
+                                                            b5.Property<decimal>("Previous");
+
+                                                            b5.Property<string>("Trend")
+                                                                .IsRequired();
+
+                                                            b5.HasKey("DashboardMetricsComparisonContainerDashboardComparisonDtoDashboardSummaryDtoDashboardOverviewDtoDashboardSnapshotId");
+
+                                                            b5.ToTable("Dashboard_Snapshots");
+
+                                                            b5.WithOwner()
+                                                                .HasForeignKey("DashboardMetricsComparisonContainerDashboardComparisonDtoDashboardSummaryDtoDashboardOverviewDtoDashboardSnapshotId");
+                                                        });
+
+                                                    b4.OwnsOne("HotelManagement.Dtos.DashboardMetricComparisonDto", "DamageReports", b5 =>
+                                                        {
+                                                            b5.Property<int>("DashboardMetricsComparisonContainerDashboardComparisonDtoDashboardSummaryDtoDashboardOverviewDtoDashboardSnapshotId");
+
+                                                            b5.Property<decimal>("Current");
+
+                                                            b5.Property<decimal>("Difference");
+
+                                                            b5.Property<string>("DirectionMeaning")
+                                                                .IsRequired();
+
+                                                            b5.Property<decimal>("GrowthRate");
+
+                                                            b5.Property<decimal>("Previous");
+
+                                                            b5.Property<string>("Trend")
+                                                                .IsRequired();
+
+                                                            b5.HasKey("DashboardMetricsComparisonContainerDashboardComparisonDtoDashboardSummaryDtoDashboardOverviewDtoDashboardSnapshotId");
+
+                                                            b5.ToTable("Dashboard_Snapshots");
+
+                                                            b5.WithOwner()
+                                                                .HasForeignKey("DashboardMetricsComparisonContainerDashboardComparisonDtoDashboardSummaryDtoDashboardOverviewDtoDashboardSnapshotId");
+                                                        });
+
+                                                    b4.OwnsOne("HotelManagement.Dtos.DashboardMetricComparisonDto", "LowStockItems", b5 =>
+                                                        {
+                                                            b5.Property<int>("DashboardMetricsComparisonContainerDashboardComparisonDtoDashboardSummaryDtoDashboardOverviewDtoDashboardSnapshotId");
+
+                                                            b5.Property<decimal>("Current");
+
+                                                            b5.Property<decimal>("Difference");
+
+                                                            b5.Property<string>("DirectionMeaning")
+                                                                .IsRequired();
+
+                                                            b5.Property<decimal>("GrowthRate");
+
+                                                            b5.Property<decimal>("Previous");
+
+                                                            b5.Property<string>("Trend")
+                                                                .IsRequired();
+
+                                                            b5.HasKey("DashboardMetricsComparisonContainerDashboardComparisonDtoDashboardSummaryDtoDashboardOverviewDtoDashboardSnapshotId");
+
+                                                            b5.ToTable("Dashboard_Snapshots");
+
+                                                            b5.WithOwner()
+                                                                .HasForeignKey("DashboardMetricsComparisonContainerDashboardComparisonDtoDashboardSummaryDtoDashboardOverviewDtoDashboardSnapshotId");
+                                                        });
+
+                                                    b4.OwnsOne("HotelManagement.Dtos.DashboardMetricComparisonDto", "NetProfit", b5 =>
+                                                        {
+                                                            b5.Property<int>("DashboardMetricsComparisonContainerDashboardComparisonDtoDashboardSummaryDtoDashboardOverviewDtoDashboardSnapshotId");
+
+                                                            b5.Property<decimal>("Current");
+
+                                                            b5.Property<decimal>("Difference");
+
+                                                            b5.Property<string>("DirectionMeaning")
+                                                                .IsRequired();
+
+                                                            b5.Property<decimal>("GrowthRate");
+
+                                                            b5.Property<decimal>("Previous");
+
+                                                            b5.Property<string>("Trend")
+                                                                .IsRequired();
+
+                                                            b5.HasKey("DashboardMetricsComparisonContainerDashboardComparisonDtoDashboardSummaryDtoDashboardOverviewDtoDashboardSnapshotId");
+
+                                                            b5.ToTable("Dashboard_Snapshots");
+
+                                                            b5.WithOwner()
+                                                                .HasForeignKey("DashboardMetricsComparisonContainerDashboardComparisonDtoDashboardSummaryDtoDashboardOverviewDtoDashboardSnapshotId");
+                                                        });
+
+                                                    b4.OwnsOne("HotelManagement.Dtos.DashboardMetricComparisonDto", "Revenue", b5 =>
+                                                        {
+                                                            b5.Property<int>("DashboardMetricsComparisonContainerDashboardComparisonDtoDashboardSummaryDtoDashboardOverviewDtoDashboardSnapshotId");
+
+                                                            b5.Property<decimal>("Current");
+
+                                                            b5.Property<decimal>("Difference");
+
+                                                            b5.Property<string>("DirectionMeaning")
+                                                                .IsRequired();
+
+                                                            b5.Property<decimal>("GrowthRate");
+
+                                                            b5.Property<decimal>("Previous");
+
+                                                            b5.Property<string>("Trend")
+                                                                .IsRequired();
+
+                                                            b5.HasKey("DashboardMetricsComparisonContainerDashboardComparisonDtoDashboardSummaryDtoDashboardOverviewDtoDashboardSnapshotId");
+
+                                                            b5.ToTable("Dashboard_Snapshots");
+
+                                                            b5.WithOwner()
+                                                                .HasForeignKey("DashboardMetricsComparisonContainerDashboardComparisonDtoDashboardSummaryDtoDashboardOverviewDtoDashboardSnapshotId");
+                                                        });
+
+                                                    b4.OwnsOne("HotelManagement.Dtos.DashboardMetricComparisonDto", "ServiceOrders", b5 =>
+                                                        {
+                                                            b5.Property<int>("DashboardMetricsComparisonContainerDashboardComparisonDtoDashboardSummaryDtoDashboardOverviewDtoDashboardSnapshotId");
+
+                                                            b5.Property<decimal>("Current");
+
+                                                            b5.Property<decimal>("Difference");
+
+                                                            b5.Property<string>("DirectionMeaning")
+                                                                .IsRequired();
+
+                                                            b5.Property<decimal>("GrowthRate");
+
+                                                            b5.Property<decimal>("Previous");
+
+                                                            b5.Property<string>("Trend")
+                                                                .IsRequired();
+
+                                                            b5.HasKey("DashboardMetricsComparisonContainerDashboardComparisonDtoDashboardSummaryDtoDashboardOverviewDtoDashboardSnapshotId");
+
+                                                            b5.ToTable("Dashboard_Snapshots");
+
+                                                            b5.WithOwner()
+                                                                .HasForeignKey("DashboardMetricsComparisonContainerDashboardComparisonDtoDashboardSummaryDtoDashboardOverviewDtoDashboardSnapshotId");
+                                                        });
+
+                                                    b4.Navigation("Articles");
+
+                                                    b4.Navigation("Bookings");
+
+                                                    b4.Navigation("CleaningRequests");
+
+                                                    b4.Navigation("DamageReports");
+
+                                                    b4.Navigation("LowStockItems");
+
+                                                    b4.Navigation("NetProfit");
+
+                                                    b4.Navigation("Revenue");
+
+                                                    b4.Navigation("ServiceOrders");
+                                                });
+
+                                            b3.Navigation("Base")
+                                                .IsRequired();
+
+                                            b3.Navigation("Metrics")
+                                                .IsRequired();
+                                        });
+
+                                    b2.Navigation("Comparison")
+                                        .IsRequired();
+                                });
+
+                            b1.OwnsOne("HotelManagement.Dtos.DashboardWidgetsDto", "Widgets", b2 =>
+                                {
+                                    b2.Property<int>("DashboardOverviewDtoDashboardSnapshotId");
+
+                                    b2.HasKey("DashboardOverviewDtoDashboardSnapshotId");
+
+                                    b2.ToTable("Dashboard_Snapshots");
+
+                                    b2.WithOwner()
+                                        .HasForeignKey("DashboardOverviewDtoDashboardSnapshotId");
+
+                                    b2.OwnsMany("HotelManagement.Dtos.DashboardPendingServiceDto", "PendingServices", b3 =>
+                                        {
+                                            b3.Property<int>("DashboardWidgetsDtoDashboardOverviewDtoDashboardSnapshotId");
+
+                                            b3.Property<int>("__synthesizedOrdinal")
+                                                .ValueGeneratedOnAddOrUpdate();
+
+                                            b3.Property<string>("GuestName")
+                                                .IsRequired();
+
+                                            b3.Property<int>("Id");
+
+                                            b3.Property<DateTime>("OrderDate");
+
+                                            b3.Property<string>("RoomNumber")
+                                                .IsRequired();
+
+                                            b3.HasKey("DashboardWidgetsDtoDashboardOverviewDtoDashboardSnapshotId", "__synthesizedOrdinal");
+
+                                            b3.ToTable("Dashboard_Snapshots");
+
+                                            b3.WithOwner()
+                                                .HasForeignKey("DashboardWidgetsDtoDashboardOverviewDtoDashboardSnapshotId");
+                                        });
+
+                                    b2.OwnsMany("HotelManagement.Dtos.DashboardRecentBookingDto", "RecentBookings", b3 =>
+                                        {
+                                            b3.Property<int>("DashboardWidgetsDtoDashboardOverviewDtoDashboardSnapshotId");
+
+                                            b3.Property<int>("__synthesizedOrdinal")
+                                                .ValueGeneratedOnAddOrUpdate();
+
+                                            b3.Property<DateTime>("CheckInDate");
+
+                                            b3.Property<DateTime>("CheckOutDate");
+
+                                            b3.Property<string>("GuestName")
+                                                .IsRequired();
+
+                                            b3.Property<int>("Id");
+
+                                            b3.Property<string>("Status")
+                                                .IsRequired();
+
+                                            b3.Property<decimal>("TotalAmount");
+
+                                            b3.HasKey("DashboardWidgetsDtoDashboardOverviewDtoDashboardSnapshotId", "__synthesizedOrdinal");
+
+                                            b3.ToTable("Dashboard_Snapshots");
+
+                                            b3.WithOwner()
+                                                .HasForeignKey("DashboardWidgetsDtoDashboardOverviewDtoDashboardSnapshotId");
+                                        });
+
+                                    b2.OwnsMany("HotelManagement.Dtos.DashboardRevenuePointDto", "RevenueChart", b3 =>
+                                        {
+                                            b3.Property<int>("DashboardWidgetsDtoDashboardOverviewDtoDashboardSnapshotId");
+
+                                            b3.Property<int>("__synthesizedOrdinal")
+                                                .ValueGeneratedOnAddOrUpdate();
+
+                                            b3.Property<int>("Bookings");
+
+                                            b3.Property<string>("Name")
+                                                .IsRequired();
+
+                                            b3.Property<decimal>("Revenue");
+
+                                            b3.HasKey("DashboardWidgetsDtoDashboardOverviewDtoDashboardSnapshotId", "__synthesizedOrdinal");
+
+                                            b3.ToTable("Dashboard_Snapshots");
+
+                                            b3.WithOwner()
+                                                .HasForeignKey("DashboardWidgetsDtoDashboardOverviewDtoDashboardSnapshotId");
+                                        });
+
+                                    b2.OwnsMany("HotelManagement.Dtos.DashboardRoomStatusPointDto", "RoomStatusChart", b3 =>
+                                        {
+                                            b3.Property<int>("DashboardWidgetsDtoDashboardOverviewDtoDashboardSnapshotId");
+
+                                            b3.Property<int>("__synthesizedOrdinal")
+                                                .ValueGeneratedOnAddOrUpdate();
+
+                                            b3.Property<string>("Color")
+                                                .IsRequired();
+
+                                            b3.Property<string>("Name")
+                                                .IsRequired();
+
+                                            b3.Property<int>("Value");
+
+                                            b3.HasKey("DashboardWidgetsDtoDashboardOverviewDtoDashboardSnapshotId", "__synthesizedOrdinal");
+
+                                            b3.ToTable("Dashboard_Snapshots");
+
+                                            b3.WithOwner()
+                                                .HasForeignKey("DashboardWidgetsDtoDashboardOverviewDtoDashboardSnapshotId");
+                                        });
+
+                                    b2.Navigation("PendingServices");
+
+                                    b2.Navigation("RecentBookings");
+
+                                    b2.Navigation("RevenueChart");
+
+                                    b2.Navigation("RoomStatusChart");
+                                });
+
+                            b1.Navigation("Alerts");
+
+                            b1.Navigation("Breakdown")
+                                .IsRequired();
+
+                            b1.Navigation("Events");
+
+                            b1.Navigation("Meta")
+                                .IsRequired();
+
+                            b1.Navigation("Summary")
+                                .IsRequired();
+
+                            b1.Navigation("Widgets")
+                                .IsRequired();
+                        });
+
+                    b.Navigation("Data")
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("HotelManagement.Entities.User", b =>

@@ -39,6 +39,7 @@ public class AppDbContext : DbContext
     public DbSet<Voucher> Vouchers { get; set; }
 
     public DbSet<RefreshToken> RefreshTokens { get; set; }
+    public DbSet<HotelManagement.Entities.Snapshots.DashboardSnapshot> DashboardSnapshots { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -84,6 +85,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<User>().ToTable("Users");
         modelBuilder.Entity<Voucher>().ToTable("Vouchers");
         modelBuilder.Entity<RefreshToken>().ToTable("Refresh_Tokens");
+        modelBuilder.Entity<HotelManagement.Entities.Snapshots.DashboardSnapshot>().ToTable("Dashboard_Snapshots");
 
         // Column name mappings
         modelBuilder.Entity<Amenity>(e =>
@@ -454,6 +456,46 @@ public class AppDbContext : DbContext
             e.Property(x => x.Token).HasColumnName("token");
             e.Property(x => x.ExpiryDate).HasColumnName("expiry_date");
             e.Property(x => x.UserId).HasColumnName("user_id");
+        });
+
+        modelBuilder.Entity<HotelManagement.Entities.Snapshots.DashboardSnapshot>(e =>
+        {
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.SnapshotType).HasColumnName("snapshot_type");
+            e.OwnsOne(x => x.Data, d => 
+            { 
+                d.ToJson(); 
+                d.OwnsOne(x => x.Meta);
+                d.OwnsOne(x => x.Summary, s => {
+                    s.OwnsOne(x => x.Comparison, c => {
+                        c.OwnsOne(x => x.Base);
+                        c.OwnsOne(x => x.Metrics, m => {
+                            m.OwnsOne(x => x.Revenue);
+                            m.OwnsOne(x => x.Bookings);
+                            m.OwnsOne(x => x.NetProfit);
+                            m.OwnsOne(x => x.DamageReports);
+                            m.OwnsOne(x => x.LowStockItems);
+                            m.OwnsOne(x => x.CleaningRequests);
+                            m.OwnsOne(x => x.Articles);
+                            m.OwnsOne(x => x.ServiceOrders);
+                        });
+                    });
+                });
+                d.OwnsOne(x => x.Widgets, w => {
+                    w.OwnsMany(x => x.RevenueChart);
+                    w.OwnsMany(x => x.RoomStatusChart);
+                    w.OwnsMany(x => x.RecentBookings);
+                    w.OwnsMany(x => x.PendingServices);
+                });
+                d.OwnsOne(x => x.Breakdown, b => {
+                    b.OwnsOne(x => x.Occupancy);
+                    b.OwnsMany(x => x.PendingCleaningRooms);
+                });
+                d.OwnsMany(x => x.Alerts);
+                d.OwnsMany(x => x.Events);
+            });
+            e.Property(x => x.SnapshotDate).HasColumnName("snapshot_date");
+            e.Property(x => x.LastUpdated).HasColumnName("last_updated");
         });
 
         // Composite PKs

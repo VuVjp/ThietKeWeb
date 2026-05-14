@@ -183,6 +183,7 @@ builder.Services.AddScoped<IBookingService, BookingService>();
 builder.Services.AddHostedService<BookingAutoCancelBackgroundService>();
 builder.Services.AddHostedService<AuditLogCleanupBackgroundService>();
 builder.Services.AddHostedService<BirthdayVoucherJob>();
+builder.Services.AddHostedService<DashboardSnapshotBackgroundService>();
 builder.Services.AddScoped<ILossAndDamageRepository, LossAndDamageRepository>();
 builder.Services.AddScoped<ILossAndDamageService, LossAndDamageService>();
 builder.Services.AddScoped<IRoomTypeRepository, RoomTypeRepository>();

@@ -135,14 +135,6 @@ public class BirthdayVoucherJob : BackgroundService
 
     private DateTime GetVietnamNow()
     {
-        try
-        {
-            var vietnamZone = TimeZoneInfo.FindSystemTimeZoneById(VietnamTimeZoneId);
-            return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, vietnamZone);
-        }
-        catch
-        {
-            return DateTime.UtcNow.AddHours(7); // Fallback for Linux or if TZ not found
-        }
+        return DateTime.Now;
     }
 }

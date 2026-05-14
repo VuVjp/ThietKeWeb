@@ -185,7 +185,7 @@ public class ArticleService : IArticleService
             Content      = dto.Content,
             ThumbnailUrl = thumbnailUrl,
             IsActive     = dto.IsActive ?? true,
-            PublishedAt  = (dto.IsActive ?? true) ? DateTime.UtcNow : null
+            PublishedAt  = (dto.IsActive ?? true) ? DateTime.Now : null
         };
 
         await _repo.AddAsync(entity);
@@ -224,7 +224,7 @@ public class ArticleService : IArticleService
         if (dto.IsActive.HasValue) {
             entity.IsActive = dto.IsActive.Value;
             if (entity.IsActive && entity.PublishedAt == null) {
-                entity.PublishedAt = DateTime.UtcNow;
+                entity.PublishedAt = DateTime.Now;
             }
         }
 
