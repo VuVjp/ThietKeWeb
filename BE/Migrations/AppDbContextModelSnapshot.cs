@@ -1877,8 +1877,6 @@ namespace BE.Migrations
 
                                     b2.Property<int>("BookingCount");
 
-                                    b2.Property<int>("CleaningRequestsCount");
-
                                     b2.Property<decimal>("NetProfit");
 
                                     b2.Property<int>("ServiceOrdersCount");

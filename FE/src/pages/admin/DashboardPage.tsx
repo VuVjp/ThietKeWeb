@@ -8,6 +8,7 @@ import {
     ExclamationTriangleIcon,
     ClipboardDocumentListIcon,
     ClockIcon,
+    CheckCircleIcon,
     ArrowTrendingUpIcon,
     ArrowTrendingDownIcon,
 } from '@heroicons/react/24/outline';
@@ -134,9 +135,9 @@ export function DashboardPage() {
     // Default structures for new API format
     const emptyOverview: DashboardOverview = {
         meta: { schemaVersion: 1, dashboardCode: '', roleName: '', periodType: '', periodKey: '', periodStart: '', periodEnd: '', status: '', generatedAt: '' },
-        summary: { totalRevenue: 0, bookingCount: 0, netProfit: 0, auditLogTotal: 0, comparison: { base: { comparisonType: '', currentPeriodKey: '', previousPeriodKey: '' }, metrics: {} } },
+        summary: { totalRevenue: 0, bookingCount: 0, netProfit: 0, auditLogTotal: 0, articlesCount: 0, serviceOrdersCount: 0, comparison: { base: { comparisonType: '', currentPeriodKey: '', previousPeriodKey: '' }, metrics: {} } },
         widgets: { revenueChart: [], roomStatusChart: [], recentBookings: [], pendingServices: [] },
-        breakdown: { occupancy: { total: 0, occupied: 0, maintenance: 0, available: 0 }, inspectingCount: 0 },
+        breakdown: { occupancy: { total: 0, occupied: 0, maintenance: 0, available: 0 }, inspectingCount: 0, pendingCleaningRooms: [], inspectingRooms: [] },
         alerts: [],
         events: [],
     };
@@ -258,11 +259,11 @@ export function DashboardPage() {
                     <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                         <div className="flex items-center justify-between mb-6">
                             <h3 className="text-lg font-bold text-slate-900">Pending Cleaning Rooms</h3>
-                            <button onClick={() => navigate('/admin/cleaning')} className="text-xs font-bold text-cyan-600 hover:text-cyan-700">View All</button>
+                            <button onClick={() => navigate('/admin/cleaning?tab=cleaning')} className="text-xs font-bold text-cyan-600 hover:text-cyan-700">View All</button>
                         </div>
                         <div className="space-y-3">
                             {housekeeper.pendingCleaningRooms?.map((room) => (
-                                <div key={room.id} className="rounded-xl border border-slate-100 p-3 transition hover:bg-slate-50 cursor-pointer" onClick={() => navigate(`/admin/rooms/${room.id}`)}>
+                                <div key={room.id} className="rounded-xl border border-slate-100 p-3 transition hover:bg-slate-50 cursor-pointer" onClick={() => navigate(`/admin/cleaning?roomId=${room.id}&tab=cleaning`)}>
                                     <div className="flex items-start justify-between gap-3">
                                         <div>
                                             <p className="text-sm font-semibold text-slate-900">Room {room.roomNumber}</p>
@@ -281,11 +282,11 @@ export function DashboardPage() {
                     <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                         <div className="flex items-center justify-between mb-6">
                             <h3 className="text-lg font-bold text-slate-900">Rooms Being Inspected</h3>
-                            <button onClick={() => navigate('/admin/cleaning')} className="text-xs font-bold text-cyan-600 hover:text-cyan-700">View All</button>
+                            <button onClick={() => navigate('/admin/cleaning?tab=inspecting')} className="text-xs font-bold text-cyan-600 hover:text-cyan-700">View All</button>
                         </div>
                         <div className="space-y-3">
                             {housekeeper.inspectingRooms?.map((room) => (
-                                <div key={room.id} className="rounded-xl border border-slate-100 p-3 transition hover:bg-slate-50 cursor-pointer" onClick={() => navigate(`/admin/rooms/${room.id}`)}>
+                                <div key={room.id} className="rounded-xl border border-slate-100 p-3 transition hover:bg-slate-50 cursor-pointer" onClick={() => navigate(`/admin/cleaning?roomId=${room.id}&tab=inspecting`)}>
                                     <div className="flex items-start justify-between gap-3">
                                         <div>
                                             <p className="text-sm font-semibold text-slate-900">Room {room.roomNumber}</p>
@@ -422,24 +423,47 @@ export function DashboardPage() {
                         </table>
                     </div>
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm mt-8">
-                    <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-lg font-bold text-slate-900">Rooms to Clean</h3>
-                        <div className="rounded-lg bg-amber-50 px-2 py-1 text-xs font-bold text-amber-600">Real-time</div>
-                    </div>
-                    <div className="space-y-3">
-                        {receptionist.pendingCleaningRooms?.map((room) => (
-                            <div key={room.id} className="rounded-xl border border-slate-100 p-3 transition hover:bg-slate-50 cursor-pointer" onClick={() => navigate(`/admin/rooms/${room.id}`)}>
-                                <div className="flex items-start justify-between gap-3">
-                                    <div>
-                                        <p className="text-sm font-semibold text-slate-900">Room {room.roomNumber}</p>
-                                        <p className="mt-1 text-xs text-slate-500">{room.status} • {room.cleaningStatus}</p>
+                <div className="grid gap-6 lg:grid-cols-2 mt-8">
+                    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="text-lg font-bold text-slate-900">Rooms to Clean</h3>
+                            <div className="rounded-lg bg-amber-50 px-2 py-1 text-xs font-bold text-amber-600">Real-time</div>
+                        </div>
+                        <div className="space-y-3">
+                            {receptionist.pendingCleaningRooms?.map((room) => (
+                                <div key={room.id} className="rounded-xl border border-slate-100 p-3 transition hover:bg-slate-50 cursor-pointer" onClick={() => navigate(`/admin/cleaning?roomId=${room.id}&tab=cleaning`)}>
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div>
+                                            <p className="text-sm font-semibold text-slate-900">Room {room.roomNumber}</p>
+                                            <p className="mt-1 text-xs text-slate-500">{room.status} • {room.cleaningStatus}</p>
+                                        </div>
+                                        <Badge value="To Clean" color="amber" />
                                     </div>
-                                    <Badge value="To Clean" color="amber" />
                                 </div>
-                            </div>
-                        ))}
-                        {(!receptionist.pendingCleaningRooms || receptionist.pendingCleaningRooms.length === 0) && <p className="py-8 text-center text-sm text-slate-400">All rooms are clean.</p>}
+                            ))}
+                            {(!receptionist.pendingCleaningRooms || receptionist.pendingCleaningRooms.length === 0) && <p className="py-8 text-center text-sm text-slate-400">All rooms are clean.</p>}
+                        </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="text-lg font-bold text-slate-900">Rooms to Inspect</h3>
+                            <div className="rounded-lg bg-blue-50 px-2 py-1 text-xs font-bold text-blue-600">Real-time</div>
+                        </div>
+                        <div className="space-y-3">
+                            {receptionist.inspectingRooms?.map((room) => (
+                                <div key={room.id} className="rounded-xl border border-slate-100 p-3 transition hover:bg-slate-50 cursor-pointer" onClick={() => navigate(`/admin/cleaning?roomId=${room.id}&tab=inspecting`)}>
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div>
+                                            <p className="text-sm font-semibold text-slate-900">Room {room.roomNumber}</p>
+                                            <p className="mt-1 text-xs text-slate-500">{room.status} • {room.cleaningStatus}</p>
+                                        </div>
+                                        <Badge value="Inspecting" color="blue" />
+                                    </div>
+                                </div>
+                            ))}
+                            {(!receptionist.inspectingRooms || receptionist.inspectingRooms.length === 0) && <p className="py-8 text-center text-sm text-slate-400">No rooms under inspection.</p>}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -480,9 +504,15 @@ export function DashboardPage() {
                     title="Rooms to Clean"
                     value={overview.breakdown.pendingCleaningRooms?.length || 0}
                     subValue="Awaiting cleaning"
-                    //comparison={comparison.metrics.cleaningRequests}
                     icon={HomeIcon}
                     color="amber"
+                />
+                <MetricCard
+                    title="Rooms to Inspect"
+                    value={overview.breakdown.inspectingRooms?.length || 0}
+                    subValue="Awaiting verification"
+                    icon={ClipboardDocumentListIcon}
+                    color="blue"
                 />
 
                 <MetricCard
@@ -576,18 +606,128 @@ export function DashboardPage() {
                 </div>
             </div>
 
+            <div className="space-y-6">
+                <div className="flex items-center gap-3">
+                    <div className="h-8 w-1 bg-cyan-600 rounded-full" />
+                    <h3 className="text-xl font-bold text-slate-900">Real-time Operations</h3>
+                    <div className="flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-bold text-emerald-600 animate-pulse border border-emerald-100">
+                        <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        LIVE MONITORING
+                    </div>
+                </div>
+                
+                <div className="grid gap-6 lg:grid-cols-3">
+                    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm hover:shadow-md transition-shadow">
+                        <div className="flex items-center justify-between mb-6">
+                            <div className="flex items-center gap-3">
+                                <div className="rounded-lg bg-amber-50 p-2">
+                                    <ClockIcon className="h-5 w-5 text-amber-600" />
+                                </div>
+                                <h3 className="text-lg font-bold text-slate-900">Rooms to Clean</h3>
+                            </div>
+                            <button onClick={() => navigate('/admin/cleaning?tab=cleaning')} className="text-xs font-bold text-cyan-600 hover:text-cyan-700">View Board</button>
+                        </div>
+                        <div className="space-y-3">
+                            {overview.breakdown.pendingCleaningRooms?.map((room) => (
+                                <div key={room.id} className="group rounded-xl border border-slate-100 p-3 transition hover:bg-slate-50 hover:border-amber-200 cursor-pointer" onClick={() => navigate(`/admin/cleaning?roomId=${room.id}&tab=cleaning`)}>
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div>
+                                            <p className="text-sm font-semibold text-slate-900 group-hover:text-cyan-700 transition-colors">Room {room.roomNumber}</p>
+                                            <p className="mt-1 text-[10px] text-slate-500 uppercase tracking-wider">{room.status} • {room.cleaningStatus}</p>
+                                        </div>
+                                        <Badge value="To Clean" color="amber" />
+                                    </div>
+                                </div>
+                            ))}
+                            {(!overview.breakdown.pendingCleaningRooms || overview.breakdown.pendingCleaningRooms.length === 0) && (
+                                <div className="flex flex-col items-center justify-center py-8 opacity-40">
+                                    <CheckCircleIcon className="h-10 w-10 text-slate-300" />
+                                    <p className="mt-2 text-sm text-slate-400">All rooms are clean</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm hover:shadow-md transition-shadow">
+                        <div className="flex items-center justify-between mb-6">
+                            <div className="flex items-center gap-3">
+                                <div className="rounded-lg bg-blue-50 p-2">
+                                    <ExclamationTriangleIcon className="h-5 w-5 text-blue-600" />
+                                </div>
+                                <h3 className="text-lg font-bold text-slate-900">Rooms to Inspect</h3>
+                            </div>
+                            <button onClick={() => navigate('/admin/cleaning?tab=inspecting')} className="text-xs font-bold text-cyan-600 hover:text-cyan-700">View Board</button>
+                        </div>
+                        <div className="space-y-3">
+                            {overview.breakdown.inspectingRooms?.map((room) => (
+                                <div key={room.id} className="group rounded-xl border border-slate-100 p-3 transition hover:bg-slate-50 hover:border-blue-200 cursor-pointer" onClick={() => navigate(`/admin/cleaning?roomId=${room.id}&tab=inspecting`)}>
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div>
+                                            <p className="text-sm font-semibold text-slate-900 group-hover:text-cyan-700 transition-colors">Room {room.roomNumber}</p>
+                                            <p className="mt-1 text-[10px] text-slate-500 uppercase tracking-wider">{room.status} • {room.cleaningStatus}</p>
+                                        </div>
+                                        <Badge value="Inspecting" color="blue" />
+                                    </div>
+                                </div>
+                            ))}
+                            {(!overview.breakdown.inspectingRooms || overview.breakdown.inspectingRooms.length === 0) && (
+                                <div className="flex flex-col items-center justify-center py-8 opacity-40">
+                                    <ClipboardDocumentListIcon className="h-10 w-10 text-slate-300" />
+                                    <p className="mt-2 text-sm text-slate-400">No rooms awaiting inspection</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm hover:shadow-md transition-shadow">
+                        <div className="flex items-center justify-between mb-6">
+                            <div className="flex items-center gap-3">
+                                <div className="rounded-lg bg-indigo-50 p-2">
+                                    <ArrowPathIcon className="h-5 w-5 text-indigo-600" />
+                                </div>
+                                <h3 className="text-lg font-bold text-slate-900">Pending Services</h3>
+                            </div>
+                            <button onClick={() => navigate('/admin/reception/order-services')} className="text-xs font-bold text-cyan-600 hover:text-cyan-700">View All</button>
+                        </div>
+                        <div className="space-y-3">
+                            {pendingServices.map((order) => (
+                                <div key={order.id} className="group rounded-xl border border-slate-100 p-3 transition hover:bg-slate-50 hover:border-indigo-200 cursor-pointer" onClick={() => navigate(`/admin/reception/order-services/${order.id}`)}>
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div>
+                                            <p className="text-sm font-semibold text-slate-900 group-hover:text-cyan-700 transition-colors">Room {order.roomNumber}</p>
+                                            <p className="mt-1 text-xs text-slate-500">{order.guestName}</p>
+                                        </div>
+                                        <Badge value="Pending" color="amber" />
+                                    </div>
+                                    <div className="mt-3 flex items-center justify-between text-[10px] text-slate-400 font-mono">
+                                        <span>ID: #{order.id}</span>
+                                        <span>{new Date(order.orderDate).toLocaleTimeString()}</span>
+                                    </div>
+                                </div>
+                            ))}
+                            {pendingServices.length === 0 && (
+                                <div className="flex flex-col items-center justify-center py-8 opacity-40">
+                                    <ArrowPathIcon className="h-10 w-10 text-slate-300" />
+                                    <p className="mt-2 text-sm text-slate-400">No pending orders</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div className="grid gap-6 lg:grid-cols-3">
                 <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                     <div className="flex items-center justify-between mb-6">
                         <h3 className="text-lg font-bold text-slate-900">Recent Bookings</h3>
-                        <button onClick={() => navigate('/admin/reception/bookings')} className="text-xs font-bold text-cyan-600 hover:text-cyan-700">View All</button>
+                        <button onClick={() => navigate('/admin/reception/bookings')} className="text-xs font-bold text-cyan-600 hover:text-cyan-700">Explore</button>
                     </div>
                     <div className="space-y-3">
                         {recentBookings.map((booking) => (
-                            <div key={booking.id} className="rounded-xl border border-slate-100 p-3 transition hover:bg-slate-50">
+                            <div key={booking.id} className="rounded-xl border border-slate-100 p-3 transition hover:bg-slate-50 border-l-4 border-l-cyan-500">
                                 <div className="flex items-start justify-between gap-3">
                                     <div>
-                                        <p className="text-sm font-semibold text-slate-900">{booking.guestName}</p>
+                                        <p className="text-sm font-bold text-slate-900">{booking.guestName}</p>
                                         <p className="mt-1 text-xs text-slate-500">
                                             {new Date(booking.checkInDate).toLocaleDateString()} - {new Date(booking.checkOutDate).toLocaleDateString()}
                                         </p>
@@ -595,8 +735,8 @@ export function DashboardPage() {
                                     <Badge value={booking.status} />
                                 </div>
                                 <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
-                                    <span>Booking #{booking.id}</span>
-                                    <span className="font-semibold text-slate-900">${booking.totalAmount.toLocaleString()}</span>
+                                    <span className="font-mono text-[10px]">REF: {booking.id}</span>
+                                    <span className="font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded-md">${booking.totalAmount.toLocaleString()}</span>
                                 </div>
                             </div>
                         ))}
@@ -606,64 +746,52 @@ export function DashboardPage() {
 
                 <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                     <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-lg font-bold text-slate-900">Pending Orders</h3>
-                        <button onClick={() => navigate('/admin/reception/order-services')} className="text-xs font-bold text-cyan-600 hover:text-cyan-700">View All</button>
+                        <h3 className="text-lg font-bold text-slate-900">Recent Audit Events</h3>
+                        <button onClick={() => navigate('/admin/audit-log')} className="text-xs font-bold text-cyan-600 hover:text-cyan-700">View Logs</button>
                     </div>
-                    <div className="space-y-3">
-                        {pendingServices.map((order) => (
-                            <div key={order.id} className="rounded-xl border border-slate-100 p-3 transition hover:bg-slate-50 cursor-pointer" onClick={() => navigate(`/admin/reception/order-services/${order.id}`)}>
-                                <div className="flex items-start justify-between gap-3">
-                                    <div>
-                                        <p className="text-sm font-semibold text-slate-900">Room {order.roomNumber}</p>
-                                        <p className="mt-1 text-xs text-slate-500">{order.guestName}</p>
-                                    </div>
-                                    <Badge value="Pending" color="amber" />
-                                </div>
-                                <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
-                                    <span>Order #{order.id}</span>
-                                    <span>{new Date(order.orderDate).toLocaleDateString()}</span>
-                                </div>
-                            </div>
-                        ))}
-                        {pendingServices.length === 0 && <p className="py-8 text-center text-sm text-slate-400">No pending orders.</p>}
-                    </div>
-                </div>
-                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                    <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-lg font-bold text-slate-900">Rooms to Clean</h3>
-                        <div className="rounded-lg bg-amber-50 px-2 py-1 text-xs font-bold text-amber-600">Real-time</div>
-                    </div>
-                    <div className="space-y-3">
-                        {overview.breakdown.pendingCleaningRooms?.map((room) => (
-                            <div key={room.id} className="rounded-xl border border-slate-100 p-3 transition hover:bg-slate-50 cursor-pointer" onClick={() => navigate(`/admin/rooms/${room.id}`)}>
-                                <div className="flex items-start justify-between gap-3">
-                                    <div>
-                                        <p className="text-sm font-semibold text-slate-900">Room {room.roomNumber}</p>
-                                        <p className="mt-1 text-xs text-slate-500">{room.status} • {room.cleaningStatus}</p>
-                                    </div>
-                                    <Badge value="To Clean" color="amber" />
-                                </div>
-                            </div>
-                        ))}
-                        {(!overview.breakdown.pendingCleaningRooms || overview.breakdown.pendingCleaningRooms.length === 0) && <p className="py-8 text-center text-sm text-slate-400">All rooms are clean.</p>}
-                    </div>
-                </div>
-                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                    <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-lg font-bold text-slate-900">Recent Events</h3>
-                        <button onClick={() => navigate('/admin/audit-log')} className="text-xs font-bold text-cyan-600 hover:text-cyan-700">View All</button>
-                    </div>
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                         {overview.events.map((ev) => (
-                            <div key={ev.id} className="flex items-start gap-3 rounded-xl border border-slate-50 bg-slate-50/50 p-3">
-                                <div className="mt-1 h-2 w-2 rounded-full bg-cyan-500" />
+                            <div key={ev.id} className="relative pl-6 pb-4 border-l border-slate-100 last:border-0 last:pb-0">
+                                <div className="absolute left-[-5px] top-1.5 h-2.5 w-2.5 rounded-full bg-cyan-500 ring-4 ring-cyan-50" />
                                 <div>
-                                    <p className="text-sm text-slate-900">{ev.message}</p>
-                                    <p className="text-[10px] text-slate-400 mt-1">{new Date(ev.timestamp).toLocaleString()}</p>
+                                    <p className="text-sm font-medium text-slate-900">{ev.message}</p>
+                                    <p className="text-[10px] text-slate-400 mt-1 flex items-center gap-1">
+                                        <ClockIcon className="h-3 w-3" />
+                                        {new Date(ev.timestamp).toLocaleString()}
+                                    </p>
                                 </div>
                             </div>
                         ))}
-                        {overview.events.length === 0 && <p className="py-8 text-center text-sm text-slate-400">No recent events tracked.</p>}
+                        {overview.events.length === 0 && <p className="py-8 text-center text-sm text-slate-400">No recent activity detected.</p>}
+                    </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <div className="flex items-center justify-between mb-6">
+                        <h3 className="text-lg font-bold text-slate-900">Critical Alerts</h3>
+                        <div className="h-2 w-2 rounded-full bg-rose-500 animate-ping" />
+                    </div>
+                    <div className="space-y-3">
+                        {overview.alerts.map((alert) => (
+                            <div key={alert.id} className="rounded-xl border border-rose-100 bg-rose-50/30 p-3 transition hover:bg-rose-50">
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="flex items-center gap-2">
+                                        <div className="rounded bg-rose-100 p-1">
+                                            <ExclamationTriangleIcon className="h-4 w-4 text-rose-600" />
+                                        </div>
+                                        <p className="text-sm font-bold text-rose-900">Room {alert.room}</p>
+                                    </div>
+                                    <span className="font-bold text-rose-600">-${alert.penalty}</span>
+                                </div>
+                                <p className="mt-2 text-xs text-rose-700 line-clamp-2">{alert.itemName}: {alert.description}</p>
+                            </div>
+                        ))}
+                        {overview.alerts.length === 0 && (
+                            <div className="flex flex-col items-center justify-center py-8 opacity-40">
+                                <CheckCircleIcon className="h-10 w-10 text-emerald-300" />
+                                <p className="mt-2 text-sm text-slate-400">No critical alerts</p>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

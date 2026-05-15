@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace HotelManagement.Dtos;
 
@@ -48,7 +49,12 @@ public class DashboardBreakdownDto
 {
     public RoomOccupancySummaryDto Occupancy { get; set; } = new();
     public int InspectingCount { get; set; }
+    
+    [NotMapped]
     public List<DashboardRoomTaskDto> PendingCleaningRooms { get; set; } = new();
+
+    [NotMapped]
+    public List<DashboardRoomTaskDto> InspectingRooms { get; set; } = new();
 }
 
 public class DashboardComparisonDto
@@ -188,6 +194,8 @@ public class ReceptionistDashboardDto
     public int PendingServiceOrders { get; set; }
     public int CompletedServiceOrdersToday { get; set; }
     public List<DashboardPendingServiceDto> ServiceQueue { get; set; } = new();
+    public List<DashboardRoomTaskDto> PendingCleaningRooms { get; set; } = new();
+    public List<DashboardRoomTaskDto> InspectingRooms { get; set; } = new();
 }
 
 public class ManagerDashboardDto

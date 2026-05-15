@@ -115,6 +115,7 @@ export interface DashboardOverview {
         };
         inspectingCount: number;
         pendingCleaningRooms: DashboardRoomTask[];
+        inspectingRooms: DashboardRoomTask[];
     };
     alerts: DashboardCriticalAlert[];
     events: DashboardEvent[];
@@ -152,6 +153,7 @@ export interface ReceptionistDashboard {
     completedServiceOrdersToday: number;
     serviceQueue: DashboardPendingService[];
     pendingCleaningRooms: DashboardRoomTask[];
+    inspectingRooms: DashboardRoomTask[];
 }
 
 export interface ManagerDashboard {
@@ -182,7 +184,7 @@ const emptyOverview: DashboardOverview = {
     meta: { schemaVersion: 1, dashboardCode: '', roleName: '', periodType: '', periodKey: '', periodStart: '', periodEnd: '', status: '', generatedAt: '' },
     summary: { totalRevenue: 0, bookingCount: 0, netProfit: 0, auditLogTotal: 0, comparison: { base: { comparisonType: '', currentPeriodKey: '', previousPeriodKey: '' }, metrics: {} } },
     widgets: { revenueChart: [], roomStatusChart: [], recentBookings: [], pendingServices: [] },
-    breakdown: { occupancy: { total: 0, occupied: 0, maintenance: 0, available: 0 }, inspectingCount: 0 },
+    breakdown: { occupancy: { total: 0, occupied: 0, maintenance: 0, available: 0 }, inspectingCount: 0, pendingCleaningRooms: [], inspectingRooms: [] },
     alerts: [],
     events: [],
 };
@@ -298,6 +300,13 @@ function normalizeDashboardOverview(raw: unknown): DashboardOverview {
                 cleaningStatus: String(item?.cleaningStatus ?? item?.CleaningStatus ?? ''),
                 cleaningRequested: Boolean(item?.cleaningRequested ?? item?.CleaningRequested ?? false),
             })),
+            inspectingRooms: (Array.isArray(pick(breakdownRaw, 'inspectingRooms', 'InspectingRooms')) ? pick<any[]>(breakdownRaw, 'inspectingRooms', 'InspectingRooms')! : []).map((item: any) => ({
+                id: Number(item?.id ?? item?.Id ?? 0),
+                roomNumber: String(item?.roomNumber ?? item?.RoomNumber ?? ''),
+                status: String(item?.status ?? item?.Status ?? ''),
+                cleaningStatus: String(item?.cleaningStatus ?? item?.CleaningStatus ?? ''),
+                cleaningRequested: Boolean(item?.cleaningRequested ?? item?.CleaningRequested ?? false),
+            })),
         },
         alerts: (Array.isArray(alertsRaw) ? alertsRaw : []).map((item: any) => ({
             id: Number(item?.id ?? item?.Id ?? 0),
@@ -386,6 +395,13 @@ function normalizeReceptionist(raw: unknown): ReceptionistDashboard {
             orderDate: String(item?.orderDate ?? item?.OrderDate ?? ''),
         })),
         pendingCleaningRooms: (Array.isArray(pick(src, 'pendingCleaningRooms', 'PendingCleaningRooms')) ? pick<any[]>(src, 'pendingCleaningRooms', 'PendingCleaningRooms')! : []).map((item: any) => ({
+            id: Number(item?.id ?? item?.Id ?? 0),
+            roomNumber: String(item?.roomNumber ?? item?.RoomNumber ?? ''),
+            status: String(item?.status ?? item?.Status ?? ''),
+            cleaningStatus: String(item?.cleaningStatus ?? item?.CleaningStatus ?? ''),
+            cleaningRequested: Boolean(item?.cleaningRequested ?? item?.CleaningRequested ?? false),
+        })),
+        inspectingRooms: (Array.isArray(pick(src, 'inspectingRooms', 'InspectingRooms')) ? pick<any[]>(src, 'inspectingRooms', 'InspectingRooms')! : []).map((item: any) => ({
             id: Number(item?.id ?? item?.Id ?? 0),
             roomNumber: String(item?.roomNumber ?? item?.RoomNumber ?? ''),
             status: String(item?.status ?? item?.Status ?? ''),

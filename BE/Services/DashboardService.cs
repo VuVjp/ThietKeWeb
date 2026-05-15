@@ -173,6 +173,18 @@ public class DashboardService : IDashboardService
                 CleaningRequested = room.CleaningRequested
             })
             .ToList();
+
+        dto.Breakdown.InspectingRooms = rooms
+            .Where(room => string.Equals(room.CleaningStatus, "Inspecting", StringComparison.OrdinalIgnoreCase))
+            .Select(room => new DashboardRoomTaskDto
+            {
+                Id = room.Id,
+                RoomNumber = room.RoomNumber ?? string.Empty,
+                Status = room.Status ?? string.Empty,
+                CleaningStatus = room.CleaningStatus ?? string.Empty,
+                CleaningRequested = room.CleaningRequested
+            })
+            .ToList();
         
         dto.Widgets.RoomStatusChart = new List<DashboardRoomStatusPointDto>
         {
@@ -743,6 +755,18 @@ public class DashboardService : IDashboardService
             })
             .ToListAsync();
 
+        var rooms = await _context.Rooms
+            .AsNoTracking()
+            .Select(room => new RoomProjection
+            {
+                Id = room.Id,
+                RoomNumber = room.RoomNumber,
+                Status = room.Status,
+                CleaningStatus = room.CleaningStatus,
+                CleaningRequested = room.CleaningRequested,
+            })
+            .ToListAsync();
+
         return new ReceptionistDashboardDto
         {
             PublishedArticles = publishedArticles,
@@ -750,6 +774,28 @@ public class DashboardService : IDashboardService
             PendingServiceOrders = pendingServiceOrders,
             CompletedServiceOrdersToday = completedServiceOrdersToday,
             ServiceQueue = serviceQueue,
+            PendingCleaningRooms = rooms
+                .Where(room => room.CleaningRequested)
+                .Select(room => new DashboardRoomTaskDto
+                {
+                    Id = room.Id,
+                    RoomNumber = room.RoomNumber ?? string.Empty,
+                    Status = room.Status ?? string.Empty,
+                    CleaningStatus = room.CleaningStatus ?? string.Empty,
+                    CleaningRequested = room.CleaningRequested
+                })
+                .ToList(),
+            InspectingRooms = rooms
+                .Where(room => string.Equals(room.CleaningStatus, "Inspecting", StringComparison.OrdinalIgnoreCase))
+                .Select(room => new DashboardRoomTaskDto
+                {
+                    Id = room.Id,
+                    RoomNumber = room.RoomNumber ?? string.Empty,
+                    Status = room.Status ?? string.Empty,
+                    CleaningStatus = room.CleaningStatus ?? string.Empty,
+                    CleaningRequested = room.CleaningRequested
+                })
+                .ToList(),
         };
     }
 

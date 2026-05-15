@@ -489,7 +489,7 @@ public class AppDbContext : DbContext
                 });
                 d.OwnsOne(x => x.Breakdown, b => {
                     b.OwnsOne(x => x.Occupancy);
-                    b.OwnsMany(x => x.PendingCleaningRooms);
+                    b.Property(x => x.InspectingCount);
                 });
                 d.OwnsMany(x => x.Alerts);
                 d.OwnsMany(x => x.Events);
