@@ -514,7 +514,13 @@ export function DashboardPage() {
                     icon={ClipboardDocumentListIcon}
                     color="blue"
                 />
-
+                <MetricCard
+                    title="Occupancy Rate"
+                    value={`${occupancy.total === 0 ? 0 : Math.round((occupancy.occupied / occupancy.total) * 100)}%`}
+                    subValue={`${occupancy.occupied} of ${occupancy.total} rooms`}
+                    icon={HomeIcon}
+                    color="emerald"
+                />
                 <MetricCard
                     title="Service Orders"
                     value={overview.summary.serviceOrdersCount || 0}
@@ -532,18 +538,33 @@ export function DashboardPage() {
                     color="blue"
                 />
                 <MetricCard
-                    title="Occupancy Rate"
-                    value={`${occupancy.total === 0 ? 0 : Math.round((occupancy.occupied / occupancy.total) * 100)}%`}
-                    subValue={`${occupancy.occupied} of ${occupancy.total} rooms`}
-                    icon={HomeIcon}
-                    color="emerald"
-                />
-                <MetricCard
                     title="Damage Reports"
                     value={comparison.metrics.damageReports?.current || 0}
                     subValue="New issues reported"
                     comparison={comparison.metrics.damageReports}
                     icon={ExclamationTriangleIcon}
+                    color="rose"
+                />
+                <MetricCard
+                    title="Low Stock Items"
+                    value={comparison.metrics.lowStockItems?.current || 0}
+                    subValue="Quantity below threshold"
+                    comparison={comparison.metrics.lowStockItems}
+                    icon={ExclamationTriangleIcon}
+                    color="amber"
+                />
+                <MetricCard
+                    title="Total Audit Logs"
+                    value={overview.summary.auditLogTotal || 0}
+                    subValue="System activities tracked"
+                    icon={ClockIcon}
+                    color="cyan"
+                />
+                <MetricCard
+                    title="Maintenance"
+                    value={occupancy.maintenance}
+                    subValue="Rooms out of service"
+                    icon={HomeIcon}
                     color="rose"
                 />
             </div>

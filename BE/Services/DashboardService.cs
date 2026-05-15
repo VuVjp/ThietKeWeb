@@ -351,6 +351,7 @@ public class DashboardService : IDashboardService
         decimal prevNetProfit = 0;
         int prevServiceOrders = 0;
         int prevDamageReports = 0;
+        int prevLowStockItems = 0;
 
         // Try to fetch previous stats from existing snapshot first
         // We look for the MOST RECENT snapshot of this type that exists BEFORE our current startDate
@@ -368,6 +369,7 @@ public class DashboardService : IDashboardService
             prevNetProfit = prevData.NetProfit;
             prevServiceOrders = prevData.ServiceOrdersCount;
             prevDamageReports = (int)(prevData.Comparison?.Metrics?.DamageReports?.Current ?? 0);
+            prevLowStockItems = (int)(prevData.Comparison?.Metrics?.LowStockItems?.Current ?? 0);
         }
         else if (!isAllTime) // Fallback to raw query if no snapshot exists
         {
@@ -470,7 +472,7 @@ public class DashboardService : IDashboardService
                         ),
                         LowStockItems = CreateMetricComparison(
                             await _context.Equipments.CountAsync(e => e.TotalQuantity < 5),
-                            0,
+                            prevLowStockItems,
                             false
                         ),
                         CleaningRequests = CreateMetricComparison(currentCleaningRequests, 0, false), // Increase is BAD for pending tasks
