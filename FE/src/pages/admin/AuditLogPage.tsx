@@ -272,9 +272,9 @@ export function AuditLogPage() {
             render: (row: AuditLogEvent) => {
                 const diff = buildDiff(row.changes?.oldData, row.changes?.newData);
 
-                if (!diff.hasChanges) {
-                    return <span className="text-xs text-slate-400">No changes</span>;
-                }
+                // if (!diff.hasChanges) {
+                //     return <span className="text-xs text-slate-400">No changes</span>;
+                // }
 
                 return (
                     <details className="w-100 rounded-lg border border-slate-200 bg-white">
