@@ -149,10 +149,11 @@ export function ArticlesPage() {
 
     // Initial load only if not loaded
     useEffect(() => {
+        if (!ensure('MANAGE_ARTICLES')) return;
         if (!useArticleStore.getState().isLoaded) {
             void loadArticles();
         }
-    }, [loadArticles]);
+    }, [loadArticles, ensure]);
 
     const handleToggleStatus = async () => {
         if (!statusTarget) return;
@@ -167,8 +168,8 @@ export function ArticlesPage() {
                 await articleService.restore(statusTarget.id);
                 toast.success('Article activated');
             }
+            useArticleStore.getState().toggleArticleActive(statusTarget.id);
             setStatusTarget(null);
-            await loadArticles();
         } catch (error) {
             const apiError = toApiError(error);
             toast.error(apiError.message || 'Failed to change article status');
@@ -211,7 +212,16 @@ export function ArticlesPage() {
         {
             key: 'status',
             label: 'Status',
-            render: (row: ArticleItem) => <Badge value={row.status} />,
+            render: (row: ArticleItem) => (
+                <button
+                    type="button"
+                    title={row.isActive ? 'Deactivate' : 'Activate'}
+                    onClick={() => setStatusTarget(row)}
+                    className="hover:opacity-80 transition active:scale-95"
+                >
+                    <Badge value={row.status} />
+                </button>
+            ),
         },
         {
             key: 'createdAt',
@@ -234,35 +244,14 @@ export function ArticlesPage() {
             render: (row: ArticleItem) => (
                 <div className="flex gap-2">
                     {canManage && (
-                        <>
-                            <button
-                                type="button"
-                                title="Edit Article"
-                                onClick={() => navigate(`/admin/articles/${row.id}/edit`)}
-                                className="p-1 hover:text-cyan-600 transition"
-                            >
-                                <PencilSquareIcon className="h-5 w-5" />
-                            </button>
-                            {row.isActive ? (
-                                <button
-                                    type="button"
-                                    title="Deactivate Article"
-                                    onClick={() => setStatusTarget(row)}
-                                    className="p-1 hover:text-red-600 transition"
-                                >
-                                    <TrashIcon className="h-5 w-5" />
-                                </button>
-                            ) : (
-                                <button
-                                    type="button"
-                                    title="Activate Article"
-                                    onClick={() => setStatusTarget(row)}
-                                    className="p-1 hover:text-emerald-600 transition"
-                                >
-                                    <ArrowPathIcon className="h-5 w-5" />
-                                </button>
-                            )}
-                        </>
+                        <button
+                            type="button"
+                            title="Edit Article"
+                            onClick={() => navigate(`/admin/articles/${row.id}/edit`)}
+                            className="p-1 hover:text-cyan-600 transition"
+                        >
+                            <PencilSquareIcon className="h-5 w-5" />
+                        </button>
                     )}
                 </div>
             ),

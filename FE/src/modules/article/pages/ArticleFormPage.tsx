@@ -40,6 +40,11 @@ export function ArticleFormPage() {
     const [isUploadingThumbnail, setIsUploadingThumbnail] = useState(false);
     const [isLoading, setIsLoading] = useState(isEditing);
     const [showPreview, setShowPreview] = useState(false);
+ 
+    // Permission check
+    useEffect(() => {
+        if (!ensure('MANAGE_ARTICLES')) return;
+    }, [ensure]);
 
     // Load categories & attractions
     useEffect(() => {
