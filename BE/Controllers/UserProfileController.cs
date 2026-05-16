@@ -59,14 +59,18 @@ namespace HotelManagement.Controllers
         
         [Authorize]
         [HttpPost("upload-avatar")]
-        public async Task<IActionResult> UploadAvatar([FromForm] UploadAvatarDto uploadAvatarDto)
+        public async Task<IActionResult> UploadAvatar([FromForm] IFormFile file)
         {
             var email = User.FindFirst(ClaimTypes.Email)?.Value;
             if (email == null)
             {
                 return Unauthorized();
             }
-            var updatedProfile = await _userProfileService.UploadAvatarAsync(email, uploadAvatarDto.AvatarFile, email);
+            if (file == null || file.Length == 0)
+            {
+                return BadRequest("No file uploaded.");
+            }
+            var updatedProfile = await _userProfileService.UploadAvatarAsync(email, file, null);
             return Ok(updatedProfile);
         }
     }

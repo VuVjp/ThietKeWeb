@@ -143,7 +143,15 @@ public class UserProfileService : IUserProfileService
         await _userRepository.SaveChangesAsync();
         return new UserDto
         {
-            AvatarUrl = avatarUrl
+            Id = user.Id,
+            Email = user.Email,
+            FullName = user.FullName,
+            Phone = user.Phone,
+            RoleName = user.Role?.Name ?? string.Empty,
+            IsActive = user.IsActive,
+            AvatarUrl = user.AvatarUrl,
+            Birthday = user.Birthday,
+            BirthdayUpdateCount = user.BirthdayUpdateCount
         };
     }
 }
