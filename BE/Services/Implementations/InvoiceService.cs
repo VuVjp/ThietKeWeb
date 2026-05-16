@@ -12,14 +12,16 @@ public class InvoiceService : IInvoiceService
     private readonly IBookingRepository _bookingRepository;
     private readonly IVoucherRepository _voucherRepository;
     private readonly Data.AppDbContext _context;
+    private readonly IDashboardService _dashboardService;
     private readonly decimal _taxRate = 0.1m; // 10% tax
 
-    public InvoiceService(IInvoiceRepository repository, IBookingRepository bookingRepository, IVoucherRepository voucherRepository, Data.AppDbContext context)
+    public InvoiceService(IInvoiceRepository repository, IBookingRepository bookingRepository, IVoucherRepository voucherRepository, Data.AppDbContext context, IDashboardService dashboardService)
     {
         _repository = repository;
         _bookingRepository = bookingRepository;
         _voucherRepository = voucherRepository;
         _context = context;
+        _dashboardService = dashboardService;
     }
 
     public async Task<Invoice> CreateInvoiceAsync(int bookingId)
@@ -121,8 +123,30 @@ public class InvoiceService : IInvoiceService
         invoice.Status = "Completed";
         invoice.CompletedAt = DateTime.Now;
 
+        // Mark associated services as paid
+        var serviceOrders = await _context.OrderServices
+            .Where(os => os.BookingDetail != null && os.BookingDetail.InvoiceId == id)
+            .ToListAsync();
+        
+        foreach (var order in serviceOrders)
+        {
+            order.IsPaid = true;
+            order.UpdatedAt = DateTime.Now;
+        }
+
         _repository.Update(invoice);
         await _repository.SaveChangesAsync();
+
+        // Increment Revenue in Dashboard Snapshots
+        await _dashboardService.IncrementMetricAsync("Revenue", invoice.FinalTotal ?? 0, DateTime.Now);
+        
+        // If there were service orders, increment service revenue
+        var serviceRevenue = serviceOrders.Sum(so => so.TotalAmount);
+        if (serviceRevenue > 0)
+        {
+            await _dashboardService.IncrementMetricAsync("ServiceRevenue", serviceRevenue, DateTime.Now);
+        }
+
         return true;
     }
 

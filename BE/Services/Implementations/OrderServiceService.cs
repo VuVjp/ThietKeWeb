@@ -13,17 +13,20 @@ public class OrderServiceService : IOrderServiceService
     private readonly IServiceRepository _serviceRepository;
     private readonly IBookingRepository _bookingRepository;
     private readonly IInvoiceService _invoiceService;
+    private readonly IDashboardService _dashboardService;
 
     public OrderServiceService(
         IOrderServiceRepository repository, 
         IServiceRepository serviceRepository,
         IBookingRepository bookingRepository,
-        IInvoiceService invoiceService)
+        IInvoiceService invoiceService,
+        IDashboardService dashboardService)
     {
         _repository = repository;
         _serviceRepository = serviceRepository;
         _bookingRepository = bookingRepository;
         _invoiceService = invoiceService;
+        _dashboardService = dashboardService;
     }
 
     public async Task<PaginatedResultDto<OrderServiceSummaryDto>> GetPagedAsync(OrderServiceQueryDto query)
@@ -300,6 +303,8 @@ public class OrderServiceService : IOrderServiceService
         var order = await _repository.GetByIdWithDetailsAsync(id);
         if (order == null) return false;
 
+        if (order.Status == newStatus) return true;
+
         if (order.Status == OrderServiceStatus.Cancelled && newStatus != OrderServiceStatus.Cancelled)
         {
             throw new InvalidOperationException("Cannot change status of a cancelled order.");
@@ -314,6 +319,9 @@ public class OrderServiceService : IOrderServiceService
         if (newStatus == OrderServiceStatus.Completed && order.BookingDetail?.BookingId != null)
         {
             await _invoiceService.UpdateInvoiceAmountsAsync(order.BookingDetail.BookingId.Value);
+            
+            // Increment Completed Service Orders in Dashboard Snapshots
+            await _dashboardService.IncrementMetricAsync("CompletedServiceOrders", 1, DateTime.Now);
         }
 
         return true;

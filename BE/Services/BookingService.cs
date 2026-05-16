@@ -21,14 +21,16 @@ public class BookingService : IBookingService
     private readonly IVoucherRepository _voucherRepository;
     private readonly IVoucherService _voucherService;
     private readonly IInvoiceService _invoiceService;
+    private readonly IDashboardService _dashboardService;
 
-    public BookingService(IBookingRepository repository, IUserRepository userRepository, IVoucherRepository voucherRepository, IVoucherService voucherService, IInvoiceService invoiceService)
+    public BookingService(IBookingRepository repository, IUserRepository userRepository, IVoucherRepository voucherRepository, IVoucherService voucherService, IInvoiceService invoiceService, IDashboardService dashboardService)
     {
         _repository = repository;
         _userRepository = userRepository;
         _voucherRepository = voucherRepository;
         _voucherService = voucherService;
         _invoiceService = invoiceService;
+        _dashboardService = dashboardService;
     }
 
     public async Task<IEnumerable<RoomAvailabilityDto>> GetAvailableRoomsAsync(DateTime checkIn, DateTime checkOut, int? excludeBookingId = null)
@@ -179,6 +181,9 @@ public class BookingService : IBookingService
 
         await _repository.AddBookingAsync(booking);
         await _repository.SaveChangesAsync();
+
+        // Increment Bookings in Dashboard Snapshots
+        await _dashboardService.IncrementMetricAsync("Bookings", 1, DateTime.Now);
 
         return MapToSummaryDto(booking);
     }

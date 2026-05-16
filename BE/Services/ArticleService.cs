@@ -2,6 +2,7 @@ using HotelManagement.Entities;
 using Microsoft.EntityFrameworkCore;
 using HotelManagement.Data;
 using Microsoft.AspNetCore.Http;
+using HotelManagement.Services.Interfaces;
 
 public class ArticleService : IArticleService
 {
@@ -9,17 +10,20 @@ public class ArticleService : IArticleService
     private readonly IArticleCategoryRepository _categoryRepo;
     private readonly ICloudinaryService _cloudinaryService;
     private readonly AppDbContext _context;
+    private readonly IDashboardService _dashboardService;
 
     public ArticleService(
         IArticleRepository repo,
         IArticleCategoryRepository categoryRepo,
         ICloudinaryService cloudinaryService,
-        AppDbContext context)
+        AppDbContext context,
+        IDashboardService dashboardService)
     {
         _repo = repo;
         _categoryRepo = categoryRepo;
         _cloudinaryService = cloudinaryService;
         _context = context;
+        _dashboardService = dashboardService;
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
@@ -197,6 +201,11 @@ public class ArticleService : IArticleService
         await SyncAttractionMapsAsync(entity.Id, dto.AttractionIds);
         await _context.SaveChangesAsync();
 
+        if (entity.PublishedAt != null)
+        {
+            await _dashboardService.IncrementMetricAsync("Articles", 1, entity.PublishedAt.Value);
+        }
+
         return true;
     }
 
@@ -221,6 +230,9 @@ public class ArticleService : IArticleService
         entity.Subtitle     = dto.Subtitle;
         entity.Content      = dto.Content;
         entity.ThumbnailUrl = thumbnailUrl;
+
+        bool originallyPublished = entity.IsActive && entity.PublishedAt != null;
+
         if (dto.IsActive.HasValue) {
             entity.IsActive = dto.IsActive.Value;
             if (entity.IsActive && entity.PublishedAt == null) {
@@ -234,7 +246,16 @@ public class ArticleService : IArticleService
         await SyncCategoryMapsAsync(entity.Id, dto.CategoryIds);
         // Replace attraction junction rows
         await SyncAttractionMapsAsync(entity.Id, dto.AttractionIds);
+        
+        bool isNowPublished = entity.IsActive && entity.PublishedAt != null;
+        bool wasJustPublished = !originallyPublished && isNowPublished;
+        
         await _context.SaveChangesAsync();
+
+        if (wasJustPublished)
+        {
+            await _dashboardService.IncrementMetricAsync("Articles", 1, entity.PublishedAt!.Value);
+        }
 
         return true;
     }

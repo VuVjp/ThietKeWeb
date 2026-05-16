@@ -274,6 +274,7 @@ public class AppDbContext : DbContext
             e.Property(x => x.Status).HasColumnName("status").HasColumnType("varchar(50)");
             e.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("GETDATE()");
             e.Property(x => x.UpdatedAt).HasColumnName("updated_at");
+            e.Property(x => x.IsPaid).HasColumnName("is_paid").HasDefaultValue(false);
         });
 
         modelBuilder.Entity<Notification>(e =>
@@ -478,6 +479,8 @@ public class AppDbContext : DbContext
                             m.OwnsOne(x => x.CleaningRequests);
                             m.OwnsOne(x => x.Articles);
                             m.OwnsOne(x => x.ServiceOrders);
+                            m.OwnsOne(x => x.CompletedServiceOrders);
+                            m.OwnsOne(x => x.ServiceRevenue);
                         });
                     });
                 });

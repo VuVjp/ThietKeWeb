@@ -76,6 +76,7 @@ export interface DashboardComparison {
         cleaningRequests?: DashboardMetricComparison;
         articles?: DashboardMetricComparison;
         serviceOrders?: DashboardMetricComparison;
+        serviceRevenue?: DashboardMetricComparison;
     };
 }
 
@@ -98,6 +99,8 @@ export interface DashboardOverview {
         auditLogTotal: number;
         articlesCount: number;
         serviceOrdersCount: number;
+        completedServiceOrdersCount: number;
+        serviceRevenue: number;
         comparison: DashboardComparison;
     };
     widgets: {
@@ -141,6 +144,7 @@ export interface DashboardTopInvoice {
 export interface AccountantDashboard {
     totalRevenue: number;
     totalLossPenalty: number;
+    serviceRevenue: number;
     netProfit: number;
     revenueChartData: DashboardRevenuePoint[];
     topInvoices: DashboardTopInvoice[];
@@ -150,7 +154,7 @@ export interface ReceptionistDashboard {
     publishedArticles: number;
     pendingArticles: number;
     pendingServiceOrders: number;
-    completedServiceOrdersToday: number;
+    completedServiceOrders: number;
     serviceQueue: DashboardPendingService[];
     pendingCleaningRooms: DashboardRoomTask[];
     inspectingRooms: DashboardRoomTask[];
@@ -159,9 +163,12 @@ export interface ReceptionistDashboard {
 export interface ManagerDashboard {
     pendingCleaningRequests: number;
     pendingServiceOrders: number;
+    completedServiceOrders: number;
     totalLossPenalty: number;
+    serviceRevenue: number;
     netProfit: number;
     pendingArticles: number;
+    publishedArticles: number;
     inspectingCount: number;
     pendingCleaningRooms: DashboardRoomTask[];
     inspectingRooms: DashboardRoomTask[];
@@ -182,7 +189,7 @@ function pick<T = unknown>(source: Record<string, unknown>, camel: string, pasca
 
 const emptyOverview: DashboardOverview = {
     meta: { schemaVersion: 1, dashboardCode: '', roleName: '', periodType: '', periodKey: '', periodStart: '', periodEnd: '', status: '', generatedAt: '' },
-    summary: { totalRevenue: 0, bookingCount: 0, netProfit: 0, auditLogTotal: 0, comparison: { base: { comparisonType: '', currentPeriodKey: '', previousPeriodKey: '' }, metrics: {} } },
+    summary: { totalRevenue: 0, bookingCount: 0, netProfit: 0, auditLogTotal: 0, articlesCount: 0, serviceOrdersCount: 0, serviceRevenue: 0, comparison: { base: { comparisonType: '', currentPeriodKey: '', previousPeriodKey: '' }, metrics: {} } },
     widgets: { revenueChart: [], roomStatusChart: [], recentBookings: [], pendingServices: [] },
     breakdown: { occupancy: { total: 0, occupied: 0, maintenance: 0, available: 0 }, inspectingCount: 0, pendingCleaningRooms: [], inspectingRooms: [] },
     alerts: [],
@@ -241,6 +248,8 @@ function normalizeDashboardOverview(raw: unknown): DashboardOverview {
             auditLogTotal: Number(pick(summaryRaw, 'auditLogTotal', 'AuditLogTotal') ?? 0),
             articlesCount: Number(pick(summaryRaw, 'articlesCount', 'ArticlesCount') ?? 0),
             serviceOrdersCount: Number(pick(summaryRaw, 'serviceOrdersCount', 'ServiceOrdersCount') ?? 0),
+            completedServiceOrdersCount: Number(pick(summaryRaw, 'completedServiceOrdersCount', 'CompletedServiceOrdersCount') ?? 0),
+            serviceRevenue: Number(pick(summaryRaw, 'serviceRevenue', 'ServiceRevenue') ?? 0),
             comparison: {
                 base: {
                     comparisonType: String(pick(compBaseRaw, 'comparisonType', 'ComparisonType') ?? ''),
@@ -256,6 +265,8 @@ function normalizeDashboardOverview(raw: unknown): DashboardOverview {
                     cleaningRequests: normalizeMetric(pick(compMetricsRaw, 'cleaningRequests', 'CleaningRequests')),
                     articles: normalizeMetric(pick(compMetricsRaw, 'articles', 'Articles')),
                     serviceOrders: normalizeMetric(pick(compMetricsRaw, 'serviceOrders', 'ServiceOrders')),
+                    completedServiceOrders: normalizeMetric(pick(compMetricsRaw, 'completedServiceOrders', 'CompletedServiceOrders')),
+                    serviceRevenue: normalizeMetric(pick(compMetricsRaw, 'serviceRevenue', 'ServiceRevenue')),
                 },
             },
         },
@@ -363,6 +374,7 @@ function normalizeAccountant(raw: unknown): AccountantDashboard {
     return {
         totalRevenue: Number(pick(src, 'totalRevenue', 'TotalRevenue') ?? 0),
         totalLossPenalty: Number(pick(src, 'totalLossPenalty', 'TotalLossPenalty') ?? 0),
+        serviceRevenue: Number(pick(src, 'serviceRevenue', 'ServiceRevenue') ?? 0),
         netProfit: Number(pick(src, 'netProfit', 'NetProfit') ?? 0),
         revenueChartData: (Array.isArray(revenueRaw) ? revenueRaw : []).map((item: any) => ({
             name: String(item?.name ?? item?.Name ?? ''),
@@ -379,7 +391,7 @@ function normalizeAccountant(raw: unknown): AccountantDashboard {
 }
 
 function normalizeReceptionist(raw: unknown): ReceptionistDashboard {
-    if (!raw || typeof raw !== 'object') return { publishedArticles: 0, pendingArticles: 0, pendingServiceOrders: 0, completedServiceOrdersToday: 0, serviceQueue: [] };
+    if (!raw || typeof raw !== 'object') return { publishedArticles: 0, pendingArticles: 0, pendingServiceOrders: 0, completedServiceOrders: 0, serviceQueue: [], pendingCleaningRooms: [], inspectingRooms: [] };
     const src = raw as Record<string, unknown>;
     const serviceQueueRaw = pick<unknown[]>(src, 'serviceQueue', 'ServiceQueue') ?? [];
 
@@ -387,7 +399,7 @@ function normalizeReceptionist(raw: unknown): ReceptionistDashboard {
         publishedArticles: Number(pick(src, 'publishedArticles', 'PublishedArticles') ?? 0),
         pendingArticles: Number(pick(src, 'pendingArticles', 'PendingArticles') ?? 0),
         pendingServiceOrders: Number(pick(src, 'pendingServiceOrders', 'PendingServiceOrders') ?? 0),
-        completedServiceOrdersToday: Number(pick(src, 'completedServiceOrdersToday', 'CompletedServiceOrdersToday') ?? 0),
+        completedServiceOrders: Number(pick(src, 'completedServiceOrders', 'CompletedServiceOrders') ?? 0),
         serviceQueue: (Array.isArray(serviceQueueRaw) ? serviceQueueRaw : []).map((item: any) => ({
             id: Number(item?.id ?? item?.Id ?? 0),
             roomNumber: String(item?.roomNumber ?? item?.RoomNumber ?? 'N/A'),
@@ -412,7 +424,7 @@ function normalizeReceptionist(raw: unknown): ReceptionistDashboard {
 }
 
 function normalizeManager(raw: unknown): ManagerDashboard {
-    if (!raw || typeof raw !== 'object') return { pendingCleaningRequests: 0, pendingServiceOrders: 0, totalLossPenalty: 0, netProfit: 0, pendingArticles: 0, inspectingCount: 0, pendingCleaningRooms: [], inspectingRooms: [] };
+    if (!raw || typeof raw !== 'object') return { pendingCleaningRequests: 0, pendingServiceOrders: 0, completedServiceOrders: 0, totalLossPenalty: 0, serviceRevenue: 0, netProfit: 0, pendingArticles: 0, publishedArticles: 0, inspectingCount: 0, pendingCleaningRooms: [], inspectingRooms: [] };
     const src = raw as Record<string, unknown>;
     const pendingCleaningRoomsRaw = pick<unknown[]>(src, 'pendingCleaningRooms', 'PendingCleaningRooms') ?? [];
     const inspectingRoomsRaw = pick<unknown[]>(src, 'inspectingRooms', 'InspectingRooms') ?? [];
@@ -420,9 +432,12 @@ function normalizeManager(raw: unknown): ManagerDashboard {
     return {
         pendingCleaningRequests: Number(pick(src, 'pendingCleaningRequests', 'PendingCleaningRequests') ?? 0),
         pendingServiceOrders: Number(pick(src, 'pendingServiceOrders', 'PendingServiceOrders') ?? 0),
+        completedServiceOrders: Number(pick(src, 'completedServiceOrders', 'CompletedServiceOrders') ?? 0),
         totalLossPenalty: Number(pick(src, 'totalLossPenalty', 'TotalLossPenalty') ?? 0),
+        serviceRevenue: Number(pick(src, 'serviceRevenue', 'ServiceRevenue') ?? 0),
         netProfit: Number(pick(src, 'netProfit', 'NetProfit') ?? 0),
         pendingArticles: Number(pick(src, 'pendingArticles', 'PendingArticles') ?? 0),
+        publishedArticles: Number(pick(src, 'publishedArticles', 'PublishedArticles') ?? 0),
         inspectingCount: Number(pick(src, 'inspectingCount', 'InspectingCount') ?? 0),
         pendingCleaningRooms: (Array.isArray(pendingCleaningRoomsRaw) ? pendingCleaningRoomsRaw : []).map((item: any) => ({
             id: Number(item?.id ?? item?.Id ?? 0),

@@ -327,9 +327,22 @@ public class DashboardService : IDashboardService
             .AsNoTracking()
             .CountAsync(o => o.OrderDate >= startDate && o.OrderDate < endDate);
 
+        var currentServiceRevenue = await _context.OrderServices
+            .AsNoTracking()
+            .Where(o => o.IsPaid && o.OrderDate >= startDate && o.OrderDate < endDate)
+            .SumAsync(o => o.TotalAmount);
+
+        var currentCompletedServiceOrders = await _context.OrderServices
+            .AsNoTracking()
+            .Where(order => order.Status == OrderServiceStatus.Completed)
+            .CountAsync(order => 
+                (order.UpdatedAt != null && order.UpdatedAt >= startDate && order.UpdatedAt < endDate) || 
+                (order.UpdatedAt == null && order.OrderDate >= startDate && order.OrderDate < endDate));
+
         var currentArticles = await _context.Articles
             .AsNoTracking()
-            .CountAsync(a => a.PublishedAt != null && a.IsActive);
+            .Where(a => a.IsActive && a.PublishedAt != null)
+            .CountAsync(a => a.PublishedAt >= startDate && a.PublishedAt < endDate);
 
         // Calculate cleaned rooms from audit logs
         var currentAuditLogs = await _context.AuditLogs
@@ -350,8 +363,11 @@ public class DashboardService : IDashboardService
         int prevBookings = 0;
         decimal prevNetProfit = 0;
         int prevServiceOrders = 0;
+        int prevCompletedServiceOrders = 0;
         int prevDamageReports = 0;
         int prevLowStockItems = 0;
+        decimal prevServiceRevenue = 0;
+        int prevArticles = 0;
 
         // Try to fetch previous stats from existing snapshot first
         // We look for the MOST RECENT snapshot of this type that exists BEFORE our current startDate
@@ -368,8 +384,11 @@ public class DashboardService : IDashboardService
             prevBookings = prevData.BookingCount;
             prevNetProfit = prevData.NetProfit;
             prevServiceOrders = prevData.ServiceOrdersCount;
+            prevCompletedServiceOrders = prevData.CompletedServiceOrdersCount;
             prevDamageReports = (int)(prevData.Comparison?.Metrics?.DamageReports?.Current ?? 0);
             prevLowStockItems = (int)(prevData.Comparison?.Metrics?.LowStockItems?.Current ?? 0);
+            prevServiceRevenue = prevData.ServiceRevenue;
+            prevArticles = prevData.ArticlesCount;
         }
         else if (!isAllTime) // Fallback to raw query if no snapshot exists
         {
@@ -394,9 +413,26 @@ public class DashboardService : IDashboardService
                 .AsNoTracking()
                 .CountAsync(o => o.OrderDate >= prevStartDate && o.OrderDate < prevEndDate);
                 
+            prevCompletedServiceOrders = await _context.OrderServices
+                .AsNoTracking()
+                .Where(order => order.Status == OrderServiceStatus.Completed)
+                .CountAsync(order => 
+                    (order.UpdatedAt != null && order.UpdatedAt >= prevStartDate && order.UpdatedAt < prevEndDate) || 
+                    (order.UpdatedAt == null && order.OrderDate >= prevStartDate && order.OrderDate < prevEndDate));
+
             prevDamageReports = await _context.LossAndDamages
                 .AsNoTracking()
                 .CountAsync(l => l.CreatedAt >= prevStartDate && l.CreatedAt < prevEndDate);
+
+            prevServiceRevenue = await _context.OrderServices
+                .AsNoTracking()
+                .Where(o => o.IsPaid && o.OrderDate >= prevStartDate && o.OrderDate < prevEndDate)
+                .SumAsync(o => o.TotalAmount);
+
+            prevArticles = await _context.Articles
+                .AsNoTracking()
+                .Where(a => a.IsActive && a.PublishedAt != null)
+                .CountAsync(a => a.PublishedAt >= prevStartDate && a.PublishedAt < prevEndDate);
         }
 
         // Aggregate stats
@@ -452,6 +488,8 @@ public class DashboardService : IDashboardService
                 AuditLogTotal = auditLogCount,
                 ArticlesCount = currentArticles,
                 ServiceOrdersCount = currentServiceOrders,
+                CompletedServiceOrdersCount = currentCompletedServiceOrders,
+                ServiceRevenue = currentServiceRevenue,
                 Comparison = new DashboardComparisonDto
                 {
                     Base = new DashboardComparisonBaseDto
@@ -476,8 +514,10 @@ public class DashboardService : IDashboardService
                             false
                         ),
                         CleaningRequests = CreateMetricComparison(currentCleaningRequests, 0, false), // Increase is BAD for pending tasks
-                        Articles = CreateMetricComparison(currentArticles, currentArticles, true),
-                        ServiceOrders = CreateMetricComparison(currentServiceOrders, prevServiceOrders, true)
+                        Articles = CreateMetricComparison(currentArticles, prevArticles, true),
+                        ServiceOrders = CreateMetricComparison(currentServiceOrders, prevServiceOrders, true),
+                        CompletedServiceOrders = CreateMetricComparison(currentCompletedServiceOrders, prevCompletedServiceOrders, true),
+                        ServiceRevenue = CreateMetricComparison(currentServiceRevenue, prevServiceRevenue, true)
                     }
                 }
             },
@@ -535,17 +575,17 @@ public class DashboardService : IDashboardService
             RoleName.Housekeeping => new RoleDashboardDto
             {
                 Role = role.ToString(),
-                Housekeeper = await BuildHousekeeperDashboardAsync(userId, days),
+                Housekeeper = await BuildHousekeeperDashboardAsync(userId, days, overview),
             },
             RoleName.Accountant => new RoleDashboardDto
             {
                 Role = role.ToString(),
-                Accountant = await BuildAccountantDashboardAsync(days),
+                Accountant = await BuildAccountantDashboardAsync(days, overview),
             },
             RoleName.Receptionist => new RoleDashboardDto
             {
                 Role = role.ToString(),
-                Receptionist = await BuildReceptionistDashboardAsync(),
+                Receptionist = await BuildReceptionistDashboardAsync(overview),
             },
             RoleName.Manager or RoleName.Admin => new RoleDashboardDto
             {
@@ -561,43 +601,15 @@ public class DashboardService : IDashboardService
         };
     }
 
-    private async Task<HousekeeperDashboardDto> BuildHousekeeperDashboardAsync(int? userId, int days)
+    private async Task<HousekeeperDashboardDto> BuildHousekeeperDashboardAsync(int? userId, int days, DashboardOverviewDto overview)
     {
         var isAllTime = days <= 0;
         var normalizedDays = isAllTime ? 0 : Math.Clamp(days, 1, 31);
         var endDate = DateTime.Today;
         var startDate = isAllTime ? DateTime.MinValue : endDate.AddDays(-(normalizedDays - 1));
 
-        var cleaningRequests = await _context.Rooms.AsNoTracking().CountAsync(room => room.CleaningRequested);
-        var inspectionRequests = await _context.Rooms.AsNoTracking()
-            .CountAsync(room => room.CleaningStatus != null
-                && room.CleaningStatus.ToLower() == "inspecting");
-
-        var pendingCleaningRooms = await _context.Rooms
-            .AsNoTracking()
-            .Where(r => r.CleaningRequested)
-            .Select(r => new DashboardRoomTaskDto
-            {
-                Id = r.Id,
-                RoomNumber = r.RoomNumber ?? string.Empty,
-                Status = r.Status ?? string.Empty,
-                CleaningStatus = r.CleaningStatus ?? string.Empty,
-                CleaningRequested = r.CleaningRequested
-            })
-            .ToListAsync();
-
-        var inspectingRooms = await _context.Rooms
-            .AsNoTracking()
-            .Where(r => r.CleaningStatus != null && r.CleaningStatus.ToLower() == "inspecting")
-            .Select(r => new DashboardRoomTaskDto
-            {
-                Id = r.Id,
-                RoomNumber = r.RoomNumber ?? string.Empty,
-                Status = r.Status ?? string.Empty,
-                CleaningStatus = r.CleaningStatus ?? string.Empty,
-                CleaningRequested = r.CleaningRequested
-            })
-            .ToListAsync();
+        var cleaningRequests = overview.Breakdown.PendingCleaningRooms.Count;
+        var inspectionRequests = overview.Breakdown.InspectingCount;
 
         if (!userId.HasValue)
         {
@@ -608,8 +620,8 @@ public class DashboardService : IDashboardService
                 CleaningRequests = cleaningRequests,
                 InspectionRequests = inspectionRequests,
                 InspectingCount = inspectionRequests,
-                PendingCleaningRooms = pendingCleaningRooms,
-                InspectingRooms = inspectingRooms
+                PendingCleaningRooms = overview.Breakdown.PendingCleaningRooms,
+                InspectingRooms = overview.Breakdown.InspectingRooms
             };
         }
 
@@ -651,39 +663,18 @@ public class DashboardService : IDashboardService
             CleaningRequests = cleaningRequests,
             InspectionRequests = inspectionRequests,
             InspectingCount = inspectionRequests,
-            PendingCleaningRooms = pendingCleaningRooms,
-            InspectingRooms = inspectingRooms
+            PendingCleaningRooms = overview.Breakdown.PendingCleaningRooms,
+            InspectingRooms = overview.Breakdown.InspectingRooms
         };
     }
 
-    private async Task<AccountantDashboardDto> BuildAccountantDashboardAsync(int days)
+    private async Task<AccountantDashboardDto> BuildAccountantDashboardAsync(int days, DashboardOverviewDto overview)
     {
-        var isAllTime = days <= 0;
-        var normalizedDays = isAllTime ? 0 : Math.Clamp(days, 1, 31);
-        var endDate = DateTime.Today.AddDays(1); // Exclusive upper bound
-        var startDate = isAllTime ? DateTime.MinValue : DateTime.Today.AddDays(-(normalizedDays - 1));
-
-        var rangePayments = await _context.Payments
-            .AsNoTracking()
-            .Where(p => (string.IsNullOrEmpty(p.Status) || p.Status == "Completed") 
-                        && p.PaymentDate >= startDate && p.PaymentDate < endDate)
-            .Select(payment => new PaymentProjection
-            {
-                AmountPaid = payment.AmountPaid,
-                PaymentDate = payment.PaymentDate,
-                Status = payment.Status,
-                PaymentForType = payment.PaymentForType,
-            })
-            .ToListAsync();
-
-        var totalRevenueInRange = rangePayments.Sum(item => item.AmountPaid);
-
-        var totalLossPenaltyInRange = await _context.LossAndDamages
-            .AsNoTracking()
-            .Where(l => l.CreatedAt >= startDate && l.CreatedAt < endDate)
-            .SumAsync(item => item.PenaltyAmount);
-
-        var revenueChartData = BuildRevenueChartData(startDate, days, rangePayments);
+        var totalRevenueInRange = overview.Summary.TotalRevenue;
+        var serviceRevenueInRange = overview.Summary.ServiceRevenue;
+        var netProfitInRange = overview.Summary.NetProfit;
+        var totalLossPenaltyInRange = totalRevenueInRange - netProfitInRange;
+        var revenueChartData = overview.Widgets.RevenueChart;
 
         var invoices = await _context.Invoices
             .AsNoTracking()
@@ -716,20 +707,15 @@ public class DashboardService : IDashboardService
         {
             TotalRevenue = totalRevenueInRange,
             TotalLossPenalty = totalLossPenaltyInRange,
+            ServiceRevenue = serviceRevenueInRange,
             NetProfit = totalRevenueInRange - totalLossPenaltyInRange,
             RevenueChartData = revenueChartData,
             TopInvoices = topInvoices,
         };
     }
 
-    private async Task<ReceptionistDashboardDto> BuildReceptionistDashboardAsync()
+    private async Task<ReceptionistDashboardDto> BuildReceptionistDashboardAsync(DashboardOverviewDto overview)
     {
-        var today = DateTime.Today;
-
-        var publishedArticles = await _context.Articles
-            .AsNoTracking()
-            .CountAsync(article => article.PublishedAt != null && article.IsActive);
-
         var pendingArticles = await _context.Articles
             .AsNoTracking()
             .CountAsync(article => article.PublishedAt == null);
@@ -738,129 +724,42 @@ public class DashboardService : IDashboardService
             .AsNoTracking()
             .CountAsync(order => order.Status == OrderServiceStatus.Pending);
 
-        var completedServiceOrdersToday = await _context.OrderServices
-            .AsNoTracking()
-            .CountAsync(order => order.Status == OrderServiceStatus.Completed
-                && order.UpdatedAt.HasValue
-                && order.UpdatedAt.Value.Date == today);
-
-        var serviceQueue = await _context.OrderServices
-            .AsNoTracking()
-            .Where(o => o.Status == OrderServiceStatus.Pending)
-            .OrderByDescending(o => o.OrderDate)
-            .Select(o => new DashboardPendingServiceDto
-            {
-                Id = o.Id,
-                RoomNumber = o.BookingDetail != null && o.BookingDetail.Room != null ? o.BookingDetail.Room.RoomNumber! : "N/A",
-                GuestName = o.BookingDetail != null && o.BookingDetail.Booking != null ? o.BookingDetail.Booking.GuestName! : "Unknown",
-                OrderDate = o.OrderDate,
-            })
-            .ToListAsync();
-
-        var rooms = await _context.Rooms
-            .AsNoTracking()
-            .Select(room => new RoomProjection
-            {
-                Id = room.Id,
-                RoomNumber = room.RoomNumber,
-                Status = room.Status,
-                CleaningStatus = room.CleaningStatus,
-                CleaningRequested = room.CleaningRequested,
-            })
-            .ToListAsync();
-
         return new ReceptionistDashboardDto
         {
-            PublishedArticles = publishedArticles,
+            PublishedArticles = overview.Summary.ArticlesCount,
             PendingArticles = pendingArticles,
             PendingServiceOrders = pendingServiceOrders,
-            CompletedServiceOrdersToday = completedServiceOrdersToday,
-            ServiceQueue = serviceQueue,
-            PendingCleaningRooms = rooms
-                .Where(room => room.CleaningRequested)
-                .Select(room => new DashboardRoomTaskDto
-                {
-                    Id = room.Id,
-                    RoomNumber = room.RoomNumber ?? string.Empty,
-                    Status = room.Status ?? string.Empty,
-                    CleaningStatus = room.CleaningStatus ?? string.Empty,
-                    CleaningRequested = room.CleaningRequested
-                })
-                .ToList(),
-            InspectingRooms = rooms
-                .Where(room => string.Equals(room.CleaningStatus, "Inspecting", StringComparison.OrdinalIgnoreCase))
-                .Select(room => new DashboardRoomTaskDto
-                {
-                    Id = room.Id,
-                    RoomNumber = room.RoomNumber ?? string.Empty,
-                    Status = room.Status ?? string.Empty,
-                    CleaningStatus = room.CleaningStatus ?? string.Empty,
-                    CleaningRequested = room.CleaningRequested
-                })
-                .ToList(),
+            CompletedServiceOrders = overview.Summary.CompletedServiceOrdersCount,
+            ServiceQueue = overview.Widgets.PendingServices,
+            PendingCleaningRooms = overview.Breakdown.PendingCleaningRooms,
+            InspectingRooms = overview.Breakdown.InspectingRooms,
         };
     }
 
     private async Task<ManagerDashboardDto> BuildManagerDashboardAsync(DashboardOverviewDto overview)
     {
-        var rooms = await _context.Rooms
-            .AsNoTracking()
-            .Select(room => new RoomProjection
-            {
-                Id = room.Id,
-                RoomNumber = room.RoomNumber,
-                Status = room.Status,
-                CleaningStatus = room.CleaningStatus,
-                CleaningRequested = room.CleaningRequested,
-            })
-            .ToListAsync();
-
-        var pendingCleaningRequests = rooms.Count(room => room.CleaningRequested);
+        var pendingCleaningRequests = overview.Breakdown.PendingCleaningRooms.Count;
         var pendingServiceOrders = await _context.OrderServices.AsNoTracking()
             .CountAsync(order => order.Status == OrderServiceStatus.Pending);
-        var totalLossPenalty = await _context.LossAndDamages.AsNoTracking()
-            .SumAsync(item => item.PenaltyAmount);
         var pendingArticles = await _context.Articles.AsNoTracking()
             .CountAsync(article => article.PublishedAt == null);
 
-        var pendingCleaningRooms = rooms
-            .Where(room => room.CleaningRequested)
-            .OrderBy(room => room.RoomNumber)
-            .Select(room => new DashboardRoomTaskDto
-            {
-                Id = room.Id,
-                RoomNumber = room.RoomNumber ?? string.Empty,
-                Status = room.Status ?? string.Empty,
-                CleaningStatus = room.CleaningStatus ?? string.Empty,
-                CleaningRequested = room.CleaningRequested,
-            })
-            .ToList();
-
-        var inspectingRooms = rooms
-            .Where(room => string.Equals(room.CleaningStatus, "Inspecting", StringComparison.OrdinalIgnoreCase))
-            .OrderBy(room => room.RoomNumber)
-            .Select(room => new DashboardRoomTaskDto
-            {
-                Id = room.Id,
-                RoomNumber = room.RoomNumber ?? string.Empty,
-                Status = room.Status ?? string.Empty,
-                CleaningStatus = room.CleaningStatus ?? string.Empty,
-                CleaningRequested = room.CleaningRequested,
-            })
-            .ToList();
-
-        var netProfit = overview.Summary.TotalRevenue - totalLossPenalty;
+        var netProfit = overview.Summary.NetProfit;
+        var totalLossPenalty = overview.Summary.TotalRevenue - netProfit;
 
         return new ManagerDashboardDto
         {
             PendingCleaningRequests = pendingCleaningRequests,
             PendingServiceOrders = pendingServiceOrders,
+            CompletedServiceOrders = overview.Summary.CompletedServiceOrdersCount,
             TotalLossPenalty = totalLossPenalty,
+            ServiceRevenue = overview.Summary.ServiceRevenue,
             NetProfit = netProfit,
             PendingArticles = pendingArticles,
-            InspectingCount = inspectingRooms.Count,
-            PendingCleaningRooms = pendingCleaningRooms,
-            InspectingRooms = inspectingRooms,
+            PublishedArticles = overview.Summary.ArticlesCount,
+            InspectingCount = overview.Breakdown.InspectingCount,
+            PendingCleaningRooms = overview.Breakdown.PendingCleaningRooms,
+            InspectingRooms = overview.Breakdown.InspectingRooms,
         };
     }
 
@@ -996,5 +895,66 @@ public class DashboardService : IDashboardService
         }
 
         return false;
+    }
+
+    public async Task IncrementMetricAsync(string metricType, decimal amount, DateTime eventDate)
+    {
+        // Define the 5 affected time periods
+        var affectedPeriods = new Dictionary<int, DateTime>
+        {
+            { 0, DateTime.MinValue }, // All Time
+            { 1, eventDate.Date }, // Daily
+            { 7, GetStartOfWeek(eventDate) }, // Weekly
+            { 30, new DateTime(eventDate.Year, eventDate.Month, 1) }, // Monthly
+            { 365, new DateTime(eventDate.Year, 1, 1) } // Yearly
+        };
+
+        foreach (var kvp in affectedPeriods)
+        {
+            var snapshot = await _context.DashboardSnapshots
+                .FirstOrDefaultAsync(s => s.SnapshotType == kvp.Key && s.SnapshotDate == kvp.Value);
+
+            if (snapshot?.Data != null)
+            {
+                var summary = snapshot.Data.Summary;
+                var metrics = summary.Comparison?.Metrics;
+
+                switch (metricType)
+                {
+                    case "Revenue":
+                        summary.TotalRevenue += amount;
+                        summary.NetProfit += amount;
+                        if (metrics?.Revenue != null) metrics.Revenue.Current += amount;
+                        if (metrics?.NetProfit != null) metrics.NetProfit.Current += amount;
+                        break;
+                    case "CompletedServiceOrders":
+                        summary.CompletedServiceOrdersCount += (int)amount;
+                        if (metrics?.CompletedServiceOrders != null) metrics.CompletedServiceOrders.Current += (int)amount;
+                        break;
+                    case "Articles":
+                        summary.ArticlesCount += (int)amount;
+                        if (metrics?.Articles != null) metrics.Articles.Current += (int)amount;
+                        break;
+                    case "ServiceRevenue":
+                        summary.ServiceRevenue += amount;
+                        if (metrics?.ServiceRevenue != null) metrics.ServiceRevenue.Current += amount;
+                        break;
+                    case "Bookings":
+                        summary.BookingCount += (int)amount;
+                        if (metrics?.Bookings != null) metrics.Bookings.Current += (int)amount;
+                        break;
+                }
+
+                snapshot.LastUpdated = DateTime.Now;
+            }
+        }
+
+        await _context.SaveChangesAsync();
+    }
+
+    private static DateTime GetStartOfWeek(DateTime date)
+    {
+        int diff = (7 + (date.DayOfWeek - DayOfWeek.Monday)) % 7;
+        return date.AddDays(-1 * diff).Date;
     }
 }

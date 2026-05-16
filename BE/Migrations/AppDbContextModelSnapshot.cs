@@ -679,6 +679,12 @@ namespace BE.Migrations
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("GETDATE()");
 
+                    b.Property<bool>("IsPaid")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_paid");
+
                     b.Property<DateTime>("OrderDate")
                         .HasColumnType("datetime2")
                         .HasColumnName("order_date");
@@ -1881,6 +1887,8 @@ namespace BE.Migrations
 
                                     b2.Property<int>("ServiceOrdersCount");
 
+                                    b2.Property<decimal>("ServiceRevenue");
+
                                     b2.Property<decimal>("TotalRevenue");
 
                                     b2.HasKey("DashboardOverviewDtoDashboardSnapshotId");
@@ -2141,6 +2149,32 @@ namespace BE.Migrations
                                                                 .HasForeignKey("DashboardMetricsComparisonContainerDashboardComparisonDtoDashboardSummaryDtoDashboardOverviewDtoDashboardSnapshotId");
                                                         });
 
+                                                    b4.OwnsOne("HotelManagement.Dtos.DashboardMetricComparisonDto", "ServiceRevenue", b5 =>
+                                                        {
+                                                            b5.Property<int>("DashboardMetricsComparisonContainerDashboardComparisonDtoDashboardSummaryDtoDashboardOverviewDtoDashboardSnapshotId");
+
+                                                            b5.Property<decimal>("Current");
+
+                                                            b5.Property<decimal>("Difference");
+
+                                                            b5.Property<string>("DirectionMeaning")
+                                                                .IsRequired();
+
+                                                            b5.Property<decimal>("GrowthRate");
+
+                                                            b5.Property<decimal>("Previous");
+
+                                                            b5.Property<string>("Trend")
+                                                                .IsRequired();
+
+                                                            b5.HasKey("DashboardMetricsComparisonContainerDashboardComparisonDtoDashboardSummaryDtoDashboardOverviewDtoDashboardSnapshotId");
+
+                                                            b5.ToTable("Dashboard_Snapshots");
+
+                                                            b5.WithOwner()
+                                                                .HasForeignKey("DashboardMetricsComparisonContainerDashboardComparisonDtoDashboardSummaryDtoDashboardOverviewDtoDashboardSnapshotId");
+                                                        });
+
                                                     b4.Navigation("Articles");
 
                                                     b4.Navigation("Bookings");
@@ -2156,6 +2190,8 @@ namespace BE.Migrations
                                                     b4.Navigation("Revenue");
 
                                                     b4.Navigation("ServiceOrders");
+
+                                                    b4.Navigation("ServiceRevenue");
                                                 });
 
                                             b3.Navigation("Base")

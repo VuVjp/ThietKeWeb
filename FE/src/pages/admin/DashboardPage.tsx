@@ -7,6 +7,7 @@ import {
     HomeIcon,
     ExclamationTriangleIcon,
     ClipboardDocumentListIcon,
+    ClipboardDocumentCheckIcon,
     ClockIcon,
     CheckCircleIcon,
     ArrowTrendingUpIcon,
@@ -40,9 +41,10 @@ interface MetricCardProps {
     comparison?: DashboardMetricComparison;
     icon: React.ComponentType<{ className: string }>;
     color: 'blue' | 'cyan' | 'emerald' | 'rose' | 'amber';
+    onClick?: () => void;
 }
 
-function MetricCard({ title, value, subValue, comparison, icon: Icon, color }: MetricCardProps) {
+function MetricCard({ title, value, subValue, comparison, icon: Icon, color, onClick }: MetricCardProps) {
     const gradients = {
         blue: 'from-blue-500/10 to-indigo-500/5 border-blue-100',
         cyan: 'from-cyan-500/10 to-blue-500/5 border-cyan-100',
@@ -63,7 +65,10 @@ function MetricCard({ title, value, subValue, comparison, icon: Icon, color }: M
     const trendIcon = comparison?.trend === 'up' ? <ArrowTrendingUpIcon className="h-3 w-3" /> : <ArrowTrendingDownIcon className="h-3 w-3" />;
 
     return (
-        <div className={`relative overflow-hidden rounded-2xl border bg-gradient-to-br p-6 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 ${gradients[color]}`}>
+        <div 
+            onClick={onClick}
+            className={`relative overflow-hidden rounded-2xl border bg-gradient-to-br p-6 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 ${gradients[color]} ${onClick ? 'cursor-pointer hover:ring-2 hover:ring-cyan-200' : ''}`}
+        >
             <div className="flex justify-between items-start">
                 <div className="flex-1">
                     <p className="text-sm font-semibold uppercase tracking-wider text-slate-500">{title}</p>
@@ -135,7 +140,7 @@ export function DashboardPage() {
     // Default structures for new API format
     const emptyOverview: DashboardOverview = {
         meta: { schemaVersion: 1, dashboardCode: '', roleName: '', periodType: '', periodKey: '', periodStart: '', periodEnd: '', status: '', generatedAt: '' },
-        summary: { totalRevenue: 0, bookingCount: 0, netProfit: 0, auditLogTotal: 0, articlesCount: 0, serviceOrdersCount: 0, comparison: { base: { comparisonType: '', currentPeriodKey: '', previousPeriodKey: '' }, metrics: {} } },
+        summary: { totalRevenue: 0, bookingCount: 0, netProfit: 0, auditLogTotal: 0, articlesCount: 0, serviceOrdersCount: 0, completedServiceOrdersCount: 0, serviceRevenue: 0, comparison: { base: { comparisonType: '', currentPeriodKey: '', previousPeriodKey: '' }, metrics: {} } },
         widgets: { revenueChart: [], roomStatusChart: [], recentBookings: [], pendingServices: [] },
         breakdown: { occupancy: { total: 0, occupied: 0, maintenance: 0, available: 0 }, inspectingCount: 0, pendingCleaningRooms: [], inspectingRooms: [] },
         alerts: [],
@@ -146,9 +151,12 @@ export function DashboardPage() {
     const managerExtras: ManagerDashboard = stats?.manager ?? {
         pendingCleaningRequests: 0,
         pendingServiceOrders: 0,
+        completedServiceOrders: 0,
         totalLossPenalty: 0,
+        serviceRevenue: 0,
         netProfit: 0,
         pendingArticles: 0,
+        publishedArticles: 0,
         inspectingCount: 0,
         pendingCleaningRooms: [],
         inspectingRooms: [],
@@ -156,7 +164,7 @@ export function DashboardPage() {
 
     const housekeeper = stats?.housekeeper ?? { cleanedToday: 0, cleanedInRange: 0, cleaningRequests: 0, inspectionRequests: 0, inspectingCount: 0 };
     const accountant = stats?.accountant ?? { totalRevenue: 0, totalLossPenalty: 0, netProfit: 0, revenueChartData: [], topInvoices: [] };
-    const receptionist = stats?.receptionist ?? { publishedArticles: 0, pendingArticles: 0, pendingServiceOrders: 0, completedServiceOrdersToday: 0, serviceQueue: [] };
+    const receptionist = stats?.receptionist ?? { publishedArticles: 0, pendingArticles: 0, pendingServiceOrders: 0, completedServiceOrders: 0, serviceQueue: [], pendingCleaningRooms: [], inspectingRooms: [] };
 
     const occupancy = overview.breakdown.occupancy;
     const revenueChartData = overview.widgets.revenueChart;
@@ -310,8 +318,9 @@ export function DashboardPage() {
         return (
             <div className="p-6 space-y-8">
                 <Header />
-                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
                     <MetricCard title="Total Revenue" value={`$${accountant.totalRevenue.toLocaleString()}`} subValue="Total earned" icon={BanknotesIcon} color="cyan" />
+                    <MetricCard title="Service Revenue" value={`$${accountant.serviceRevenue.toLocaleString()}`} subValue="From paid services" icon={ArrowPathIcon} color="amber" />
                     <MetricCard title="Loss & Damage" value={`$${accountant.totalLossPenalty.toLocaleString()}`} subValue="Total penalties" icon={ExclamationTriangleIcon} color="rose" />
                     <MetricCard title="Net Profit" value={`$${accountant.netProfit.toLocaleString()}`} subValue="Profit realized" icon={ArrowPathIcon} color="emerald" />
                 </div>
@@ -381,9 +390,9 @@ export function DashboardPage() {
                 <Header />
                 <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
                     <MetricCard title="Pending Orders" value={receptionist.pendingServiceOrders} subValue="Awaiting fulfillment" icon={ClockIcon} color="amber" />
-                    <MetricCard title="Completed Today" value={receptionist.completedServiceOrdersToday} subValue="Orders fulfilled" icon={ClipboardDocumentListIcon} color="emerald" />
+                    <MetricCard title="Completed Services" value={receptionist.completedServiceOrders} subValue="Orders fulfilled in period" icon={ClipboardDocumentListIcon} color="emerald" />
                     <MetricCard title="Pending Articles" value={receptionist.pendingArticles} subValue="Needs review" icon={ExclamationTriangleIcon} color="rose" />
-                    <MetricCard title="Published Articles" value={receptionist.publishedArticles} subValue="Active posts" icon={HomeIcon} color="blue" />
+                    <MetricCard title="Articles Published In Period" value={receptionist.publishedArticles} subValue="Active posts in period" icon={HomeIcon} color="blue" />
                 </div>
                 
                 <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -493,6 +502,14 @@ export function DashboardPage() {
                     color="emerald"
                 />
                 <MetricCard
+                    title="Service Revenue"
+                    value={`$${(overview.summary.serviceRevenue || 0).toLocaleString()}`}
+                    subValue="From paid services"
+                    comparison={comparison.metrics.serviceRevenue}
+                    icon={ArrowPathIcon}
+                    color="amber"
+                />
+                <MetricCard
                     title="Total Bookings"
                     value={overview.summary.bookingCount || 0}
                     subValue="Confirmed stays"
@@ -522,17 +539,25 @@ export function DashboardPage() {
                     color="emerald"
                 />
                 <MetricCard
-                    title="Service Orders"
+                    title="New Service Orders"
                     value={overview.summary.serviceOrdersCount || 0}
-                    subValue="Period total"
+                    subValue="Created in period"
                     comparison={comparison.metrics.serviceOrders}
                     icon={ArrowPathIcon}
                     color="amber"
                 />
                 <MetricCard
-                    title="Active Articles"
+                    title="Completed Services"
+                    value={overview.summary.completedServiceOrdersCount || 0}
+                    subValue="Fulfilled in period"
+                    comparison={comparison.metrics.completedServiceOrders}
+                    icon={ClipboardDocumentCheckIcon}
+                    color="emerald"
+                />
+                <MetricCard
+                    title="Articles Published"
                     value={overview.summary.articlesCount || 0}
-                    subValue="Published posts"
+                    subValue="Published in period"
                     comparison={comparison.metrics.articles}
                     icon={ClipboardDocumentListIcon}
                     color="blue"
@@ -552,6 +577,7 @@ export function DashboardPage() {
                     comparison={comparison.metrics.lowStockItems}
                     icon={ExclamationTriangleIcon}
                     color="amber"
+                    onClick={() => navigate('/admin/equipments?sort=totalQuantity')}
                 />
                 <MetricCard
                     title="Total Audit Logs"

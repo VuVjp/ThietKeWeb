@@ -34,6 +34,8 @@ public class DashboardSummaryDto
     public int AuditLogTotal { get; set; }
     public int ArticlesCount { get; set; }
     public int ServiceOrdersCount { get; set; }
+    public int CompletedServiceOrdersCount { get; set; }
+    public decimal ServiceRevenue { get; set; }
     public DashboardComparisonDto Comparison { get; set; } = new();
 }
 
@@ -80,6 +82,8 @@ public class DashboardMetricsComparisonContainer
     public DashboardMetricComparisonDto? CleaningRequests { get; set; }
     public DashboardMetricComparisonDto? Articles { get; set; }
     public DashboardMetricComparisonDto? ServiceOrders { get; set; }
+    public DashboardMetricComparisonDto? CompletedServiceOrders { get; set; }
+    public DashboardMetricComparisonDto? ServiceRevenue { get; set; }
 }
 
 public class DashboardMetricComparisonDto
@@ -182,6 +186,7 @@ public class AccountantDashboardDto
 {
     public decimal TotalRevenue { get; set; }
     public decimal TotalLossPenalty { get; set; }
+    public decimal ServiceRevenue { get; set; }
     public decimal NetProfit { get; set; }
     public List<DashboardRevenuePointDto> RevenueChartData { get; set; } = new();
     public List<DashboardTopInvoiceDto> TopInvoices { get; set; } = new();
@@ -192,7 +197,7 @@ public class ReceptionistDashboardDto
     public int PublishedArticles { get; set; }
     public int PendingArticles { get; set; }
     public int PendingServiceOrders { get; set; }
-    public int CompletedServiceOrdersToday { get; set; }
+    public int CompletedServiceOrders { get; set; }
     public List<DashboardPendingServiceDto> ServiceQueue { get; set; } = new();
     public List<DashboardRoomTaskDto> PendingCleaningRooms { get; set; } = new();
     public List<DashboardRoomTaskDto> InspectingRooms { get; set; } = new();
@@ -202,9 +207,12 @@ public class ManagerDashboardDto
 {
     public int PendingCleaningRequests { get; set; }
     public int PendingServiceOrders { get; set; }
+    public int CompletedServiceOrders { get; set; }
     public decimal TotalLossPenalty { get; set; }
+    public decimal ServiceRevenue { get; set; }
     public decimal NetProfit { get; set; }
     public int PendingArticles { get; set; }
+    public int PublishedArticles { get; set; }
     public int InspectingCount { get; set; }
     public List<DashboardRoomTaskDto> PendingCleaningRooms { get; set; } = new();
     public List<DashboardRoomTaskDto> InspectingRooms { get; set; } = new();

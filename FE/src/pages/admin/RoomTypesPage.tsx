@@ -320,9 +320,9 @@ export function RoomTypesPage() {
                 </div>
             ) : rows.length === 0 ? (
                 <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-slate-500">No room types found.</div>
-            ) : null}
-
-            <Table columns={columns} rows={isLoading ? [] : rows} />
+            ) : (
+                <Table columns={columns} rows={rows} />
+            )}
 
             <Modal
                 open={openCreate}

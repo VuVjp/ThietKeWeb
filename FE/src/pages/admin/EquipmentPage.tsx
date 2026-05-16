@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { PencilSquareIcon, PlusIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import { useSearchParams } from 'react-router-dom';
 import { Input } from '../../components/Input';
 import { Table } from '../../components/Table';
 import { Pagination } from '../../components/Pagination';
@@ -29,8 +30,9 @@ export function EquipmentPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [isCreating, setIsCreating] = useState(false);
     const [openCreate, setOpenCreate] = useState(false);
+    const [searchParams, setSearchParams] = useSearchParams();
     const [search, setSearch] = useState('');
-    const [sortField, setSortField] = useState<'name' | 'itemCode'>('name');
+    const [sortField, setSortField] = useState<'name' | 'itemCode' | 'totalQuantity'>((searchParams.get('sort') as any) || 'name');
     const [page, setPage] = useState(1);
     const [form, setForm] = useState(initialForm);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -147,7 +149,10 @@ export function EquipmentPage() {
             );
         });
 
-        return sortBy(next, (item) => (sortField === 'name' ? item.name : item.itemCode), 'asc');
+        return sortBy(next, (item) => {
+            if (sortField === 'totalQuantity') return item.totalQuantity - item.inUseQuantity - item.damagedQuantity;
+            return sortField === 'name' ? item.name : item.itemCode;
+        }, 'asc');
     }, [rows, search, sortField]);
 
     const pageSize = 8;
@@ -158,7 +163,24 @@ export function EquipmentPage() {
         { key: 'name', label: 'Name', render: (row: EquipmentItem) => row.name },
         { key: 'category', label: 'Category', render: (row: EquipmentItem) => row.category },
         { key: 'unit', label: 'Unit', render: (row: EquipmentItem) => row.unit },
-        { key: 'totalQty', label: 'Total Qty', render: (row: EquipmentItem) => row.totalQuantity },
+        { 
+            key: 'totalQty', 
+            label: 'Total Qty', 
+            render: (row: EquipmentItem) => {
+                const available = row.totalQuantity - row.inUseQuantity - row.damagedQuantity;
+                if (available < 5) {
+                    return (
+                        <div className="flex flex-col">
+                            <span className="font-bold text-rose-600">{row.totalQuantity}</span>
+                            <span className="text-[10px] font-semibold text-rose-500 bg-rose-50 px-1.5 py-0.5 rounded w-max mt-1">
+                                {available} avail
+                            </span>
+                        </div>
+                    );
+                }
+                return row.totalQuantity;
+            } 
+        },
         { key: 'inUseQty', label: 'In Use Qty', render: (row: EquipmentItem) => row.inUseQuantity },
         { key: 'damagedQty', label: 'Damaged Qty', render: (row: EquipmentItem) => row.damagedQuantity },
         { key: 'basePrice', label: 'Base Price', render: (row: EquipmentItem) => `$${row.basePrice}` },
@@ -315,10 +337,15 @@ export function EquipmentPage() {
                 <select
                     className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm"
                     value={sortField}
-                    onChange={(e) => setSortField(e.target.value as 'name' | 'itemCode')}
+                    onChange={(e) => {
+                        const val = e.target.value as 'name' | 'itemCode' | 'totalQuantity';
+                        setSortField(val);
+                        setSearchParams(val === 'name' ? {} : { sort: val });
+                    }}
                 >
                     <option value="name">Sort: Name</option>
                     <option value="itemCode">Sort: Code</option>
+                    <option value="totalQuantity">Sort: Lowest Quantity</option>
                 </select>
             </div>
 
