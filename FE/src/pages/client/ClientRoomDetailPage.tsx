@@ -215,7 +215,7 @@ export function ClientRoomDetailPage() {
                             <h3 className="text-xl font-bold text-slate-900 mb-6">Hotel Policies</h3>
 
                             <div className="space-y-6">
-                                <div>
+                                {/* <div>
                                     <h4 className="text-sm font-bold uppercase tracking-widest text-slate-500 mb-3">Check-In / Out</h4>
                                     <div className="flex justify-between items-center text-slate-700 border-b border-slate-100 pb-3">
                                         <span>Check-in</span>
@@ -225,7 +225,7 @@ export function ClientRoomDetailPage() {
                                         <span>Check-out</span>
                                         <span className="font-bold">12:00 PM</span>
                                     </div>
-                                </div>
+                                </div> */}
 
                                 <div>
                                     <h4 className="text-sm font-bold uppercase tracking-widest text-slate-500 mb-3">Rules</h4>
