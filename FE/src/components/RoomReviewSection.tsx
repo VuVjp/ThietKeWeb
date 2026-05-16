@@ -49,16 +49,16 @@ export function RoomReviewSection({ roomTypeId, averageRating, reviewCount }: Ro
             );
 
             if (roomTypeBookings.length > 0) {
-                // Fetch all reviews by this user to see if they've reviewed these bookings
-                // Backend already returns user's pending reviews in getByRoomType
+                // Fetch all approved reviews by this user to see if they've reviewed these bookings
+                // We only hide the review section if there are NO unreviewed bookings OR if all bookings have APPROVED reviews
                 const userReviews = reviews.filter(r => r.userId === user.id);
-                const reviewedBookingIds = userReviews.map(r => r.bookingId).filter(id => id !== undefined) as number[];
+                const approvedBookingIds = userReviews.filter(r => r.isActive).map(r => r.bookingId).filter(id => id !== undefined) as number[];
                 
-                const unreviewedBooking = roomTypeBookings.find(b => !reviewedBookingIds.includes(b.id));
+                const unapprovedBooking = roomTypeBookings.find(b => !approvedBookingIds.includes(b.id));
                 
-                if (unreviewedBooking) {
+                if (unapprovedBooking) {
                     setIsEligible(true);
-                    setEligibleBookingId(unreviewedBooking.id);
+                    setEligibleBookingId(unapprovedBooking.id);
                 } else {
                     setIsEligible(false);
                     setEligibleBookingId(null);
@@ -97,7 +97,13 @@ export function RoomReviewSection({ roomTypeId, averageRating, reviewCount }: Ro
         setRating(review.rating);
         setComment(review.comment || '');
         setShowForm(true);
-        window.scrollTo({ top: document.getElementById('review-form')?.offsetTop ? document.getElementById('review-form')!.offsetTop - 100 : 0, behavior: 'smooth' });
+        // Use setTimeout to wait for React to render the form before scrolling
+        setTimeout(() => {
+            const formElement = document.getElementById('review-form');
+            if (formElement) {
+                formElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }, 100);
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -184,15 +190,38 @@ export function RoomReviewSection({ roomTypeId, averageRating, reviewCount }: Ro
             {(isEligible || (reviews.some(r => r.userId === user?.id && r.canEdit))) && !showForm && (
                 <div className="bg-gradient-to-r from-cyan-600 to-blue-700 rounded-3xl p-8 text-white shadow-xl shadow-cyan-900/20 flex flex-col md:flex-row items-center justify-between gap-6">
                     <div className="space-y-2 text-center md:text-left">
-                        <h3 className="text-2xl font-bold">Share your experience!</h3>
-                        <p className="text-cyan-50/80">Your feedback helps us improve and helps others choose their perfect stay.</p>
+                        <h3 className="text-2xl font-bold">
+                            {reviews.some(r => r.userId === user?.id && r.bookingId === eligibleBookingId && !r.isActive) 
+                                ? 'Your review is pending approval' 
+                                : 'Share your experience!'}
+                        </h3>
+                        <p className="text-cyan-50/80">
+                            {reviews.some(r => r.userId === user?.id && r.bookingId === eligibleBookingId && !r.isActive)
+                                ? 'You can still edit your review until it is approved by our team.'
+                                : 'Your feedback helps us improve and helps others choose their perfect stay.'}
+                        </p>
                     </div>
                     <button 
-                        onClick={() => setShowForm(true)}
+                        onClick={() => {
+                            // If we already have a pending review for this booking, edit it instead
+                            const pendingReview = reviews.find(r => r.userId === user?.id && r.bookingId === eligibleBookingId && !r.isActive);
+                            if (pendingReview) {
+                                handleEdit(pendingReview);
+                            } else {
+                                setShowForm(true);
+                                setRating(5);
+                                setComment('');
+                                setEditingReviewId(null);
+                                // Scroll to form after rendering
+                                setTimeout(() => {
+                                    document.getElementById('review-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                }, 100);
+                            }
+                        }}
                         className="bg-white text-cyan-700 px-8 py-4 rounded-2xl font-black text-sm uppercase tracking-wider hover:bg-cyan-50 transition shadow-lg flex items-center gap-2 whitespace-nowrap"
                     >
                         <PencilSquareIcon className="w-5 h-5" />
-                        Write a Review
+                        {reviews.some(r => r.userId === user?.id && r.bookingId === eligibleBookingId && !r.isActive) ? 'Edit Pending Review' : 'Write a Review'}
                     </button>
                 </div>
             )}
