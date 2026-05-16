@@ -1,17 +1,17 @@
-    import { useState, useEffect } from 'react';
-    import { useSearchParams, useNavigate } from 'react-router-dom';
-    import { roomTypesApi, type RoomTypeItem } from '../../api/roomTypesApi';
-    import { receptionApi } from '../../api/receptionApi';
-    import toast from 'react-hot-toast';
-    import { ShieldCheckIcon, CreditCardIcon, InformationCircleIcon, MapPinIcon, CalendarDaysIcon, UserGroupIcon, SparklesIcon, CheckCircleIcon, ArrowRightIcon, TicketIcon, XMarkIcon } from '@heroicons/react/24/outline';
-    import type { RoomAvailability, Voucher } from '../../types/models';
-    import { useAppAuth } from '../../auth/useAppAuth';
-    import { vouchersApi } from '../../api/vouchersApi';
-    import { usersApi } from '../../api/usersApi';
-    import { toApiError } from '../../api/httpClient';
-    import momoApi from '../../api/momoApi';
+import { useState, useEffect } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { roomTypesApi, type RoomTypeItem } from '../../api/roomTypesApi';
+import { receptionApi } from '../../api/receptionApi';
+import toast from 'react-hot-toast';
+import { ShieldCheckIcon, CreditCardIcon, InformationCircleIcon, MapPinIcon, CalendarDaysIcon, UserGroupIcon, SparklesIcon, CheckCircleIcon, ArrowRightIcon, TicketIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import type { RoomAvailability, Voucher } from '../../types/models';
+import { useAppAuth } from '../../auth/useAppAuth';
+import { vouchersApi } from '../../api/vouchersApi';
+import { usersApi } from '../../api/usersApi';
+import { toApiError } from '../../api/httpClient';
+import momoApi from '../../api/momoApi';
 
-    export function ClientBookingPage() {
+export function ClientBookingPage() {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const { user, isAuthenticated } = useAppAuth();
@@ -129,24 +129,24 @@
                 window.location.href = res.payUrl;
             }
         } catch (error) {
-            toast.error('Không thể tạo liên kết thanh toán.');
+            toast.error('Cannot create payment link.');
         }
     };
 
     const handleSearchRooms = async () => {
         if (!formData.checkIn || !formData.checkOut) {
-            toast.error("Vui lòng chọn ngày nhận và trả phòng!");
+            toast.error("Please select check-in and check-out dates!");
             return;
         }
         if (nights <= 0) {
-            toast.error("Ngày trả phòng phải sau ngày nhận phòng!");
+            toast.error("Check-out date must be after check-in date!");
             return;
         }
 
         setIsSearching(true);
         try {
-            const checkInISO = new Date(formData.checkIn).toISOString();
-            const checkOutISO = new Date(formData.checkOut).toISOString();
+            const checkInISO = formData.checkIn;
+            const checkOutISO = formData.checkOut;
             const rooms = await receptionApi.getAvailableRooms(checkInISO, checkOutISO);
 
             // Filter rooms by selected type
@@ -158,7 +158,7 @@
             setStep(2);
             setSelectedRoomIds([]); // Reset selection when searching new dates
         } catch (error) {
-            toast.error("Không thể tìm phòng trống. Vui lòng thử lại.");
+            toast.error("Cannot find available rooms. Please try again.");
         } finally {
             setIsSearching(false);
         }
@@ -172,7 +172,7 @@
 
     const handleCheckVoucher = async () => {
         if (!voucherCode.trim()) {
-            toast.error('Vui lòng nhập mã giảm giá.');
+            toast.error('Please enter a discount code.');
             return;
         }
 
@@ -183,10 +183,10 @@
         try {
             const voucher = await vouchersApi.validate(voucherCode.trim(), baseTotal);
             setAppliedVoucher(voucher);
-            toast.success('🎉 Áp dụng mã giảm giá thành công!');
+            toast.success('🎉 Discount code applied successfully!');
         } catch (error) {
             const apiError = toApiError(error);
-            toast.error(apiError.message || 'Mã giảm giá không hợp lệ hoặc đã hết hạn.');
+            toast.error(apiError.message || 'Invalid or expired discount code.');
             setAppliedVoucher(null);
         } finally {
             setIsCheckingVoucher(false);
@@ -219,18 +219,18 @@
         e.preventDefault();
         const { fullName, email, phone } = formData;
         if (!isAuthenticated && (!fullName || !email || !phone)) {
-            toast.error("Vui lòng điền đầy đủ thông tin cá nhân!");
+            toast.error("Please fill in all personal information!");
             return;
         }
         if (selectedRoomIds.length === 0) {
-            toast.error("Vui lòng chọn ít nhất một phòng!");
+            toast.error("Please select at least one room!");
             return;
         }
 
         setSubmitting(true);
         try {
-            const checkInISO = new Date(formData.checkIn).toISOString();
-            const checkOutISO = new Date(formData.checkOut).toISOString();
+            const checkInISO = formData.checkIn;
+            const checkOutISO = formData.checkOut;
 
             const { finalTotal } = calculateTotals();
 
@@ -267,12 +267,12 @@
             localStorage.setItem('my_bookings', JSON.stringify(stored));
             localStorage.setItem('client_guest_email', formData.email);
 
-            toast.success('🎉 Đặt phòng thành công! Vui lòng hoàn tất đặt cọc.');
+            toast.success('🎉 Booking successful! Please complete the deposit.');
             setRecentBooking(booking);
             setShowPaymentModal(true);
         } catch (err: any) {
             const apiError = toApiError(err);
-            toast.error(apiError.message || 'Không thể tạo đặt phòng.');
+            toast.error(apiError.message || 'Cannot create booking.');
         } finally {
             setSubmitting(false);
         }
@@ -344,7 +344,11 @@
                                                 value={formData.checkIn}
                                                 onChange={handleChange}
                                                 type="datetime-local"
-                                                min={new Date().toISOString().slice(0, 16)}
+                                                min={(() => {
+                                                    const now = new Date();
+                                                    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+                                                    return now.toISOString().slice(0, 16);
+                                                })()}
                                                 className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-cyan-500 focus:bg-white focus:outline-none transition-all font-medium text-lg"
                                             />
                                         </div>
@@ -356,7 +360,11 @@
                                                 value={formData.checkOut}
                                                 onChange={handleChange}
                                                 type="datetime-local"
-                                                min={formData.checkIn || new Date().toISOString().slice(0, 16)}
+                                                min={formData.checkIn || (() => {
+                                                    const now = new Date();
+                                                    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+                                                    return now.toISOString().slice(0, 16);
+                                                })()}
                                                 className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-cyan-500 focus:bg-white focus:outline-none transition-all font-medium text-lg"
                                             />
                                         </div>
@@ -416,8 +424,8 @@
                                                     key={room.roomId}
                                                     onClick={() => handleRoomToggle(room.roomId)}
                                                     className={`relative cursor-pointer rounded-2xl border-2 p-6 transition-all group ${isSelected
-                                                            ? 'border-cyan-500 bg-cyan-50 shadow-lg shadow-cyan-500/10 ring-2 ring-cyan-500/20'
-                                                            : 'border-slate-100 hover:border-cyan-200 hover:bg-slate-50'
+                                                        ? 'border-cyan-500 bg-cyan-50 shadow-lg shadow-cyan-500/10 ring-2 ring-cyan-500/20'
+                                                        : 'border-slate-100 hover:border-cyan-200 hover:bg-slate-50'
                                                         }`}
                                                 >
                                                     <div className="text-center">
@@ -672,7 +680,7 @@
                             </div>
                             <h2 className="text-2xl font-bold text-slate-900 mb-2">Booking Successful!</h2>
                             <p className="text-slate-500 mb-8">Your reservation <strong>#{recentBooking?.id}</strong> has been created. Please complete the deposit to secure your room.</p>
-                            
+
                             <div className="bg-slate-50 rounded-2xl p-6 mb-8 text-left border border-slate-100">
                                 <div className="flex justify-between items-center mb-2">
                                     <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Deposit Amount</span>
