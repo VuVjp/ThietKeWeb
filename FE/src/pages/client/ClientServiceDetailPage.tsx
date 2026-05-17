@@ -54,56 +54,14 @@ export function ClientServiceDetailPage() {
         return featuresStr.split(/[;,]/).map(f => f.trim()).filter(f => f !== '');
     };
 
-    const handleBookClick = async () => {
+    const handleBookClick = () => {
         if (!isAuthenticated) {
             toast.error('Please login to book services');
-            navigate('/login', { state: { from: `/services/${id}` } });
+            navigate('/login', { state: { from: `/services/book?serviceId=${id}` } });
             return;
         }
 
-        setShowBookingModal(true);
-        setIsLoadingRooms(true);
-
-        try {
-            const rooms = await receptionApi.getMyActiveRooms();
-            setMyActiveRooms(rooms);
-            if (rooms.length === 1) {
-                setSelectedRoomDetailId(rooms[0].bookingDetailId);
-            }
-        } catch (error) {
-            console.error('Failed to fetch your active rooms:', error);
-            toast.error('Could find your active room bookings');
-        } finally {
-            setIsLoadingRooms(false);
-        }
-    };
-
-    const confirmBooking = async () => {
-        if (!selectedRoomDetailId || !service) {
-            toast.error('Please select a room');
-            return;
-        }
-
-        setIsBooking(true);
-        try {
-            const orderResult = await orderServicesApi.createClient({ 
-                bookingDetailId: Number(selectedRoomDetailId) 
-            });
-            
-            await orderServicesApi.addItemClient(orderResult.id, {
-                serviceId: service.id,
-                quantity: 1
-            });
-
-            toast.success(`Successfully booked ${service.name} for Room ${myActiveRooms.find(r => r.bookingDetailId === selectedRoomDetailId)?.roomNumber}`);
-            setShowBookingModal(false);
-            setSelectedRoomDetailId('');
-        } catch (error: any) {
-            console.error('Booking failed:', error);
-            toast.error(error.response?.data?.message || 'Failed to book service');
-        } finally {
-            setIsBooking(false);
-        }
+        navigate(`/services/book?serviceId=${id}`);
     };
 
     if (loading) {
@@ -283,69 +241,7 @@ export function ClientServiceDetailPage() {
                 </div>
             </div>
 
-            {/* Booking Modal (Reused) */}
-            <Modal
-                open={showBookingModal}
-                onClose={() => setShowBookingModal(false)}
-                title={`Book ${service.name}`}
-            >
-                <div className="space-y-6 py-4">
-                    <div className="flex items-center gap-4 p-5 bg-slate-50 rounded-3xl border border-slate-100">
-                        {service.imageUrl && (
-                            <img src={service.imageUrl} className="w-20 h-20 rounded-2xl object-cover shadow-md" alt="" />
-                        )}
-                        <div>
-                            <h4 className="font-black text-slate-900 text-lg leading-tight mb-1">{service.name}</h4>
-                            <div className="flex items-center gap-1.5">
-                                <span className="text-cyan-600 font-black text-xl">${service.price.toLocaleString()}</span>
-                                <span className="text-slate-400 font-bold text-xs uppercase tracking-tighter">/ {service.unit}</span>
-                            </div>
-                        </div>
-                    </div>
 
-                    <div className="space-y-3">
-                        <label className="text-sm font-black text-slate-700 ml-2 uppercase tracking-widest">Select Your Active Room</label>
-                        {isLoadingRooms ? (
-                            <div className="h-14 w-full bg-slate-50 animate-pulse rounded-2xl" />
-                        ) : myActiveRooms.length > 0 ? (
-                            <Select
-                                value={selectedRoomDetailId}
-                                onChange={(e) => setSelectedRoomDetailId(Number(e.target.value))}
-                                className="w-full h-14 rounded-2xl border-slate-200 focus:ring-cyan-500/20"
-                            >
-                                <option value="">-- Choose room for service --</option>
-                                {myActiveRooms.map((r) => (
-                                    <option key={r.bookingDetailId} value={r.bookingDetailId}>
-                                        Room {r.roomNumber} - {r.guestName}
-                                    </option>
-                                ))}
-                            </Select>
-                        ) : (
-                            <div className="p-6 bg-amber-50 border border-amber-100 rounded-3xl">
-                                <p className="text-sm text-amber-800 font-medium leading-relaxed">
-                                    You don't have any active check-ins. Service booking is exclusively available for guests currently staying with us.
-                                </p>
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="flex gap-4 pt-4">
-                        <button
-                            onClick={() => setShowBookingModal(false)}
-                            className="flex-1 px-6 py-4 rounded-2xl border-2 border-slate-100 font-black text-slate-500 hover:bg-slate-50 hover:border-slate-200 transition-all text-xs uppercase tracking-widest"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={() => void confirmBooking()}
-                            disabled={isBooking || !selectedRoomDetailId || myActiveRooms.length === 0}
-                            className="flex-[2] bg-slate-900 text-white px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-cyan-700 transition-all disabled:opacity-30 shadow-xl shadow-slate-200"
-                        >
-                            {isBooking ? 'Processing...' : 'Confirm Booking'}
-                        </button>
-                    </div>
-                </div>
-            </Modal>
         </div>
     );
 }

@@ -48,59 +48,14 @@ export function ClientServicesPage() {
         return featuresStr.split(/[;,]/).map(f => f.trim()).filter(f => f !== '');
     };
 
-    const handleBookClick = async (service: Service) => {
+    const handleBookClick = (service: Service) => {
         if (!isAuthenticated) {
             toast.error('Please login to book services');
-            navigate('/login', { state: { from: '/services' } });
+            navigate('/login', { state: { from: `/services/book?serviceId=${service.id}` } });
             return;
         }
 
-        setSelectedService(service);
-        setShowBookingModal(true);
-        setIsLoadingRooms(true);
-
-        try {
-            const rooms = await receptionApi.getMyActiveRooms();
-            setMyActiveRooms(rooms);
-            if (rooms.length === 1) {
-                setSelectedRoomDetailId(rooms[0].bookingDetailId);
-            }
-        } catch (error) {
-            console.error('Failed to fetch your active rooms:', error);
-            toast.error('Could not find your active room bookings');
-        } finally {
-            setIsLoadingRooms(false);
-        }
-    };
-
-    const confirmBooking = async () => {
-        if (!selectedRoomDetailId || !selectedService) {
-            toast.error('Please select a room');
-            return;
-        }
-
-        setIsBooking(true);
-        try {
-            // Create a new order for the room
-            const orderResult = await orderServicesApi.createClient({ 
-                bookingDetailId: Number(selectedRoomDetailId) 
-            });
-            
-            // Add the service to the order
-            await orderServicesApi.addItemClient(orderResult.id, {
-                serviceId: selectedService.id,
-                quantity: 1
-            });
-
-            toast.success(`Successfully booked ${selectedService.name} for Room ${myActiveRooms.find(r => r.bookingDetailId === selectedRoomDetailId)?.roomNumber}`);
-            setShowBookingModal(false);
-            setSelectedRoomDetailId('');
-        } catch (error: any) {
-            console.error('Booking failed:', error);
-            toast.error(error.response?.data?.message || 'Failed to book service');
-        } finally {
-            setIsBooking(false);
-        }
+        navigate(`/services/book?serviceId=${service.id}`);
     };
 
     if (isLoading) {
@@ -223,66 +178,7 @@ export function ClientServicesPage() {
                 <Link to="/contact" className="inline-block border-b-2 border-cyan-500 text-slate-900 font-bold uppercase tracking-widest text-xs pb-1 hover:text-cyan-600 transition-colors">Contact Us for Reservations</Link>
             </div>
 
-            {/* Booking Modal */}
-            <Modal
-                open={showBookingModal}
-                onClose={() => setShowBookingModal(false)}
-                title={`Book ${selectedService?.name}`}
-            >
-                <div className="space-y-6 py-4">
-                    <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl">
-                        {selectedService?.imageUrl && (
-                            <img src={selectedService.imageUrl} className="w-16 h-16 rounded-xl object-cover" alt="" />
-                        )}
-                        <div>
-                            <h4 className="font-bold text-slate-900">{selectedService?.name}</h4>
-                            <p className="text-sm font-bold text-cyan-600">${selectedService?.price.toLocaleString()} / {selectedService?.unit}</p>
-                        </div>
-                    </div>
 
-                    <div className="space-y-2">
-                        <label className="text-sm font-bold text-slate-700 ml-1">Select Your Room</label>
-                        {isLoadingRooms ? (
-                            <div className="h-10 w-full bg-slate-100 animate-pulse rounded-xl" />
-                        ) : myActiveRooms.length > 0 ? (
-                            <Select
-                                value={selectedRoomDetailId}
-                                onChange={(e) => setSelectedRoomDetailId(Number(e.target.value))}
-                                className="w-full"
-                            >
-                                <option value="">-- Choose your active room --</option>
-                                {myActiveRooms.map((r) => (
-                                    <option key={r.bookingDetailId} value={r.bookingDetailId}>
-                                        Room {r.roomNumber}
-                                    </option>
-                                ))}
-                            </Select>
-                        ) : (
-                            <div className="p-4 bg-amber-50 border border-amber-100 rounded-xl">
-                                <p className="text-sm text-amber-800">
-                                    You don't have any active check-ins. You must be checked in to order services to your room.
-                                </p>
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="flex gap-3 pt-2">
-                        <button
-                            onClick={() => setShowBookingModal(false)}
-                            className="flex-1 px-6 py-3 rounded-xl border border-slate-200 font-bold text-slate-600 hover:bg-slate-50 transition"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={() => void confirmBooking()}
-                            disabled={isBooking || !selectedRoomDetailId || myActiveRooms.length === 0}
-                            className="flex-[2] bg-cyan-700 text-white px-6 py-3 rounded-xl font-bold hover:bg-cyan-800 transition disabled:opacity-50 shadow-lg shadow-cyan-200"
-                        >
-                            {isBooking ? 'Processing...' : 'Confirm Order'}
-                        </button>
-                    </div>
-                </div>
-            </Modal>
         </div>
     );
 }
