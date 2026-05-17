@@ -1,14 +1,14 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { 
-    SparklesIcon, 
-    CheckCircleIcon, 
-    PlusIcon, 
-    MinusIcon, 
-    TrashIcon, 
-    ShoppingBagIcon, 
-    ArrowRightIcon, 
+import {
+    SparklesIcon,
+    CheckCircleIcon,
+    PlusIcon,
+    MinusIcon,
+    TrashIcon,
+    ShoppingBagIcon,
+    ArrowRightIcon,
     ChevronLeftIcon,
     HomeIcon
 } from '@heroicons/react/24/outline';
@@ -28,7 +28,7 @@ interface SelectedServiceItem {
 export function ClientBookServicePage() {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
-    const { isAuthenticated } = useAppAuth();
+    const { isAuthenticated, isAuthReady } = useAppAuth();
     const serviceIdParam = searchParams.get('serviceId');
 
     // Data State
@@ -37,7 +37,7 @@ export function ClientBookServicePage() {
     const [myActiveRooms, setMyActiveRooms] = useState<ActiveRoom[]>([]);
     const [selectedRoomDetailIds, setSelectedRoomDetailIds] = useState<number[]>([]);
     const [selectedServices, setSelectedServices] = useState<SelectedServiceItem[]>([]);
-    
+
     // UI Loading state
     const [isLoading, setIsLoading] = useState(true);
     const [isBooking, setIsBooking] = useState(false);
@@ -45,16 +45,37 @@ export function ClientBookServicePage() {
     // Pagination/Category filter state
     const [suggestedPage, setSuggestedPage] = useState(1);
     const [otherPage, setOtherPage] = useState(1);
+    const [roomsPage, setRoomsPage] = useState(1);
     const [selectedOtherCategoryId, setSelectedOtherCategoryId] = useState<number | ''>('');
-    const roomsPerPage = 4; // 4 items per page in a single row
+
+    // Responsive page size: desktop => 8, mobile/narrow => 4
+    const getInitialRoomsPerPage = () => (typeof window !== 'undefined' && window.innerWidth >= 1024 ? 8 : 4);
+    const [roomsPerPage, setRoomsPerPage] = useState<number>(getInitialRoomsPerPage);
+
+    useEffect(() => {
+        const onResize = () => {
+            const newSize = window.innerWidth >= 1024 ? 8 : 4;
+            setRoomsPerPage(prev => (prev === newSize ? prev : newSize));
+        };
+        window.addEventListener('resize', onResize);
+        return () => window.removeEventListener('resize', onResize);
+    }, []);
+
+    // Reset paging when page size changes to avoid out-of-range pages
+    useEffect(() => {
+        setRoomsPage(1);
+        setSuggestedPage(1);
+        setOtherPage(1);
+    }, [roomsPerPage]);
 
     // Redirect to login if unauthenticated
     useEffect(() => {
-        if (!isAuthenticated) {
+        // Wait until auth is resolved before deciding to redirect
+        if (isAuthReady && !isAuthenticated) {
             toast.error('Please login to book services');
             navigate('/login', { state: { from: `/services/book${serviceIdParam ? `?serviceId=${serviceIdParam}` : ''}` } });
         }
-    }, [isAuthenticated, navigate, serviceIdParam]);
+    }, [isAuthenticated, isAuthReady, navigate, serviceIdParam]);
 
     // Initial Load
     useEffect(() => {
@@ -88,7 +109,7 @@ export function ClientBookServicePage() {
                     const primaryService = servicesData.find(s => s.id === Number(serviceIdParam));
                     if (primaryService) {
                         setSelectedServices([{ service: primaryService, quantity: 1 }]);
-                        
+
                         // Default the "other" selector to another category if available
                         const otherCat = activeCats.find(c => c.id !== primaryService.categoryId);
                         if (otherCat) {
@@ -124,8 +145,8 @@ export function ClientBookServicePage() {
     // Suggested services (same category, excluding selected ones)
     const suggestedServices = useMemo(() => {
         if (!primaryService) return [];
-        return allServices.filter(s => 
-            s.categoryId === primaryService.categoryId && 
+        return allServices.filter(s =>
+            s.categoryId === primaryService.categoryId &&
             s.id !== primaryService.id
         );
     }, [allServices, primaryService]);
@@ -136,10 +157,14 @@ export function ClientBookServicePage() {
         return allServices.filter(s => s.categoryId === Number(selectedOtherCategoryId));
     }, [allServices, selectedOtherCategoryId]);
 
-    // Selected Rooms details
+    // Sorted active rooms and Selected Rooms details
+    const sortedActiveRooms = useMemo(() => {
+        return [...myActiveRooms].sort((a, b) => Number(a.roomNumber) - Number(b.roomNumber));
+    }, [myActiveRooms]);
+
     const selectedRooms = useMemo(() => {
-        return myActiveRooms.filter(r => selectedRoomDetailIds.includes(r.bookingDetailId));
-    }, [myActiveRooms, selectedRoomDetailIds]);
+        return sortedActiveRooms.filter(r => selectedRoomDetailIds.includes(r.bookingDetailId));
+    }, [sortedActiveRooms, selectedRoomDetailIds]);
 
     // Toggle a room in/out of the multi-selection
     const handleRoomToggle = (bookingDetailId: number) => {
@@ -167,6 +192,12 @@ export function ClientBookServicePage() {
         return otherServices.slice(startIndex, startIndex + roomsPerPage);
     }, [otherServices, otherPage]);
 
+    // Paged active rooms (from sorted list)
+    const pagedActiveRooms = useMemo(() => {
+        const startIndex = (roomsPage - 1) * roomsPerPage;
+        return sortedActiveRooms.slice(startIndex, startIndex + roomsPerPage);
+    }, [sortedActiveRooms, roomsPage]);
+
     // Reset pagination on category change
     useEffect(() => {
         setOtherPage(1);
@@ -176,6 +207,11 @@ export function ClientBookServicePage() {
     useEffect(() => {
         setSuggestedPage(1);
     }, [primaryService]);
+
+    // Reset rooms pagination when the available rooms list changes
+    useEffect(() => {
+        setRoomsPage(1);
+    }, [myActiveRooms]);
 
     // Add / Toggle service selection
     const handleServiceToggle = (service: Service) => {
@@ -225,7 +261,7 @@ export function ClientBookServicePage() {
         return Math.round(subtotal * 0.10); // 10% VAT
     }, [subtotal]);
 
-    const grandTotal = subtotal + serviceCharge + vat;
+    const grandTotal = subtotal * selectedRooms.length;
 
     // Confirm multi-item order booking for ALL selected rooms
     const handleConfirmBooking = async () => {
@@ -243,8 +279,8 @@ export function ClientBookServicePage() {
             // Create one order per selected room, each with the same service items
             for (const roomDetailId of selectedRoomDetailIds) {
                 // 1. Create a client service order for this room
-                const orderResult = await orderServicesApi.createClient({ 
-                    bookingDetailId: roomDetailId 
+                const orderResult = await orderServicesApi.createClient({
+                    bookingDetailId: roomDetailId
                 });
 
                 // 2. Add each service item to that order
@@ -315,44 +351,55 @@ export function ClientBookServicePage() {
                             </div>
 
                             {myActiveRooms.length > 0 ? (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    {myActiveRooms.map((room) => {
-                                        const isSelected = selectedRoomDetailIds.includes(room.bookingDetailId);
-                                        return (
-                                            <div
-                                                key={room.bookingDetailId}
-                                                onClick={() => handleRoomToggle(room.bookingDetailId)}
-                                                className={`cursor-pointer rounded-2xl border-2 p-5 transition-all flex items-center justify-between ${
-                                                    isSelected 
-                                                    ? 'border-cyan-500 bg-cyan-50/50 shadow-md shadow-cyan-500/5 ring-1 ring-cyan-500/25' 
-                                                    : 'border-slate-100 bg-slate-50 hover:bg-slate-100 hover:border-slate-200'
-                                                }`}
-                                            >
-                                                <div>
-                                                    <span className={`block text-[10px] font-extrabold uppercase tracking-widest ${isSelected ? 'text-cyan-600' : 'text-slate-400'}`}>
-                                                        Active Room
-                                                    </span>
-                                                    <span className="text-2xl font-black text-slate-800">
-                                                        Room {room.roomNumber}
-                                                    </span>
-                                                    <span className="block text-xs text-slate-500 mt-0.5">
-                                                        Guest: {room.guestName}
-                                                    </span>
+                                <>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        {pagedActiveRooms.map((room) => {
+                                            const isSelected = selectedRoomDetailIds.includes(room.bookingDetailId);
+                                            return (
+                                                <div
+                                                    key={room.bookingDetailId}
+                                                    onClick={() => handleRoomToggle(room.bookingDetailId)}
+                                                    className={`cursor-pointer rounded-2xl border-2 p-5 transition-all flex items-center justify-between ${isSelected
+                                                        ? 'border-cyan-500 bg-cyan-50/50 shadow-md shadow-cyan-500/5 ring-1 ring-cyan-500/25'
+                                                        : 'border-slate-100 bg-slate-50 hover:bg-slate-100 hover:border-slate-200'
+                                                        }`}
+                                                >
+                                                    <div>
+                                                        <span className={`block text-[10px] font-extrabold uppercase tracking-widest ${isSelected ? 'text-cyan-600' : 'text-slate-400'}`}>
+                                                            Active Room
+                                                        </span>
+                                                        <span className="text-2xl font-black text-slate-800">
+                                                            Room {room.roomNumber}
+                                                        </span>
+                                                        <span className="block text-xs text-slate-500 mt-0.5">
+                                                            Guest: {room.guestName}
+                                                        </span>
+                                                    </div>
+                                                    {/* Checkbox indicator */}
+                                                    <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-colors ${isSelected ? 'border-cyan-500 bg-cyan-500' : 'border-slate-300 bg-white'
+                                                        }`}>
+                                                        {isSelected && (
+                                                            <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                                            </svg>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                                {/* Checkbox indicator */}
-                                                <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-colors ${
-                                                    isSelected ? 'border-cyan-500 bg-cyan-500' : 'border-slate-300 bg-white'
-                                                }`}>
-                                                    {isSelected && (
-                                                        <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                                        </svg>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
+                                            );
+                                        })}
+                                    </div>
+
+                                    {myActiveRooms.length > roomsPerPage && (
+                                        <div className="mt-4 flex justify-end">
+                                            <Pagination
+                                                page={roomsPage}
+                                                pageSize={roomsPerPage}
+                                                total={myActiveRooms.length}
+                                                onPageChange={setRoomsPage}
+                                            />
+                                        </div>
+                                    )}
+                                </>
                             ) : (
                                 <div className="p-6 bg-amber-50 border border-amber-100 rounded-2xl text-center">
                                     <SparklesIcon className="w-10 h-10 text-amber-500 mx-auto mb-2 animate-bounce" />
@@ -460,11 +507,10 @@ export function ClientBookServicePage() {
                                             <div
                                                 key={service.id}
                                                 onClick={() => handleServiceToggle(service)}
-                                                className={`relative cursor-pointer rounded-2xl border-2 p-4 transition-all group flex flex-col justify-between h-full ${
-                                                    isSelected
+                                                className={`relative cursor-pointer rounded-2xl border-2 p-4 transition-all group flex flex-col justify-between h-full ${isSelected
                                                     ? 'border-cyan-500 bg-cyan-50/30 shadow-md shadow-cyan-500/5 ring-1 ring-cyan-500/10'
                                                     : 'border-slate-100 bg-slate-50/50 hover:border-cyan-200 hover:bg-slate-50'
-                                                }`}
+                                                    }`}
                                             >
                                                 <div>
                                                     <div className="h-24 rounded-xl overflow-hidden mb-2.5 bg-slate-100 relative">
@@ -483,7 +529,7 @@ export function ClientBookServicePage() {
                                                         {service.name}
                                                     </h4>
                                                 </div>
-                                                
+
                                                 <div className="mt-2.5 flex items-center justify-between">
                                                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">
                                                         {service.categoryName || 'Amenity'}
@@ -501,11 +547,11 @@ export function ClientBookServicePage() {
 
                                 {suggestedServices.length > roomsPerPage && (
                                     <div className="mt-4 flex justify-end">
-                                        <Pagination 
-                                            page={suggestedPage} 
-                                            pageSize={roomsPerPage} 
-                                            total={suggestedServices.length} 
-                                            onPageChange={setSuggestedPage} 
+                                        <Pagination
+                                            page={suggestedPage}
+                                            pageSize={roomsPerPage}
+                                            total={suggestedServices.length}
+                                            onPageChange={setSuggestedPage}
                                         />
                                     </div>
                                 )}
@@ -549,11 +595,10 @@ export function ClientBookServicePage() {
                                                         <div
                                                             key={service.id}
                                                             onClick={() => handleServiceToggle(service)}
-                                                            className={`relative cursor-pointer rounded-2xl border-2 p-4 transition-all group flex flex-col justify-between h-full ${
-                                                                isSelected
+                                                            className={`relative cursor-pointer rounded-2xl border-2 p-4 transition-all group flex flex-col justify-between h-full ${isSelected
                                                                 ? 'border-cyan-500 bg-cyan-50/30 shadow-md shadow-cyan-500/5 ring-1 ring-cyan-500/10'
                                                                 : 'border-slate-100 bg-slate-50/50 hover:border-cyan-200 hover:bg-slate-50'
-                                                            }`}
+                                                                }`}
                                                         >
                                                             <div>
                                                                 <div className="h-24 rounded-xl overflow-hidden mb-2.5 bg-slate-100 relative">
@@ -572,7 +617,7 @@ export function ClientBookServicePage() {
                                                                     {service.name}
                                                                 </h4>
                                                             </div>
-                                                            
+
                                                             <div className="mt-2.5 flex items-center justify-between">
                                                                 <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">
                                                                     {service.categoryName || 'Amenity'}
@@ -590,11 +635,11 @@ export function ClientBookServicePage() {
 
                                             {otherServices.length > roomsPerPage && (
                                                 <div className="mt-4 flex justify-end">
-                                                    <Pagination 
-                                                        page={otherPage} 
-                                                        pageSize={roomsPerPage} 
-                                                        total={otherServices.length} 
-                                                        onPageChange={setOtherPage} 
+                                                    <Pagination
+                                                        page={otherPage}
+                                                        pageSize={roomsPerPage}
+                                                        total={otherServices.length}
+                                                        onPageChange={setOtherPage}
                                                     />
                                                 </div>
                                             )}
@@ -676,15 +721,19 @@ export function ClientBookServicePage() {
                                     <span>Services Subtotal</span>
                                     <span className="font-bold text-slate-800">${subtotal.toLocaleString()}</span>
                                 </div>
-                                <div className="flex justify-between">
+                                {/* <div className="flex justify-between">
                                     <span>Service Charge (5%)</span>
                                     <span>${serviceCharge.toLocaleString()}</span>
+                                </div> */}
+                                <div className="flex justify-between">
+                                    <span></span>
+                                    <span> X </span>
                                 </div>
                                 <div className="flex justify-between">
-                                    <span>VAT (10%)</span>
-                                    <span>${vat.toLocaleString()}</span>
+                                    <span>Selected Rooms: </span>
+                                    <span>{selectedRooms.length}</span>
                                 </div>
-                                
+
                                 <div className="flex justify-between text-base font-extrabold text-slate-900 pt-2 border-t border-slate-100">
                                     <span>Grand Total</span>
                                     <span className="text-cyan-700">${grandTotal.toLocaleString()}</span>
@@ -697,8 +746,8 @@ export function ClientBookServicePage() {
                                 disabled={isBooking || selectedRoomDetailIds.length === 0 || selectedServices.length === 0}
                                 className="w-full flex items-center justify-center gap-2 py-4 bg-cyan-700 hover:bg-cyan-800 text-white rounded-2xl font-bold uppercase tracking-widest text-xs transition-all shadow-lg shadow-cyan-100 disabled:opacity-50 disabled:shadow-none"
                             >
-                                {isBooking 
-                                    ? 'Placing Order...' 
+                                {isBooking
+                                    ? 'Placing Order...'
                                     : `Confirm Order${selectedRooms.length > 1 ? ` for ${selectedRooms.length} Rooms` : ''}`
                                 } <ArrowRightIcon className="w-4 h-4" />
                             </button>

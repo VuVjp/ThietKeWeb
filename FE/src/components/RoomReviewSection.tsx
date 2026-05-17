@@ -14,7 +14,7 @@ interface RoomReviewSectionProps {
 }
 
 export function RoomReviewSection({ roomTypeId, averageRating, reviewCount }: RoomReviewSectionProps) {
-    const { user, isAuthenticated } = useAppAuth();
+    const { user, isAuthenticated, isAuthReady } = useAppAuth();
     const [reviews, setReviews] = useState<ReviewItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [filterRating, setFilterRating] = useState<number | null>(null);
@@ -74,10 +74,10 @@ export function RoomReviewSection({ roomTypeId, averageRating, reviewCount }: Ro
     }, [roomTypeId]);
 
     useEffect(() => {
-        if (!isLoading) {
+        if (!isLoading && isAuthReady) {
             checkEligibility();
         }
-    }, [isLoading, reviews, isAuthenticated]);
+    }, [isLoading, reviews, isAuthenticated, isAuthReady]);
 
     const filteredReviews = useMemo(() => {
         if (filterRating === null) return reviews;

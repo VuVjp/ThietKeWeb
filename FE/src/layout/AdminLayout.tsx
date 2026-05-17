@@ -9,8 +9,8 @@ export function AdminLayout() {
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
     const [search, setSearch] = useState('');
-    const { user, logout, isAuthenticated } = useAppAuth();
-    const { notifications, unreadCount, hasMore, isLoadingMore, markRead, markAllRead, loadMore } = useRealtimeNotifications(isAuthenticated);
+    const { user, logout, isAuthenticated, isAuthReady } = useAppAuth();
+    const { notifications, unreadCount, hasMore, isLoadingMore, markRead, markAllRead, loadMore } = useRealtimeNotifications(isAuthReady && isAuthenticated);
 
     return (
         <div className="min-h-screen bg-slate-50/80">
