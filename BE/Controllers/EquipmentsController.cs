@@ -101,14 +101,7 @@ public class EquipmentsController : ControllerBase
     [HttpPatch("{id}/toggle-active")]
     public async Task<IActionResult> ToggleActive(int id)
     {
-        var ok = await _service.ToggleActiveAsync(id);
-        if (!ok)
-        {
-            return NotFound();
-        }
-
-        var equipment = await _service.GetByIdAsync(id);
-        var isActive = equipment?.IsActive ?? true;
+        var isActive = await _service.ToggleActiveAsync(id);
 
         await TryNotifyRolesAsync(
             GetRoles(),

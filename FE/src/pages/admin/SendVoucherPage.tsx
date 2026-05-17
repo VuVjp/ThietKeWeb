@@ -333,8 +333,12 @@ export function SendVoucherPage() {
                         {isSelected && <CheckIcon className="h-2.5 w-2.5 text-white" />}
                       </div>
                       {/* Avatar */}
-                      <div className="h-8 w-8 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                        {(u.fullName || u.email).charAt(0).toUpperCase()}
+                      <div className="h-8 w-8 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center bg-gradient-to-br from-cyan-400 to-blue-500 text-white text-xs font-bold">
+                        {u.avatarUrl ? (
+                          <img src={u.avatarUrl} alt={u.fullName} className="h-full w-full object-cover" />
+                        ) : (
+                          (u.fullName || u.email).charAt(0).toUpperCase()
+                        )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-slate-700 truncate">

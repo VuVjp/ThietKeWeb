@@ -27,6 +27,7 @@ export interface VoucherUserItem {
   email: string;
   roleName?: string;
   membershipName?: string;
+  avatarUrl?: string;
 }
 
 export const vouchersApi = {

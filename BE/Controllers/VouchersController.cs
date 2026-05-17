@@ -185,7 +185,8 @@ public class VouchersController : ControllerBase
                 u.FullName,
                 u.Email,
                 RoleName = u.Role != null ? u.Role.Name : "Guest",
-                MembershipName = u.Membership != null ? u.Membership.TierName : "None"
+                MembershipName = u.Membership != null ? u.Membership.TierName : "None",
+                u.AvatarUrl
             })
             .ToListAsync();
 

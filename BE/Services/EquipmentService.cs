@@ -189,7 +189,7 @@ public class EquipmentService : IEquipmentService
 
         _repo.Update(entity);
         await _repo.SaveChangesAsync();
-        return true;
+        return entity.IsActive;
     }
 
     private static EquipmentDto ToDto(Equipment entity)
