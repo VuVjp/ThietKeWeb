@@ -2,6 +2,7 @@ using HotelManagement.Entities;
 using Microsoft.EntityFrameworkCore;
 using HotelManagement.Data;
 using Microsoft.AspNetCore.Http;
+using HotelManagement.Services.Interfaces;
 
 public class ArticleService : IArticleService
 {
@@ -9,17 +10,20 @@ public class ArticleService : IArticleService
     private readonly IArticleCategoryRepository _categoryRepo;
     private readonly ICloudinaryService _cloudinaryService;
     private readonly AppDbContext _context;
+    private readonly IDashboardService _dashboardService;
 
     public ArticleService(
         IArticleRepository repo,
         IArticleCategoryRepository categoryRepo,
         ICloudinaryService cloudinaryService,
-        AppDbContext context)
+        AppDbContext context,
+        IDashboardService dashboardService)
     {
         _repo = repo;
         _categoryRepo = categoryRepo;
         _cloudinaryService = cloudinaryService;
         _context = context;
+        _dashboardService = dashboardService;
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
@@ -29,6 +33,7 @@ public class ArticleService : IArticleService
         Id           = a.Id,
         AuthorId     = a.AuthorId,
         Title        = a.Title,
+        Subtitle     = a.Subtitle,
         Slug         = a.Slug,
         Content      = null, // Omitted in list — use GetByIdAsync for full content
         ThumbnailUrl = a.ThumbnailUrl,
@@ -66,6 +71,7 @@ public class ArticleService : IArticleService
         Id           = a.Id,
         AuthorId     = a.AuthorId,
         Title        = a.Title,
+        Subtitle     = a.Subtitle,
         Slug         = a.Slug,
         Content      = a.Content,
         ThumbnailUrl = a.ThumbnailUrl,
@@ -179,9 +185,11 @@ public class ArticleService : IArticleService
         {
             AuthorId     = dto.AuthorId,
             Title        = dto.Title,
+            Subtitle     = dto.Subtitle,
             Content      = dto.Content,
             ThumbnailUrl = thumbnailUrl,
             IsActive     = dto.IsActive ?? true,
+            PublishedAt  = (dto.IsActive ?? true) ? DateTime.Now : null
         };
 
         await _repo.AddAsync(entity);
@@ -192,6 +200,11 @@ public class ArticleService : IArticleService
         // Insert attraction junction rows
         await SyncAttractionMapsAsync(entity.Id, dto.AttractionIds);
         await _context.SaveChangesAsync();
+
+        if (entity.PublishedAt != null)
+        {
+            await _dashboardService.IncrementMetricAsync("Articles", 1, entity.PublishedAt.Value);
+        }
 
         return true;
     }
@@ -214,10 +227,18 @@ public class ArticleService : IArticleService
         if (dto.AuthorId.HasValue)
             entity.AuthorId = dto.AuthorId.Value;
         entity.Title        = dto.Title;
+        entity.Subtitle     = dto.Subtitle;
         entity.Content      = dto.Content;
         entity.ThumbnailUrl = thumbnailUrl;
-        if (dto.IsActive.HasValue)
+
+        bool originallyPublished = entity.IsActive && entity.PublishedAt != null;
+
+        if (dto.IsActive.HasValue) {
             entity.IsActive = dto.IsActive.Value;
+            if (entity.IsActive && entity.PublishedAt == null) {
+                entity.PublishedAt = DateTime.Now;
+            }
+        }
 
         _repo.Update(entity);
 
@@ -225,7 +246,16 @@ public class ArticleService : IArticleService
         await SyncCategoryMapsAsync(entity.Id, dto.CategoryIds);
         // Replace attraction junction rows
         await SyncAttractionMapsAsync(entity.Id, dto.AttractionIds);
+        
+        bool isNowPublished = entity.IsActive && entity.PublishedAt != null;
+        bool wasJustPublished = !originallyPublished && isNowPublished;
+        
         await _context.SaveChangesAsync();
+
+        if (wasJustPublished)
+        {
+            await _dashboardService.IncrementMetricAsync("Articles", 1, entity.PublishedAt!.Value);
+        }
 
         return true;
     }

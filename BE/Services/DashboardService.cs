@@ -5,6 +5,7 @@ using HotelManagement.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using HotelManagement.Entities.Snapshots;
 
 namespace HotelManagement.Services.Implementations;
 
@@ -80,48 +81,72 @@ public class DashboardService : IDashboardService
         _context = context;
     }
 
-    public async Task<DashboardOverviewDto> GetOverviewAsync(int days = 7)
+    public async Task<DashboardOverviewDto> GetOverviewAsync(int days = 7, bool forceRefresh = false)
     {
-        var normalizedDays = Math.Clamp(days, 1, 31);
-        var endDate = DateTime.Today;
-        var startDate = endDate.AddDays(-(normalizedDays - 1));
+        var isAllTime = days <= 0;
+        var normalizedDays = isAllTime ? 0 : Math.Clamp(days, 1, 365);
+        
+        // Try to get from snapshot if it's a standard range (0, 1, 7, 30, 365) and NOT forceRefresh
+        if (!forceRefresh && (normalizedDays == 0 || normalizedDays == 1 || normalizedDays == 7 || normalizedDays == 30 || normalizedDays == 365))
+        {
+            var expectedStart = GetPeriodStart(normalizedDays);
+            var snapshot = await _context.DashboardSnapshots
+                .AsNoTracking()
+                .Where(s => s.SnapshotType == normalizedDays && s.SnapshotDate == expectedStart)
+                .OrderByDescending(s => s.LastUpdated)
+                .FirstOrDefaultAsync();
 
-        var bookings = await _context.Bookings
-            .AsNoTracking()
-            .Select(booking => new BookingProjection
+            if (snapshot != null && snapshot.LastUpdated > DateTime.Now.AddHours(-1))
             {
-                Id = booking.Id,
-                GuestName = booking.GuestName,
-                Status = booking.Status,
-                FinalPrice = booking.FinalPrice,
-                CheckInDate = booking.BookingDetails
-                    .OrderBy(detail => detail.CheckInDate)
-                    .Select(detail => (DateTime?)detail.CheckInDate)
-                    .FirstOrDefault(),
-                CheckOutDate = booking.BookingDetails
-                    .OrderByDescending(detail => detail.CheckOutDate)
-                    .Select(detail => (DateTime?)detail.CheckOutDate)
-                    .FirstOrDefault(),
-            })
-            .ToListAsync();
+                var snapshotDto = snapshot.Data;
+                if (snapshotDto != null)
+                {
+                    // Some parts must be real-time even in snapshot
+                    await RefreshRealTimePartsAsync(snapshotDto);
+                    return snapshotDto;
+                }
+            }
+        }
 
-        var orders = await _context.OrderServices
-            .AsNoTracking()
-            .Select(order => new OrderProjection
+        var dto = await CalculateOverviewAsync(normalizedDays);
+
+        // If force refresh on a standard range, update the snapshot
+        if (forceRefresh && (normalizedDays == 0 || normalizedDays == 1 || normalizedDays == 7 || normalizedDays == 30 || normalizedDays == 365))
+        {
+            await SaveSnapshotAsync(normalizedDays, dto);
+        }
+
+        return dto;
+    }
+
+    private async Task SaveSnapshotAsync(int range, DashboardOverviewDto overview)
+    {
+        var periodStart = overview.Meta.PeriodStart;
+        var existing = await _context.DashboardSnapshots
+            .FirstOrDefaultAsync(s => s.SnapshotType == range && s.SnapshotDate == periodStart);
+
+        if (existing != null)
+        {
+            existing.Data = overview;
+            existing.LastUpdated = DateTime.Now;
+            _context.DashboardSnapshots.Update(existing);
+        }
+        else
+        {
+            await _context.DashboardSnapshots.AddAsync(new DashboardSnapshot
             {
-                Id = order.Id,
-                Status = order.Status,
-                OrderDate = order.OrderDate,
-                TotalAmount = order.TotalAmount,
-                RoomNumber = order.BookingDetail != null && order.BookingDetail.Room != null
-                    ? order.BookingDetail.Room.RoomNumber
-                    : null,
-                GuestName = order.BookingDetail != null && order.BookingDetail.Booking != null
-                    ? order.BookingDetail.Booking.GuestName
-                    : null,
-            })
-            .ToListAsync();
+                SnapshotType = range,
+                Data = overview,
+                SnapshotDate = periodStart,
+                LastUpdated = DateTime.Now
+            });
+        }
+        await _context.SaveChangesAsync();
+    }
 
+    private async Task RefreshRealTimePartsAsync(DashboardOverviewDto dto)
+    {
+        // Occupancy and real-time alerts should always be fresh
         var rooms = await _context.Rooms
             .AsNoTracking()
             .Select(room => new RoomProjection
@@ -134,152 +159,457 @@ public class DashboardService : IDashboardService
             })
             .ToListAsync();
 
-        var auditLogCount = await _context.AuditLogs.CountAsync();
-
-        var payments = await _context.Payments
-            .AsNoTracking()
-            .Select(payment => new PaymentProjection
-            {
-                AmountPaid = payment.AmountPaid,
-                PaymentDate = payment.PaymentDate,
-                Status = payment.Status,
-                PaymentForType = payment.PaymentForType,
-            })
-            .ToListAsync();
-
-        var criticalAlerts = await _context.LossAndDamages
-            .AsNoTracking()
-            .OrderByDescending(item => item.CreatedAt)
-            .Take(3)
-            .Select(item => new DashboardCriticalAlertDto
-            {
-                Id = item.Id,
-                ItemName = item.RoomInventory != null && !string.IsNullOrWhiteSpace(item.RoomInventory.ItemName)
-                    ? item.RoomInventory.ItemName!
-                    : "Unknown",
-                Room = item.RoomInventory != null && item.RoomInventory.Room != null && !string.IsNullOrWhiteSpace(item.RoomInventory.Room.RoomNumber)
-                    ? item.RoomInventory.Room.RoomNumber
-                    : "Unknown",
-                Penalty = item.PenaltyAmount,
-                Description = string.IsNullOrWhiteSpace(item.Description) ? "No description" : item.Description,
-            })
-            .ToListAsync();
-
-        var confirmedBookings = bookings
-            .Where(item => !string.IsNullOrWhiteSpace(item.Status) && RevenueBookingStatuses.Contains(item.Status!))
-            .ToList();
-
-        var successfulPayments = payments
-            .Where(IsSuccessfulPayment)
-            .ToList();
-
-        var totalRevenue = successfulPayments.Sum(item => item.AmountPaid);
-
         var occupancy = BuildOccupancySummary(rooms);
+        dto.Breakdown.Occupancy = occupancy;
+        dto.Breakdown.InspectingCount = rooms.Count(room => string.Equals(room.CleaningStatus, "Inspecting", StringComparison.OrdinalIgnoreCase));
+        dto.Breakdown.PendingCleaningRooms = rooms
+            .Where(room => room.CleaningRequested)
+            .Select(room => new DashboardRoomTaskDto
+            {
+                Id = room.Id,
+                RoomNumber = room.RoomNumber ?? string.Empty,
+                Status = room.Status ?? string.Empty,
+                CleaningStatus = room.CleaningStatus ?? string.Empty,
+                CleaningRequested = room.CleaningRequested
+            })
+            .ToList();
 
-        var revenueChartData = BuildRevenueChartData(startDate, normalizedDays, successfulPayments);
-
-        var statusChartData = new List<DashboardRoomStatusPointDto>
+        dto.Breakdown.InspectingRooms = rooms
+            .Where(room => string.Equals(room.CleaningStatus, "Inspecting", StringComparison.OrdinalIgnoreCase))
+            .Select(room => new DashboardRoomTaskDto
+            {
+                Id = room.Id,
+                RoomNumber = room.RoomNumber ?? string.Empty,
+                Status = room.Status ?? string.Empty,
+                CleaningStatus = room.CleaningStatus ?? string.Empty,
+                CleaningRequested = room.CleaningRequested
+            })
+            .ToList();
+        
+        dto.Widgets.RoomStatusChart = new List<DashboardRoomStatusPointDto>
         {
             new() { Name = "Available", Value = occupancy.Available, Color = "#0ea5e9" },
             new() { Name = "Occupied", Value = occupancy.Occupied, Color = "#6366f1" },
             new() { Name = "Maintenance", Value = occupancy.Maintenance, Color = "#f59e0b" },
         };
 
-        var recentBookings = confirmedBookings
-            .OrderByDescending(item => item.Id)
-            .Take(5)
-            .Select(item => new DashboardRecentBookingDto
-            {
-                Id = item.Id,
-                GuestName = string.IsNullOrWhiteSpace(item.GuestName) ? "Unknown" : item.GuestName,
-                CheckInDate = item.CheckInDate ?? DateTime.Today,
-                CheckOutDate = item.CheckOutDate ?? DateTime.Today,
-                TotalAmount = item.FinalPrice,
-                Status = string.IsNullOrWhiteSpace(item.Status) ? "Pending" : item.Status,
-            })
-            .ToList();
-
-        var pendingServices = orders
+        dto.Widgets.PendingServices = await _context.OrderServices
+            .AsNoTracking()
             .Where(item => item.Status == OrderServiceStatus.Pending)
             .OrderByDescending(item => item.OrderDate)
-            .Take(3)
+            .Take(10)
             .Select(item => new DashboardPendingServiceDto
             {
                 Id = item.Id,
-                RoomNumber = string.IsNullOrWhiteSpace(item.RoomNumber) ? "N/A" : item.RoomNumber,
-                GuestName = string.IsNullOrWhiteSpace(item.GuestName) ? "Unknown" : item.GuestName,
+                RoomNumber = item.BookingDetail != null && item.BookingDetail.Room != null
+                    ? item.BookingDetail.Room.RoomNumber!
+                    : "N/A",
+                GuestName = item.BookingDetail != null && item.BookingDetail.Booking != null
+                    ? item.BookingDetail.Booking.GuestName!
+                    : "Unknown",
                 OrderDate = item.OrderDate,
             })
-            .ToList();
-
-        var totalLossPenalty = await _context.LossAndDamages
+            .ToListAsync();
+            
+        dto.Alerts = await _context.LossAndDamages
             .AsNoTracking()
+            .OrderByDescending(item => item.CreatedAt)
+            .Take(3)
+            .Select(item => new DashboardCriticalAlertDto
+            {
+                Id = item.Id,
+                ItemName = item.RoomInventory != null ? item.RoomInventory.ItemName ?? "Unknown" : "Unknown",
+                Room = item.RoomInventory != null && item.RoomInventory.Room != null ? item.RoomInventory.Room.RoomNumber ?? "Unknown" : "Unknown",
+                Penalty = item.PenaltyAmount,
+                Description = item.Description ?? "No description",
+            })
+            .ToListAsync();
+
+        // Populate recent events
+        dto.Events = await _context.AuditLogs
+            .AsNoTracking()
+            .OrderByDescending(l => l.LastUpdatedAt)
+            .Take(5)
+            .Select(l => new DashboardEventDto
+            {
+                Id = l.Id,
+                Type = "ACTIVITY",
+                Message = $"Audit log updated for user {l.UserId}",
+                Timestamp = l.LastUpdatedAt ?? DateTime.Now,
+                Severity = "Info"
+            })
+            .ToListAsync();
+    }
+
+    private DateTime GetPeriodStart(int days)
+    {
+        var isAllTime = days <= 0;
+        var normalizedDays = isAllTime ? 0 : Math.Clamp(days, 1, 365);
+        var today = DateTime.Today;
+
+        if (isAllTime) return DateTime.MinValue;
+        if (normalizedDays == 1) return today;
+        if (normalizedDays == 7)
+        {
+            int diff = (7 + (today.DayOfWeek - DayOfWeek.Monday)) % 7;
+            return today.AddDays(-1 * diff).Date;
+        }
+        if (normalizedDays == 30) return new DateTime(today.Year, today.Month, 1);
+        if (normalizedDays == 365) return new DateTime(today.Year, 1, 1);
+        
+        return today.AddDays(-(normalizedDays - 1));
+    }
+
+    private async Task<DashboardOverviewDto> CalculateOverviewAsync(int days)
+    {
+        var isAllTime = days <= 0;
+        var normalizedDays = isAllTime ? 0 : Math.Clamp(days, 1, 365);
+        
+        DateTime startDate, endDate, prevStartDate, prevEndDate;
+        var today = DateTime.Today;
+        endDate = today.AddDays(1); // Exclusive upper bound
+        startDate = GetPeriodStart(normalizedDays);
+
+        if (isAllTime)
+        {
+            prevStartDate = DateTime.MinValue;
+            prevEndDate = DateTime.MinValue;
+        }
+        else
+        {
+            if (normalizedDays == 1) // Daily
+            {
+                prevStartDate = startDate.AddDays(-1);
+                prevEndDate = startDate;
+            }
+            else if (normalizedDays == 7) // Weekly
+            {
+                prevStartDate = startDate.AddDays(-7);
+                prevEndDate = startDate;
+            }
+            else if (normalizedDays == 30) // Monthly
+            {
+                prevStartDate = startDate.AddMonths(-1);
+                prevEndDate = startDate;
+            }
+            else if (normalizedDays == 365) // Yearly
+            {
+                prevStartDate = startDate.AddYears(-1);
+                prevEndDate = startDate;
+            }
+            else // Sliding window
+            {
+                prevStartDate = startDate.AddDays(-normalizedDays);
+                prevEndDate = startDate;
+            }
+        }
+
+        // Current period stats
+        var currentRevenue = await _context.Payments
+            .AsNoTracking()
+            .Where(p => (string.IsNullOrEmpty(p.Status) || p.Status == "Completed") 
+                        && p.PaymentDate >= startDate && p.PaymentDate < endDate)
+            .SumAsync(p => p.AmountPaid);
+
+        var currentBookings = await _context.Bookings
+            .AsNoTracking()
+            .CountAsync(b => RevenueBookingStatuses.Contains(b.Status!) 
+                             && b.CreatedAt >= startDate && b.CreatedAt < endDate);
+
+        var currentLossPenalty = await _context.LossAndDamages
+            .AsNoTracking()
+            .Where(l => l.CreatedAt >= startDate && l.CreatedAt < endDate)
             .SumAsync(item => item.PenaltyAmount);
 
-        var netProfit = totalRevenue - totalLossPenalty;
-        var inspectingCount = rooms.Count(room => string.Equals(room.CleaningStatus, "Inspecting", StringComparison.OrdinalIgnoreCase));
+        var currentNetProfit = currentRevenue - currentLossPenalty;
 
-        return new DashboardOverviewDto
+        var currentServiceOrders = await _context.OrderServices
+            .AsNoTracking()
+            .CountAsync(o => o.OrderDate >= startDate && o.OrderDate < endDate);
+
+        var currentServiceRevenue = await _context.OrderServices
+            .AsNoTracking()
+            .Where(o => o.IsPaid && o.OrderDate >= startDate && o.OrderDate < endDate)
+            .SumAsync(o => o.TotalAmount);
+
+        var currentCompletedServiceOrders = await _context.OrderServices
+            .AsNoTracking()
+            .Where(order => order.Status == OrderServiceStatus.Completed)
+            .CountAsync(order => 
+                (order.UpdatedAt != null && order.UpdatedAt >= startDate && order.UpdatedAt < endDate) || 
+                (order.UpdatedAt == null && order.OrderDate >= startDate && order.OrderDate < endDate));
+
+        var currentArticles = await _context.Articles
+            .AsNoTracking()
+            .Where(a => a.IsActive && a.PublishedAt != null)
+            .CountAsync(a => a.PublishedAt >= startDate && a.PublishedAt < endDate);
+
+        // Calculate cleaned rooms from audit logs
+        var currentAuditLogs = await _context.AuditLogs
+            .AsNoTracking()
+            .Where(l => l.AuditDate >= startDate && l.AuditDate < endDate)
+            .Select(l => l.EventJson)
+            .ToListAsync();
+
+        var currentCleanedRooms = 0;
+        foreach (var json in currentAuditLogs)
         {
-            TotalRevenue = totalRevenue,
-            BookingCount = confirmedBookings.Count,
-            OccupancyRate = occupancy.Total == 0 ? 0 : (int)Math.Round((double)occupancy.Occupied / occupancy.Total * 100),
-            AuditLogTotal = auditLogCount,
-            NetProfit = netProfit,
-            InspectingCount = inspectingCount,
-            Occupancy = occupancy,
-            RevenueChartData = revenueChartData,
-            StatusChartData = statusChartData,
-            RecentBookings = recentBookings,
-            CriticalAlerts = criticalAlerts,
-            PendingServices = pendingServices,
+            var payload = DeserializePayload(json);
+            currentCleanedRooms += payload.Events.Count(IsCleaningCompletedEvent);
+        }
+
+        // --- SNAPSHOT-BASED COMPARISON LOGIC ---
+        decimal prevRevenue = 0;
+        int prevBookings = 0;
+        decimal prevNetProfit = 0;
+        int prevServiceOrders = 0;
+        int prevCompletedServiceOrders = 0;
+        int prevDamageReports = 0;
+        int prevLowStockItems = 0;
+        decimal prevServiceRevenue = 0;
+        int prevArticles = 0;
+
+        // Try to fetch previous stats from existing snapshot first
+        // We look for the MOST RECENT snapshot of this type that exists BEFORE our current startDate
+        var prevSnapshot = await _context.DashboardSnapshots
+            .AsNoTracking()
+            .Where(s => s.SnapshotType == normalizedDays && s.SnapshotDate < startDate)
+            .OrderByDescending(s => s.SnapshotDate)
+            .FirstOrDefaultAsync();
+
+        if (prevSnapshot != null && prevSnapshot.Data != null)
+        {
+            var prevData = prevSnapshot.Data.Summary;
+            prevRevenue = prevData.TotalRevenue;
+            prevBookings = prevData.BookingCount;
+            prevNetProfit = prevData.NetProfit;
+            prevServiceOrders = prevData.ServiceOrdersCount;
+            prevCompletedServiceOrders = prevData.CompletedServiceOrdersCount;
+            prevDamageReports = (int)(prevData.Comparison?.Metrics?.DamageReports?.Current ?? 0);
+            prevLowStockItems = (int)(prevData.Comparison?.Metrics?.LowStockItems?.Current ?? 0);
+            prevServiceRevenue = prevData.ServiceRevenue;
+            prevArticles = prevData.ArticlesCount;
+        }
+        else if (!isAllTime) // Fallback to raw query if no snapshot exists
+        {
+            prevRevenue = await _context.Payments
+                .AsNoTracking()
+                .Where(p => (string.IsNullOrEmpty(p.Status) || p.Status == "Completed") 
+                            && p.PaymentDate >= prevStartDate && p.PaymentDate < prevEndDate)
+                .SumAsync(p => p.AmountPaid);
+
+            prevBookings = await _context.Bookings
+                .AsNoTracking()
+                .CountAsync(b => RevenueBookingStatuses.Contains(b.Status!) 
+                                 && b.CreatedAt >= prevStartDate && b.CreatedAt < prevEndDate);
+
+            var prevLossPenalty = await _context.LossAndDamages
+                .AsNoTracking()
+                .Where(l => l.CreatedAt >= prevStartDate && l.CreatedAt < prevEndDate)
+                .SumAsync(item => item.PenaltyAmount);
+            prevNetProfit = prevRevenue - prevLossPenalty;
+
+            prevServiceOrders = await _context.OrderServices
+                .AsNoTracking()
+                .CountAsync(o => o.OrderDate >= prevStartDate && o.OrderDate < prevEndDate);
+                
+            prevCompletedServiceOrders = await _context.OrderServices
+                .AsNoTracking()
+                .Where(order => order.Status == OrderServiceStatus.Completed)
+                .CountAsync(order => 
+                    (order.UpdatedAt != null && order.UpdatedAt >= prevStartDate && order.UpdatedAt < prevEndDate) || 
+                    (order.UpdatedAt == null && order.OrderDate >= prevStartDate && order.OrderDate < prevEndDate));
+
+            prevDamageReports = await _context.LossAndDamages
+                .AsNoTracking()
+                .CountAsync(l => l.CreatedAt >= prevStartDate && l.CreatedAt < prevEndDate);
+
+            prevServiceRevenue = await _context.OrderServices
+                .AsNoTracking()
+                .Where(o => o.IsPaid && o.OrderDate >= prevStartDate && o.OrderDate < prevEndDate)
+                .SumAsync(o => o.TotalAmount);
+
+            prevArticles = await _context.Articles
+                .AsNoTracking()
+                .Where(a => a.IsActive && a.PublishedAt != null)
+                .CountAsync(a => a.PublishedAt >= prevStartDate && a.PublishedAt < prevEndDate);
+        }
+
+        // Aggregate stats
+        var totalRevenue = await _context.Payments
+            .AsNoTracking()
+            .Where(p => string.IsNullOrEmpty(p.Status) || p.Status == "Completed")
+            .SumAsync(p => p.AmountPaid);
+
+        var confirmedBookingsCount = await _context.Bookings
+            .AsNoTracking()
+            .CountAsync(b => RevenueBookingStatuses.Contains(b.Status!));
+
+        var auditLogCount = await _context.AuditLogs.AsNoTracking().CountAsync();
+
+        var revenueChartData = BuildRevenueChartData(startDate, normalizedDays, await _context.Payments
+            .AsNoTracking()
+            .Where(p => (string.IsNullOrEmpty(p.Status) || p.Status == "Completed") && p.PaymentDate >= startDate && p.PaymentDate < endDate)
+            .Select(p => new PaymentProjection { AmountPaid = p.AmountPaid, PaymentDate = p.PaymentDate, Status = p.Status, PaymentForType = p.PaymentForType })
+            .ToListAsync());
+
+        var recentBookings = await _context.Bookings
+            .AsNoTracking()
+            .OrderByDescending(b => b.CreatedAt)
+            .Take(5)
+            .Select(b => new DashboardRecentBookingDto
+            {
+                Id = b.Id,
+                GuestName = b.GuestName ?? "Unknown",
+                CheckInDate = b.BookingDetails.OrderBy(d => d.CheckInDate).Select(d => d.CheckInDate).FirstOrDefault(),
+                CheckOutDate = b.BookingDetails.OrderByDescending(d => d.CheckOutDate).Select(d => d.CheckOutDate).FirstOrDefault(),
+                TotalAmount = b.TotalPrice,
+                Status = b.Status ?? "Pending"
+            })
+            .ToListAsync();
+
+        var currentCleaningRequests = await _context.Rooms.CountAsync(r => r.CleaningRequested);
+
+        var dto = new DashboardOverviewDto
+        {
+            Meta = new DashboardMetaDto
+            {
+                PeriodType = isAllTime ? "ALL_TIME" : (normalizedDays == 1 ? "DAILY" : (normalizedDays == 7 ? "WEEKLY" : (normalizedDays == 30 ? "MONTHLY" : "YEARLY"))),
+                PeriodKey = isAllTime ? "All Time" : $"{startDate:yyyy-MM-dd}",
+                PeriodStart = startDate,
+                PeriodEnd = endDate,
+                GeneratedAt = DateTime.Now
+            },
+            Summary = new DashboardSummaryDto
+            {
+                TotalRevenue = currentRevenue,
+                BookingCount = currentBookings,
+                NetProfit = currentNetProfit,
+                AuditLogTotal = auditLogCount,
+                ArticlesCount = currentArticles,
+                ServiceOrdersCount = currentServiceOrders,
+                CompletedServiceOrdersCount = currentCompletedServiceOrders,
+                ServiceRevenue = currentServiceRevenue,
+                Comparison = new DashboardComparisonDto
+                {
+                    Base = new DashboardComparisonBaseDto
+                    {
+                        ComparisonType = "PREVIOUS_PERIOD",
+                        CurrentPeriodKey = isAllTime ? "All Time" : $"{startDate:yyyy-MM-dd} to {endDate.AddDays(-1):yyyy-MM-dd}",
+                        PreviousPeriodKey = isAllTime ? "None" : $"{prevStartDate:yyyy-MM-dd} to {prevEndDate.AddDays(-1):yyyy-MM-dd}"
+                    },
+                    Metrics = new DashboardMetricsComparisonContainer
+                    {
+                        Revenue = CreateMetricComparison(currentRevenue, prevRevenue, true),
+                        Bookings = CreateMetricComparison(currentBookings, prevBookings, true),
+                        NetProfit = CreateMetricComparison(currentNetProfit, prevNetProfit, true),
+                        DamageReports = CreateMetricComparison(
+                            await _context.LossAndDamages.CountAsync(l => l.CreatedAt >= startDate && l.CreatedAt < endDate),
+                            prevDamageReports,
+                            false
+                        ),
+                        LowStockItems = CreateMetricComparison(
+                            await _context.Equipments.CountAsync(e => e.TotalQuantity < 5),
+                            prevLowStockItems,
+                            false
+                        ),
+                        CleaningRequests = CreateMetricComparison(currentCleaningRequests, 0, false), // Increase is BAD for pending tasks
+                        Articles = CreateMetricComparison(currentArticles, prevArticles, true),
+                        ServiceOrders = CreateMetricComparison(currentServiceOrders, prevServiceOrders, true),
+                        CompletedServiceOrders = CreateMetricComparison(currentCompletedServiceOrders, prevCompletedServiceOrders, true),
+                        ServiceRevenue = CreateMetricComparison(currentServiceRevenue, prevServiceRevenue, true)
+                    }
+                }
+            },
+            Widgets = new DashboardWidgetsDto
+            {
+                RevenueChart = revenueChartData,
+                RecentBookings = recentBookings
+            },
+            Breakdown = new DashboardBreakdownDto()
         };
+
+        await RefreshRealTimePartsAsync(dto);
+        return dto;
+    }
+
+    private static DashboardMetricComparisonDto CreateMetricComparison(decimal current, decimal previous, bool increaseIsPositive)
+    {
+        var difference = current - previous;
+        var growthRate = previous == 0 
+            ? (current == 0 ? 0 : (current > 0 ? 100m : -100m)) 
+            : (difference / Math.Abs(previous) * 100m);
+        var trend = difference > 0 ? "up" : (difference < 0 ? "down" : "flat");
+        
+        string directionMeaning;
+        if (difference == 0) directionMeaning = "neutral";
+        else if (difference > 0) directionMeaning = increaseIsPositive ? "positive" : "negative";
+        else directionMeaning = increaseIsPositive ? "negative" : "positive";
+
+        return new DashboardMetricComparisonDto
+        {
+            Current = current,
+            Previous = previous,
+            Difference = difference,
+            GrowthRate = Math.Round(growthRate, 2),
+            Trend = trend,
+            DirectionMeaning = directionMeaning
+        };
+    }
+
+    public async Task UpdateSnapshotsAsync()
+    {
+        int[] ranges = { 0, 1, 7, 30, 365 }; // 0 represents All Time
+        foreach (var range in ranges)
+        {
+            var overview = await CalculateOverviewAsync(range);
+            await SaveSnapshotAsync(range, overview);
+        }
     }
 
     public async Task<RoleDashboardDto> GetRoleDashboardAsync(RoleName role, int? userId, int days = 7)
     {
+        var overview = await GetOverviewAsync(days);
         return role switch
         {
             RoleName.Housekeeping => new RoleDashboardDto
             {
                 Role = role.ToString(),
-                Housekeeper = await BuildHousekeeperDashboardAsync(userId, days),
+                Housekeeper = await BuildHousekeeperDashboardAsync(userId, days, overview),
             },
             RoleName.Accountant => new RoleDashboardDto
             {
                 Role = role.ToString(),
-                Accountant = await BuildAccountantDashboardAsync(days),
+                Accountant = await BuildAccountantDashboardAsync(days, overview),
             },
             RoleName.Receptionist => new RoleDashboardDto
             {
                 Role = role.ToString(),
-                Receptionist = await BuildReceptionistDashboardAsync(),
+                Receptionist = await BuildReceptionistDashboardAsync(overview),
             },
             RoleName.Manager or RoleName.Admin => new RoleDashboardDto
             {
                 Role = role.ToString(),
-                Manager = await BuildManagerDashboardAsync(days),
-                Overview = await GetOverviewAsync(days),
+                Manager = await BuildManagerDashboardAsync(overview),
+                Overview = overview,
             },
             _ => new RoleDashboardDto
             {
                 Role = role.ToString(),
-                Overview = await GetOverviewAsync(days),
+                Overview = overview,
             },
         };
     }
 
-    private async Task<HousekeeperDashboardDto> BuildHousekeeperDashboardAsync(int? userId, int days)
+    private async Task<HousekeeperDashboardDto> BuildHousekeeperDashboardAsync(int? userId, int days, DashboardOverviewDto overview)
     {
-        var normalizedDays = Math.Clamp(days, 1, 31);
+        var isAllTime = days <= 0;
+        var normalizedDays = isAllTime ? 0 : Math.Clamp(days, 1, 31);
         var endDate = DateTime.Today;
-        var startDate = endDate.AddDays(-(normalizedDays - 1));
+        var startDate = isAllTime ? DateTime.MinValue : endDate.AddDays(-(normalizedDays - 1));
 
-        var cleaningRequests = await _context.Rooms.AsNoTracking().CountAsync(room => room.CleaningRequested);
-        var inspectionRequests = await _context.Rooms.AsNoTracking()
-            .CountAsync(room => room.CleaningStatus != null
-                && room.CleaningStatus.ToLower() == "inspecting");
+        var cleaningRequests = overview.Breakdown.PendingCleaningRooms.Count;
+        var inspectionRequests = overview.Breakdown.InspectingCount;
 
         if (!userId.HasValue)
         {
@@ -290,6 +620,8 @@ public class DashboardService : IDashboardService
                 CleaningRequests = cleaningRequests,
                 InspectionRequests = inspectionRequests,
                 InspectingCount = inspectionRequests,
+                PendingCleaningRooms = overview.Breakdown.PendingCleaningRooms,
+                InspectingRooms = overview.Breakdown.InspectingRooms
             };
         }
 
@@ -331,34 +663,18 @@ public class DashboardService : IDashboardService
             CleaningRequests = cleaningRequests,
             InspectionRequests = inspectionRequests,
             InspectingCount = inspectionRequests,
+            PendingCleaningRooms = overview.Breakdown.PendingCleaningRooms,
+            InspectingRooms = overview.Breakdown.InspectingRooms
         };
     }
 
-    private async Task<AccountantDashboardDto> BuildAccountantDashboardAsync(int days)
+    private async Task<AccountantDashboardDto> BuildAccountantDashboardAsync(int days, DashboardOverviewDto overview)
     {
-        var normalizedDays = Math.Clamp(days, 1, 31);
-        var endDate = DateTime.Today;
-        var startDate = endDate.AddDays(-(normalizedDays - 1));
-
-        var payments = await _context.Payments
-            .AsNoTracking()
-            .Select(payment => new PaymentProjection
-            {
-                AmountPaid = payment.AmountPaid,
-                PaymentDate = payment.PaymentDate,
-                Status = payment.Status,
-                PaymentForType = payment.PaymentForType,
-            })
-            .ToListAsync();
-
-        var successfulPayments = payments.Where(IsSuccessfulPayment).ToList();
-        var totalRevenue = successfulPayments.Sum(item => item.AmountPaid);
-
-        var totalLossPenalty = await _context.LossAndDamages
-            .AsNoTracking()
-            .SumAsync(item => item.PenaltyAmount);
-
-        var revenueChartData = BuildRevenueChartData(startDate, normalizedDays, successfulPayments);
+        var totalRevenueInRange = overview.Summary.TotalRevenue;
+        var serviceRevenueInRange = overview.Summary.ServiceRevenue;
+        var netProfitInRange = overview.Summary.NetProfit;
+        var totalLossPenaltyInRange = totalRevenueInRange - netProfitInRange;
+        var revenueChartData = overview.Widgets.RevenueChart;
 
         var invoices = await _context.Invoices
             .AsNoTracking()
@@ -389,22 +705,17 @@ public class DashboardService : IDashboardService
 
         return new AccountantDashboardDto
         {
-            TotalRevenue = totalRevenue,
-            TotalLossPenalty = totalLossPenalty,
-            NetProfit = totalRevenue - totalLossPenalty,
+            TotalRevenue = totalRevenueInRange,
+            TotalLossPenalty = totalLossPenaltyInRange,
+            ServiceRevenue = serviceRevenueInRange,
+            NetProfit = totalRevenueInRange - totalLossPenaltyInRange,
             RevenueChartData = revenueChartData,
             TopInvoices = topInvoices,
         };
     }
 
-    private async Task<ReceptionistDashboardDto> BuildReceptionistDashboardAsync()
+    private async Task<ReceptionistDashboardDto> BuildReceptionistDashboardAsync(DashboardOverviewDto overview)
     {
-        var today = DateTime.Today;
-
-        var publishedArticles = await _context.Articles
-            .AsNoTracking()
-            .CountAsync(article => article.PublishedAt != null && article.IsActive);
-
         var pendingArticles = await _context.Articles
             .AsNoTracking()
             .CountAsync(article => article.PublishedAt == null);
@@ -413,97 +724,42 @@ public class DashboardService : IDashboardService
             .AsNoTracking()
             .CountAsync(order => order.Status == OrderServiceStatus.Pending);
 
-        var completedServiceOrdersToday = await _context.OrderServices
-            .AsNoTracking()
-            .CountAsync(order => order.Status == OrderServiceStatus.Completed
-                && order.UpdatedAt.HasValue
-                && order.UpdatedAt.Value.Date == today);
-
-        var serviceQueue = await _context.OrderServices
-            .AsNoTracking()
-            .Where(o => o.Status == OrderServiceStatus.Pending)
-            .OrderByDescending(o => o.OrderDate)
-            .Select(o => new DashboardPendingServiceDto
-            {
-                Id = o.Id,
-                RoomNumber = o.BookingDetail != null && o.BookingDetail.Room != null ? o.BookingDetail.Room.RoomNumber! : "N/A",
-                GuestName = o.BookingDetail != null && o.BookingDetail.Booking != null ? o.BookingDetail.Booking.GuestName! : "Unknown",
-                OrderDate = o.OrderDate,
-            })
-            .ToListAsync();
-
         return new ReceptionistDashboardDto
         {
-            PublishedArticles = publishedArticles,
+            PublishedArticles = overview.Summary.ArticlesCount,
             PendingArticles = pendingArticles,
             PendingServiceOrders = pendingServiceOrders,
-            CompletedServiceOrdersToday = completedServiceOrdersToday,
-            ServiceQueue = serviceQueue,
+            CompletedServiceOrders = overview.Summary.CompletedServiceOrdersCount,
+            ServiceQueue = overview.Widgets.PendingServices,
+            PendingCleaningRooms = overview.Breakdown.PendingCleaningRooms,
+            InspectingRooms = overview.Breakdown.InspectingRooms,
         };
     }
 
-    private async Task<ManagerDashboardDto> BuildManagerDashboardAsync(int days)
+    private async Task<ManagerDashboardDto> BuildManagerDashboardAsync(DashboardOverviewDto overview)
     {
-        var overview = await GetOverviewAsync(days);
-        var rooms = await _context.Rooms
-            .AsNoTracking()
-            .Select(room => new RoomProjection
-            {
-                Id = room.Id,
-                RoomNumber = room.RoomNumber,
-                Status = room.Status,
-                CleaningStatus = room.CleaningStatus,
-                CleaningRequested = room.CleaningRequested,
-            })
-            .ToListAsync();
-
-        var pendingCleaningRequests = rooms.Count(room => room.CleaningRequested);
+        var pendingCleaningRequests = overview.Breakdown.PendingCleaningRooms.Count;
         var pendingServiceOrders = await _context.OrderServices.AsNoTracking()
             .CountAsync(order => order.Status == OrderServiceStatus.Pending);
-        var totalLossPenalty = await _context.LossAndDamages.AsNoTracking()
-            .SumAsync(item => item.PenaltyAmount);
         var pendingArticles = await _context.Articles.AsNoTracking()
             .CountAsync(article => article.PublishedAt == null);
 
-        var pendingCleaningRooms = rooms
-            .Where(room => room.CleaningRequested)
-            .OrderBy(room => room.RoomNumber)
-            .Select(room => new DashboardRoomTaskDto
-            {
-                Id = room.Id,
-                RoomNumber = room.RoomNumber ?? string.Empty,
-                Status = room.Status ?? string.Empty,
-                CleaningStatus = room.CleaningStatus ?? string.Empty,
-                CleaningRequested = room.CleaningRequested,
-            })
-            .ToList();
-
-        var inspectingRooms = rooms
-            .Where(room => string.Equals(room.CleaningStatus, "Inspecting", StringComparison.OrdinalIgnoreCase))
-            .OrderBy(room => room.RoomNumber)
-            .Select(room => new DashboardRoomTaskDto
-            {
-                Id = room.Id,
-                RoomNumber = room.RoomNumber ?? string.Empty,
-                Status = room.Status ?? string.Empty,
-                CleaningStatus = room.CleaningStatus ?? string.Empty,
-                CleaningRequested = room.CleaningRequested,
-            })
-            .ToList();
-
-        var netProfit = overview.TotalRevenue - totalLossPenalty;
+        var netProfit = overview.Summary.NetProfit;
+        var totalLossPenalty = overview.Summary.TotalRevenue - netProfit;
 
         return new ManagerDashboardDto
         {
-            Overview = overview,
             PendingCleaningRequests = pendingCleaningRequests,
             PendingServiceOrders = pendingServiceOrders,
+            CompletedServiceOrders = overview.Summary.CompletedServiceOrdersCount,
             TotalLossPenalty = totalLossPenalty,
+            ServiceRevenue = overview.Summary.ServiceRevenue,
             NetProfit = netProfit,
             PendingArticles = pendingArticles,
-            InspectingCount = inspectingRooms.Count,
-            PendingCleaningRooms = pendingCleaningRooms,
-            InspectingRooms = inspectingRooms,
+            PublishedArticles = overview.Summary.ArticlesCount,
+            InspectingCount = overview.Breakdown.InspectingCount,
+            PendingCleaningRooms = overview.Breakdown.PendingCleaningRooms,
+            InspectingRooms = overview.Breakdown.InspectingRooms,
         };
     }
 
@@ -532,6 +788,31 @@ public class DashboardService : IDashboardService
         int days,
         IEnumerable<PaymentProjection> successfulPayments)
     {
+        if (days == 0) // All time: Group by Month-Year
+        {
+            var chartData = new List<DashboardRevenuePointDto>();
+            if (!successfulPayments.Any(p => p.PaymentDate.HasValue))
+            {
+                return chartData;
+            }
+            
+            var minDate = successfulPayments.Min(p => p.PaymentDate!.Value);
+            var startMonth = new DateTime(minDate.Year, minDate.Month, 1);
+            var endMonth = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+            
+            for (var m = startMonth; m <= endMonth; m = m.AddMonths(1))
+            {
+                var currentMonthPayments = successfulPayments.Where(p => p.PaymentDate.HasValue && p.PaymentDate.Value.Year == m.Year && p.PaymentDate.Value.Month == m.Month).ToList();
+                chartData.Add(new DashboardRevenuePointDto
+                {
+                    Name = m.ToString("MMM yyyy"),
+                    Revenue = currentMonthPayments.Sum(p => p.AmountPaid),
+                    Bookings = currentMonthPayments.Count(p => string.Equals(p.PaymentForType, "booking", StringComparison.OrdinalIgnoreCase))
+                });
+            }
+            return chartData;
+        }
+
         var paymentDaily = successfulPayments
             .Where(item => item.PaymentDate != null)
             .GroupBy(item => item.PaymentDate!.Value.Date)
@@ -614,5 +895,66 @@ public class DashboardService : IDashboardService
         }
 
         return false;
+    }
+
+    public async Task IncrementMetricAsync(string metricType, decimal amount, DateTime eventDate)
+    {
+        // Define the 5 affected time periods
+        var affectedPeriods = new Dictionary<int, DateTime>
+        {
+            { 0, DateTime.MinValue }, // All Time
+            { 1, eventDate.Date }, // Daily
+            { 7, GetStartOfWeek(eventDate) }, // Weekly
+            { 30, new DateTime(eventDate.Year, eventDate.Month, 1) }, // Monthly
+            { 365, new DateTime(eventDate.Year, 1, 1) } // Yearly
+        };
+
+        foreach (var kvp in affectedPeriods)
+        {
+            var snapshot = await _context.DashboardSnapshots
+                .FirstOrDefaultAsync(s => s.SnapshotType == kvp.Key && s.SnapshotDate == kvp.Value);
+
+            if (snapshot?.Data != null)
+            {
+                var summary = snapshot.Data.Summary;
+                var metrics = summary.Comparison?.Metrics;
+
+                switch (metricType)
+                {
+                    case "Revenue":
+                        summary.TotalRevenue += amount;
+                        summary.NetProfit += amount;
+                        if (metrics?.Revenue != null) metrics.Revenue.Current += amount;
+                        if (metrics?.NetProfit != null) metrics.NetProfit.Current += amount;
+                        break;
+                    case "CompletedServiceOrders":
+                        summary.CompletedServiceOrdersCount += (int)amount;
+                        if (metrics?.CompletedServiceOrders != null) metrics.CompletedServiceOrders.Current += (int)amount;
+                        break;
+                    case "Articles":
+                        summary.ArticlesCount += (int)amount;
+                        if (metrics?.Articles != null) metrics.Articles.Current += (int)amount;
+                        break;
+                    case "ServiceRevenue":
+                        summary.ServiceRevenue += amount;
+                        if (metrics?.ServiceRevenue != null) metrics.ServiceRevenue.Current += amount;
+                        break;
+                    case "Bookings":
+                        summary.BookingCount += (int)amount;
+                        if (metrics?.Bookings != null) metrics.Bookings.Current += (int)amount;
+                        break;
+                }
+
+                snapshot.LastUpdated = DateTime.Now;
+            }
+        }
+
+        await _context.SaveChangesAsync();
+    }
+
+    private static DateTime GetStartOfWeek(DateTime date)
+    {
+        int diff = (7 + (date.DayOfWeek - DayOfWeek.Monday)) % 7;
+        return date.AddDays(-1 * diff).Date;
     }
 }

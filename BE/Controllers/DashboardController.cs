@@ -17,10 +17,18 @@ public class DashboardController : ControllerBase
 
     [HttpGet("overview")]
     [Permission(PermissionNames.ViewDashboard)]
-    public async Task<IActionResult> GetOverview([FromQuery] int days = 7)
+    public async Task<IActionResult> GetOverview([FromQuery] int days = 7, [FromQuery] bool refresh = false)
     {
-        var data = await _dashboardService.GetOverviewAsync(days);
+        var data = await _dashboardService.GetOverviewAsync(days, refresh);
         return Ok(data);
+    }
+
+    [HttpPost("refresh")]
+    [Permission(PermissionNames.ViewDashboard)] // Or a more restrictive permission like AdminOnly
+    public async Task<IActionResult> RefreshAllSnapshots()
+    {
+        await _dashboardService.UpdateSnapshotsAsync();
+        return Ok(new { message = "All dashboard snapshots have been manually refreshed." });
     }
 
     [HttpGet("role")]

@@ -8,6 +8,7 @@ public class UpdateArticleDto
 
     [System.ComponentModel.DataAnnotations.MaxLength(200)]
     public string Title { get; set; } = string.Empty;
+    public string? Subtitle { get; set; }
     public string? Content { get; set; }
     public string? ThumbnailUrl { get; set; }
     public IFormFile? ThumbnailFile { get; set; }

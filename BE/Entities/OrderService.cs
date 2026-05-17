@@ -11,6 +11,7 @@ public class OrderService
     public OrderServiceStatus Status { get; set; } = OrderServiceStatus.Pending;
     public DateTime CreatedAt { get; set; } = DateTime.Now;
     public DateTime? UpdatedAt { get; set; }
+    public bool IsPaid { get; set; } = false;
 
     public BookingDetail? BookingDetail { get; set; }
     public ICollection<OrderServiceDetail> OrderServiceDetails { get; set; } = new List<OrderServiceDetail>();

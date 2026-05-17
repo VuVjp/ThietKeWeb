@@ -46,6 +46,8 @@ interface ArticleDto {
     Title?: string;
     content?: string;
     Content?: string;
+    subtitle?: string;
+    Subtitle?: string;
     thumbnailUrl?: string;
     ThumbnailUrl?: string;
     status?: string;
@@ -62,6 +64,8 @@ interface ArticleDto {
     UpdatedAt?: string;
     isActive?: boolean;
     IsActive?: boolean;
+    publishedAt?: string;
+    PublishedAt?: string;
 }
 
 // ─── Normalizers ─────────────────────────────────────────────────────────────
@@ -97,6 +101,7 @@ function normalizeArticle(dto: ArticleDto): ArticleItem {
     return {
         id: Number(dto.id ?? dto.Id ?? 0),
         title: String(dto.title ?? dto.Title ?? ''),
+        subtitle: dto.subtitle ?? dto.Subtitle,
         content: String(dto.content ?? dto.Content ?? ''),
         thumbnailUrl: dto.thumbnailUrl ?? dto.ThumbnailUrl ?? undefined,
         status: isActive ? 'Active' : 'Inactive',
@@ -104,7 +109,7 @@ function normalizeArticle(dto: ArticleDto): ArticleItem {
         authorId: Number(dto.authorId ?? dto.AuthorId ?? 0),
         categories: rawCategories.map(normalizeCategory),
         attractions: rawAttractions.map(normalizeAttraction),
-        createdAt: String(dto.createdAt ?? dto.CreatedAt ?? ''),
+        createdAt: String(dto.publishedAt ?? dto.PublishedAt ?? dto.createdAt ?? dto.CreatedAt ?? ''),
         updatedAt: dto.updatedAt ?? dto.UpdatedAt ?? undefined,
         isActive: isActive,
     };
@@ -115,6 +120,9 @@ function normalizeArticle(dto: ArticleDto): ArticleItem {
 function toArticleFormData(payload: CreateArticlePayload | UpdateArticlePayload): FormData {
     const form = new FormData();
     form.append('Title', payload.title);
+    if (payload.subtitle) {
+        form.append('Subtitle', payload.subtitle);
+    }
     form.append('Content', payload.content);
     form.append('IsActive', payload.status === 'Active' ? 'true' : 'false');
     payload.categoryIds.forEach((id) => form.append('CategoryIds', String(id)));

@@ -25,6 +25,7 @@ interface ArticleState {
     setLoading: (loading: boolean) => void;
     setFilter: <K extends keyof ArticleFilters>(key: K, value: ArticleFilters[K]) => void;
     resetFilters: () => void;
+    toggleArticleActive: (id: number) => void;
 }
 
 const defaultFilters: ArticleFilters = {
@@ -53,6 +54,12 @@ export const useArticleStore = create<ArticleState>((set) => ({
             page: 1, // reset page on filter change
         })),
     resetFilters: () => set({ filters: { ...defaultFilters }, page: 1 }),
+    toggleArticleActive: (id) =>
+        set((state) => ({
+            rawData: state.rawData.map((a) =>
+                a.id === id ? { ...a, isActive: !a.isActive, status: a.isActive ? 'Inactive' : 'Active' } : a
+            ),
+        })),
 }));
 
 // ─── Article Category Store ───────────────────────────────────────────────────

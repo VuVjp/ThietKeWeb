@@ -12,7 +12,7 @@ import { AttractionMultiSelect } from '../components/AttractionMultiSelect';
 import { usePermissionCheck } from '../../../hooks/usePermissionCheck';
 import { toApiError } from '../../../api/httpClient';
 import { Modal } from '../../../components/Modal';
-import { removeImages, hasImages, countHtmlLines } from '../utils/htmlUtils';
+
 import { processContentImages } from '../utils/imageHandler';
 import { useArticleStore } from '../hooks/useArticleStore';
 import type { ArticleCategory, ArticleStatus, Attraction } from '../types/article.types';
@@ -25,6 +25,7 @@ export function ArticleFormPage() {
 
     // Form state
     const [title, setTitle] = useState('');
+    const [subtitle, setSubtitle] = useState('');
     const [content, setContent] = useState('');
     const [status, setStatus] = useState<ArticleStatus>('Active');
     const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
@@ -39,6 +40,11 @@ export function ArticleFormPage() {
     const [isUploadingThumbnail, setIsUploadingThumbnail] = useState(false);
     const [isLoading, setIsLoading] = useState(isEditing);
     const [showPreview, setShowPreview] = useState(false);
+ 
+    // Permission check
+    useEffect(() => {
+        if (!ensure('MANAGE_ARTICLES')) return;
+    }, [ensure]);
 
     // Load categories & attractions
     useEffect(() => {
@@ -57,6 +63,7 @@ export function ArticleFormPage() {
         try {
             const article = await articleService.getById(Number(id));
             setTitle(article.title);
+            setSubtitle(article.subtitle || '');
             setContent(article.content);
             setStatus(article.status);
             setSelectedCategoryIds(article.categories.map((c) => c.id));
@@ -99,22 +106,12 @@ export function ArticleFormPage() {
         const permission = 'MANAGE_ARTICLES';
         const action = isEditing ? 'update article' : 'create article';
         if (!ensure(permission, action)) return;
-        const cleanTitle = removeImages(title).trim();
-
-        if (!cleanTitle) {
+        if (!title.trim()) {
             toast.error('Title is required');
             return;
         }
-        if (cleanTitle.length > 200) {
+        if (title.length > 200) {
             toast.error('Title cannot exceed 200 characters');
-            return;
-        }
-        if (countHtmlLines(title) > 3) {
-            toast.error('Title cannot exceed 3 lines');
-            return;
-        }
-        if (hasImages(title)) {
-            toast.error('Images are not allowed in the title');
             return;
         }
         if (!content.trim() || content === '<p></p>') {
@@ -128,7 +125,8 @@ export function ArticleFormPage() {
             const processedContent = await processContentImages(content);
 
             const payload = {
-                title: cleanTitle,
+                title: title.trim(),
+                subtitle: subtitle.trim(),
                 content: processedContent,
                 status,
                 categoryIds: selectedCategoryIds,
@@ -158,10 +156,12 @@ export function ArticleFormPage() {
 
     const previewData = {
         title,
+        subtitle,
         content,
         status,
         thumbnailUrl: thumbnailPreview ?? undefined,
         categories: categories.filter((c) => selectedCategoryIds.includes(c.id)),
+        attractions: attractions.filter((a) => selectedAttractionIds.includes(a.id)),
     };
 
     if (isLoading) {
@@ -226,15 +226,33 @@ export function ArticleFormPage() {
                             </label>
                             <p className="text-xs text-slate-500">The main heading of the article.</p>
                         </div>
-                        <RichTextEditor
+                        <input
+                            id="article-title"
+                            type="text"
                             value={title}
-                            onChange={setTitle}
+                            onChange={(e) => setTitle(e.target.value)}
                             placeholder="Enter article title..."
-                            minHeight={100}
-                            allowImages={false}
-                            variant="basic"
+                            className="w-full rounded-lg border border-slate-200 px-4 py-3 text-sm focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500 font-bold text-slate-900"
                         />
                     </section>
+ 
+                     {/* Subtitle */}
+                     <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-5">
+                         <div>
+                             <label htmlFor="article-subtitle" className="block text-sm font-semibold text-slate-900">
+                                 Subtitle
+                             </label>
+                             <p className="text-xs text-slate-500">A short description or summary displayed below the title.</p>
+                         </div>
+                         <textarea
+                             id="article-subtitle"
+                             value={subtitle}
+                             onChange={(e) => setSubtitle(e.target.value)}
+                             placeholder="Enter article subtitle..."
+                             className="w-full rounded-lg border border-slate-200 p-3 text-sm focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                             rows={3}
+                         />
+                     </section>
 
                     {/* Content */}
                     <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-5">

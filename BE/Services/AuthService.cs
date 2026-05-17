@@ -116,7 +116,7 @@ public class AuthService : IAuthService
 
         var rf = await _refreshTokenRepository.GetByTokenAsync(refreshToken);
 
-        if (rf == null || rf.ExpiryDate < DateTime.UtcNow)
+        if (rf == null || rf.ExpiryDate < DateTime.Now)
         {
             throw new UnauthorizedException("Invalid refresh token");
         }
@@ -154,7 +154,7 @@ public class AuthService : IAuthService
         var refreshToken = new RefreshToken
         {
             Token = rfToken,
-            ExpiryDate = DateTime.UtcNow.AddDays(7),
+            ExpiryDate = DateTime.Now.AddDays(7),
             UserId = user.Id
         };
 

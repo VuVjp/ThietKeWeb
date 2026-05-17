@@ -61,8 +61,7 @@ public class AuditLogCleanupBackgroundService : BackgroundService
 
     private static DateTime ResolveCutoffDate()
     {
-        var timeZone = ResolveVietnamTimeZone();
-        var localNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timeZone);
+        var localNow = DateTime.Now;
         var cutoffDate = DateOnly.FromDateTime(localNow).AddMonths(-3);
         return cutoffDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Unspecified);
     }

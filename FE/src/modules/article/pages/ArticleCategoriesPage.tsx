@@ -56,8 +56,9 @@ export function ArticleCategoriesPage() {
     }, []);
 
     useEffect(() => {
+        if (!ensure('MANAGE_ARTICLE_CATEGORY')) return;
         void loadCategories();
-    }, [loadCategories]);
+    }, [loadCategories, ensure]);
 
     // Reset pagination when filter/sort changes
     useEffect(() => {
@@ -138,8 +139,13 @@ export function ArticleCategoriesPage() {
                 await articleCategoryService.restore(statusTarget.id);
                 toast.success('Category activated');
             }
+            
+            // Partial update
+            setCategories(prev => prev.map(c => 
+                c.id === statusTarget.id ? { ...c, isActive: !c.isActive } : c
+            ));
+            
             setStatusTarget(null);
-            await loadCategories();
         } catch (error) {
             const apiError = toApiError(error);
             toast.error(apiError.message || 'Failed to change category status');
@@ -167,7 +173,14 @@ export function ArticleCategoriesPage() {
             key: 'status',
             label: 'Status',
             render: (row: ArticleCategory) => (
-                <Badge value={row.isActive ? 'Active' : 'Inactive'} />
+                <button
+                    type="button"
+                    title={row.isActive ? 'Deactivate' : 'Activate'}
+                    onClick={() => setStatusTarget(row)}
+                    className="hover:opacity-80 transition active:scale-95"
+                >
+                    <Badge value={row.isActive ? 'Active' : 'Inactive'} />
+                </button>
             ),
         },
         {
@@ -176,38 +189,17 @@ export function ArticleCategoriesPage() {
             render: (row: ArticleCategory) => (
                 <div className="flex gap-2">
                     {canManage && (
-                        <>
-                            <button
-                                type="button"
-                                title="Edit Category"
-                                onClick={() => {
-                                    setEditing(row);
-                                    setEditName(row.name);
-                                }}
-                                className="p-1 hover:text-cyan-600 transition"
-                            >
-                                <PencilSquareIcon className="h-5 w-5" />
-                            </button>
-                            {row.isActive ? (
-                                <button
-                                    type="button"
-                                    title="Deactivate Category"
-                                    onClick={() => setStatusTarget(row)}
-                                    className="p-1 hover:text-red-600 transition"
-                                >
-                                    <TrashIcon className="h-5 w-5" />
-                                </button>
-                            ) : (
-                                <button
-                                    type="button"
-                                    title="Activate Category"
-                                    onClick={() => setStatusTarget(row)}
-                                    className="p-1 hover:text-emerald-600 transition"
-                                >
-                                    <ArrowPathIcon className="h-5 w-5" />
-                                </button>
-                            )}
-                        </>
+                        <button
+                            type="button"
+                            title="Edit Category"
+                            onClick={() => {
+                                setEditing(row);
+                                setEditName(row.name);
+                            }}
+                            className="p-1 hover:text-cyan-600 transition"
+                        >
+                            <PencilSquareIcon className="h-5 w-5" />
+                        </button>
                     )}
                 </div>
             ),

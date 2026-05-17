@@ -1,19 +1,108 @@
+using System.Text.Json.Serialization;
+using System.ComponentModel.DataAnnotations.Schema;
+
 namespace HotelManagement.Dtos;
 
 public class DashboardOverviewDto
 {
+    public DashboardMetaDto Meta { get; set; } = new();
+    public DashboardSummaryDto Summary { get; set; } = new();
+    public DashboardWidgetsDto Widgets { get; set; } = new();
+    public DashboardBreakdownDto Breakdown { get; set; } = new();
+    public List<DashboardCriticalAlertDto> Alerts { get; set; } = new();
+    public List<DashboardEventDto> Events { get; set; } = new();
+}
+
+public class DashboardMetaDto
+{
+    public int SchemaVersion { get; set; } = 1;
+    public string DashboardCode { get; set; } = "HOTEL_OVERVIEW";
+    public string RoleName { get; set; } = "Admin";
+    public string PeriodType { get; set; } = string.Empty; // DAILY, WEEKLY, MONTHLY, YEARLY
+    public string PeriodKey { get; set; } = string.Empty;
+    public DateTime PeriodStart { get; set; }
+    public DateTime PeriodEnd { get; set; }
+    public string Status { get; set; } = "OPEN";
+    public DateTime GeneratedAt { get; set; } = DateTime.Now;
+}
+
+public class DashboardSummaryDto
+{
     public decimal TotalRevenue { get; set; }
     public int BookingCount { get; set; }
-    public int OccupancyRate { get; set; }
-    public int AuditLogTotal { get; set; } = 0;
     public decimal NetProfit { get; set; }
-    public int InspectingCount { get; set; }
-    public RoomOccupancySummaryDto Occupancy { get; set; } = new();
-    public List<DashboardRevenuePointDto> RevenueChartData { get; set; } = new();
-    public List<DashboardRoomStatusPointDto> StatusChartData { get; set; } = new();
+    public int AuditLogTotal { get; set; }
+    public int ArticlesCount { get; set; }
+    public int ServiceOrdersCount { get; set; }
+    public int CompletedServiceOrdersCount { get; set; }
+    public decimal ServiceRevenue { get; set; }
+    public DashboardComparisonDto Comparison { get; set; } = new();
+}
+
+public class DashboardWidgetsDto
+{
+    public List<DashboardRevenuePointDto> RevenueChart { get; set; } = new();
+    public List<DashboardRoomStatusPointDto> RoomStatusChart { get; set; } = new();
     public List<DashboardRecentBookingDto> RecentBookings { get; set; } = new();
-    public List<DashboardCriticalAlertDto> CriticalAlerts { get; set; } = new();
     public List<DashboardPendingServiceDto> PendingServices { get; set; } = new();
+}
+
+public class DashboardBreakdownDto
+{
+    public RoomOccupancySummaryDto Occupancy { get; set; } = new();
+    public int InspectingCount { get; set; }
+    
+    [NotMapped]
+    public List<DashboardRoomTaskDto> PendingCleaningRooms { get; set; } = new();
+
+    [NotMapped]
+    public List<DashboardRoomTaskDto> InspectingRooms { get; set; } = new();
+}
+
+public class DashboardComparisonDto
+{
+    public DashboardComparisonBaseDto Base { get; set; } = new();
+    public DashboardMetricsComparisonContainer Metrics { get; set; } = new();
+}
+
+public class DashboardComparisonBaseDto
+{
+    public string ComparisonType { get; set; } = "PREVIOUS_PERIOD";
+    public string CurrentPeriodKey { get; set; } = string.Empty;
+    public string PreviousPeriodKey { get; set; } = string.Empty;
+}
+
+public class DashboardMetricsComparisonContainer
+{
+    public DashboardMetricComparisonDto? Revenue { get; set; }
+    public DashboardMetricComparisonDto? Bookings { get; set; }
+    public DashboardMetricComparisonDto? NetProfit { get; set; }
+    public DashboardMetricComparisonDto? DamageReports { get; set; }
+    public DashboardMetricComparisonDto? LowStockItems { get; set; }
+    public DashboardMetricComparisonDto? CleaningRequests { get; set; }
+    public DashboardMetricComparisonDto? Articles { get; set; }
+    public DashboardMetricComparisonDto? ServiceOrders { get; set; }
+    public DashboardMetricComparisonDto? CompletedServiceOrders { get; set; }
+    public DashboardMetricComparisonDto? ServiceRevenue { get; set; }
+}
+
+public class DashboardMetricComparisonDto
+{
+    public decimal Current { get; set; }
+    public decimal Previous { get; set; }
+    public decimal Difference { get; set; }
+    public decimal GrowthRate { get; set; }
+    public string Trend { get; set; } = string.Empty; // "up" | "down" | "flat"
+    public string DirectionMeaning { get; set; } = string.Empty; // "positive" | "negative" | "neutral"
+}
+
+public class DashboardEventDto
+{
+    public int Id { get; set; }
+    public string Type { get; set; } = string.Empty;
+    public string Message { get; set; } = string.Empty;
+    public DateTime Timestamp { get; set; }
+    public string Severity { get; set; } = "Info"; // Info, Warning, Success, Error
 }
 
 public class RoomOccupancySummaryDto
@@ -81,6 +170,8 @@ public class HousekeeperDashboardDto
     public int CleaningRequests { get; set; }
     public int InspectionRequests { get; set; }
     public int InspectingCount { get; set; }
+    public List<DashboardRoomTaskDto> PendingCleaningRooms { get; set; } = new();
+    public List<DashboardRoomTaskDto> InspectingRooms { get; set; } = new();
 }
 
 public class DashboardTopInvoiceDto
@@ -95,6 +186,7 @@ public class AccountantDashboardDto
 {
     public decimal TotalRevenue { get; set; }
     public decimal TotalLossPenalty { get; set; }
+    public decimal ServiceRevenue { get; set; }
     public decimal NetProfit { get; set; }
     public List<DashboardRevenuePointDto> RevenueChartData { get; set; } = new();
     public List<DashboardTopInvoiceDto> TopInvoices { get; set; } = new();
@@ -105,18 +197,22 @@ public class ReceptionistDashboardDto
     public int PublishedArticles { get; set; }
     public int PendingArticles { get; set; }
     public int PendingServiceOrders { get; set; }
-    public int CompletedServiceOrdersToday { get; set; }
+    public int CompletedServiceOrders { get; set; }
     public List<DashboardPendingServiceDto> ServiceQueue { get; set; } = new();
+    public List<DashboardRoomTaskDto> PendingCleaningRooms { get; set; } = new();
+    public List<DashboardRoomTaskDto> InspectingRooms { get; set; } = new();
 }
 
 public class ManagerDashboardDto
 {
-    public DashboardOverviewDto Overview { get; set; } = new();
     public int PendingCleaningRequests { get; set; }
     public int PendingServiceOrders { get; set; }
+    public int CompletedServiceOrders { get; set; }
     public decimal TotalLossPenalty { get; set; }
+    public decimal ServiceRevenue { get; set; }
     public decimal NetProfit { get; set; }
     public int PendingArticles { get; set; }
+    public int PublishedArticles { get; set; }
     public int InspectingCount { get; set; }
     public List<DashboardRoomTaskDto> PendingCleaningRooms { get; set; } = new();
     public List<DashboardRoomTaskDto> InspectingRooms { get; set; } = new();

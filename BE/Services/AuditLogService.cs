@@ -20,14 +20,13 @@ public class AuditLogService : IAuditLogService
 
     public async Task CreateAuditLogAsync(AuditLogCreateDto dto, CancellationToken cancellationToken = default)
     {
-        var nowUtc = DateTime.UtcNow;
-        var localDate = ResolveLocalDate(nowUtc);
-        var auditDate = new DateTime(localDate.Year, localDate.Month, localDate.Day, 0, 0, 0, DateTimeKind.Unspecified);
+        var now = DateTime.Now;
+        var auditDate = now.Date;
 
         var auditEvent = new AuditLogEventDto
         {
             EventId = Guid.NewGuid().ToString(),
-            Timestamp = nowUtc,
+            Timestamp = now,
             ActionType = NormalizeActionType(dto.ActionType),
             EntityType = dto.EntityType,
             Context = BuildEventContext(dto.Context, dto.UserId),
@@ -206,11 +205,9 @@ public class AuditLogService : IAuditLogService
         };
     }
 
-    private DateOnly ResolveLocalDate(DateTime utcDateTime)
+    private DateOnly ResolveLocalDate(DateTime dateTime)
     {
-        var safeUtc = utcDateTime.Kind == DateTimeKind.Utc ? utcDateTime : DateTime.SpecifyKind(utcDateTime, DateTimeKind.Utc);
-        var local = TimeZoneInfo.ConvertTimeFromUtc(safeUtc, _vietnamTimeZone);
-        return DateOnly.FromDateTime(local);
+        return DateOnly.FromDateTime(dateTime);
     }
 
     private static TimeZoneInfo ResolveVietnamTimeZone()

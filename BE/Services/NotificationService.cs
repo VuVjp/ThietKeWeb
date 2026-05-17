@@ -66,7 +66,7 @@ public class NotificationService : INotificationService
                 dto.Content,
                 type = dto.Type.ToString(),
                 dto.ReferenceLink,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.Now
             });
     }
 

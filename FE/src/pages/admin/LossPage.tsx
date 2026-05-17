@@ -74,7 +74,7 @@ export function LossPage() {
     { key: 'penalty', label: 'Penalty', render: (row: (typeof filtered)[number]) => formatCurrency(row.penalty) },
     { key: 'description', label: 'Description', render: (row: (typeof filtered)[number]) => row.description },
     { key: 'createdAt', label: 'Date', render: (row: (typeof filtered)[number]) => formatDate(row.createdAt) },
-    { key: 'actions', label: 'Actions', render: () => <button type="button" className="rounded-lg border border-slate-200 px-2 py-1 text-xs">View</button> },
+    // { key: 'actions', label: 'Actions', render: () => <button type="button" className="rounded-lg border border-slate-200 px-2 py-1 text-xs">View</button> },
   ];
 
   return (

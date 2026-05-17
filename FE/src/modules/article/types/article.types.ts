@@ -35,6 +35,7 @@ export type ArticleStatus = 'Active' | 'Inactive';
 export interface ArticleItem {
     id: number;
     title: string;
+    subtitle?: string;
     content: string;
     thumbnailUrl?: string;
     status: ArticleStatus;
@@ -66,6 +67,7 @@ export interface ArticlePaginatedResult {
 
 export interface CreateArticlePayload {
     title: string;
+    subtitle?: string;
     content: string;
     status: ArticleStatus;
     categoryIds: number[];
@@ -76,6 +78,7 @@ export interface CreateArticlePayload {
 
 export interface UpdateArticlePayload {
     title: string;
+    subtitle?: string;
     content: string;
     status: ArticleStatus;
     categoryIds: number[];
