@@ -4,6 +4,7 @@ import { rolesApi } from '../api/rolesApi';
 import { getAccessToken } from '../api/httpClient';
 import { type AppPermission, type AppUser } from './auth.types';
 import { subscribeAuthRefresh } from '../api/httpClient';
+import { userProfileApi } from '../api/userProfileApi';
 
 const PERMISSIONS_STORAGE_KEY = 'permissions';
 
@@ -106,6 +107,17 @@ async function resolveCurrentUser(emailOverride?: string, previousUser?: AppUser
         return null;
     }
 
+    let avatarUrl: string | undefined = previousUser?.avatarUrl;
+    try {
+        const profile = await userProfileApi.getMyProfile();
+        avatarUrl = profile.avatarUrl;
+        if (profile.fullName) {
+            baseUser.name = profile.fullName;
+        }
+    } catch {
+        // ignore profile fetch failure (e.g. if endpoint is not ready yet or token not verified)
+    }
+
     const cachedPermissionsRaw = localStorage.getItem(PERMISSIONS_STORAGE_KEY);
     const cachedPermissions = cachedPermissionsRaw ? toKnownPermissions(JSON.parse(cachedPermissionsRaw) as string[]) : [];
 
@@ -118,12 +130,14 @@ async function resolveCurrentUser(emailOverride?: string, previousUser?: AppUser
             ...baseUser,
             email: emailOverride?.trim().toLowerCase() || baseUser.email,
             permissions: normalizedPermissions,
+            avatarUrl,
         };
     } catch {
         return {
             ...baseUser,
             email: emailOverride?.trim().toLowerCase() || baseUser.email,
             permissions: cachedPermissions,
+            avatarUrl,
         };
     }
 }
@@ -157,6 +171,7 @@ export function AppAuthProvider({ children }: PropsWithChildren) {
                         email: baseUser.email,
                         role: baseUser.role,
                         permissions: prev?.permissions ?? [],
+                        avatarUrl: prev?.avatarUrl,
                     }));
                 }
             } catch {

@@ -19,6 +19,10 @@ import { roomTypesApi, type RoomTypeItem } from '../../api/roomTypesApi';
 const getEquipmentAvailableQuantity = (item: EquipmentItem) =>
   Math.max(0, item.totalQuantity - item.inUseQuantity - item.damagedQuantity - item.liquidatedQuantity);
 
+const isAmenityInventoryName = (name: string) => name.trim().toLowerCase().startsWith('[amenity]');
+const isAmenityInventoryItem = (item: InventoryItem) => Boolean(item.amenityId) || (!item.equipmentId && isAmenityInventoryName(item.name));
+const removeAmenityPrefix = (name: string) => name.replace(/^\[amenity\]\s*/i, '').trim();
+
 export function RoomDetailPage() {
   const { ensure } = usePermissionCheck();
   const navigate = useNavigate();
@@ -123,7 +127,7 @@ export function RoomDetailPage() {
     void (async () => {
       try {
         const data = await roomInventoriesApi.getByRoom(Number(cloneSourceRoomId));
-        setClonePreviewItems(data.filter((item) => item.isActive && !isAmenityInventoryName(item.name)));
+        setClonePreviewItems(data.filter((item) => item.isActive && !isAmenityInventoryItem(item)));
       } catch (error) {
         const apiError = toApiError(error);
         toast.error(apiError.message || 'Failed to load source room inventory');
@@ -150,9 +154,6 @@ export function RoomDetailPage() {
     setSelectedEditAmenityId('');
   };
 
-  const isAmenityInventoryName = (name: string) => name.trim().toLowerCase().startsWith('[amenity]');
-  const isAmenityInventoryItem = (item: InventoryItem) => Boolean(item.amenityId) || (!item.equipmentId && isAmenityInventoryName(item.name));
-  const removeAmenityPrefix = (name: string) => name.replace(/^\[amenity\]\s*/i, '').trim();
   const normalizeName = (name: string) => name.trim().toLowerCase();
 
   const currentRoomType = useMemo(
@@ -461,7 +462,7 @@ export function RoomDetailPage() {
       setIsQuickAdding(true);
       try {
         const sourceItems = clonePreviewItems.length > 0 ? clonePreviewItems : await roomInventoriesApi.getByRoom(Number(cloneSourceRoomId));
-        const equipmentRows = sourceItems.filter((item) => item.isActive && !isAmenityInventoryName(item.name));
+        const equipmentRows = sourceItems.filter((item) => item.isActive && !isAmenityInventoryItem(item));
 
         for (const sourceItem of equipmentRows) {
           const itemName = sourceItem.name.trim();
@@ -744,11 +745,15 @@ export function RoomDetailPage() {
                   ))}
                 </Select>
                 {clonePreviewItems.length > 0 ? (
-                  <div className="max-h-32 overflow-auto rounded-lg bg-slate-50 p-2 text-xs text-slate-600">
+                  <div className="max-h-36 overflow-auto rounded-lg bg-slate-50 p-2 text-xs text-slate-600 space-y-1 border border-slate-200">
                     {clonePreviewItems.map((item) => (
-                      <div key={item.id} className="flex items-center justify-between py-1">
-                        <span>{item.name}</span>
-                        <span>{item.quantity}</span>
+                      <div key={item.id} className="flex items-center justify-between py-1 border-b border-slate-100 last:border-0 px-1">
+                        <span className="font-medium text-slate-700 truncate max-w-[180px]">
+                          {item.name}
+                        </span>
+                        <span className="text-slate-500 font-semibold flex-shrink-0 bg-white border border-slate-100 px-1.5 py-0.5 rounded">
+                          qty {item.quantity}
+                        </span>
                       </div>
                     ))}
                   </div>

@@ -5,6 +5,7 @@ export const appPermissions = [
     'MANAGE_ROLES',
     'MANAGE_ROOMS',
     'MANAGE_BOOKINGS',
+    'MANAGE_INVOICE',
     'MANAGE_AMENITY',
     'MANAGE_SERVICES',
     'MANAGE_VOUCHERS',
@@ -59,4 +60,5 @@ export interface AppUser {
     email: string;
     role: AppRole | string;
     permissions: AppPermission[];
+    avatarUrl?: string;
 }

@@ -66,7 +66,7 @@ export function LoginPage() {
             toast.error('Google sign-in failed. Please try again.');
             return;
         }
-        
+
         const ok = await loginWithGoogle(credentialResponse.credential);
         if (!ok) {
             toast.error('Google sign-in failed. Email may already be in use.');
@@ -225,7 +225,7 @@ export function LoginPage() {
                                     </label>
                                     <button
                                         type="button"
-                                        onClick={() => toast('Password reset feature coming soon!', { icon: '🔒' })}
+                                        onClick={() => toast('Contact admin for assistance!', { icon: '🔒' })}
                                         className="text-xs text-amber-400/80 hover:text-amber-400 font-medium transition-colors"
                                     >
                                         Forgot password?
