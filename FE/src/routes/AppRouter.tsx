@@ -50,6 +50,7 @@ import { ClientNewsPage } from '../pages/client/ClientNewsPage';
 import { ClientAboutPage } from '../pages/client/ClientAboutPage';
 import { ClientNewsDetailPage } from '../pages/client/ClientNewsDetailPage';
 import { ClientServiceDetailPage } from '../pages/client/ClientServiceDetailPage';
+import { ClientBookServicePage } from '../pages/client/ClientBookServicePage';
 
 import { LoginPage } from '../pages/LoginPage';
 import { RegisterPage } from '../pages/RegisterPage';
@@ -190,6 +191,7 @@ export const AppRouter = () => {
                 <Route path="/booking" element={<ClientBookingPage />} />
                 <Route path="/account" element={<ClientAccountPage />} />
                 <Route path="/services" element={<ClientServicesPage />} />
+                <Route path="/services/book" element={<ClientBookServicePage />} />
                 <Route path="/services/:id" element={<ClientServiceDetailPage />} />
                 <Route path="/news" element={<ClientNewsPage />} />
                 <Route path="/news/:id" element={<ClientNewsDetailPage />} />
