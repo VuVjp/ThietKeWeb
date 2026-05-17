@@ -184,6 +184,20 @@ public class BookingsController : ControllerBase
     }
 
     [Authorize]
+    [HttpGet("my-active-rooms")]
+    public async Task<IActionResult> GetMyActiveRooms()
+    {
+        var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userIdStr) || !int.TryParse(userIdStr, out int userId))
+        {
+            return Unauthorized();
+        }
+
+        var activeRooms = await _service.GetActiveRoomsByUserIdAsync(userId);
+        return Ok(activeRooms);
+    }
+
+    [Authorize]
     [HttpPost("{id}/cancel")]
     public async Task<IActionResult> CancelMyBooking(int id)
     {

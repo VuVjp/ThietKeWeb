@@ -155,38 +155,47 @@ public class ReviewService : IReviewService
         var review = await _repository.GetByIdAsync(id);
         if (review == null) return false;
 
+        if (review.Status == "Pending")
+        {
+            return false; // Toggle should only work after it's approved or rejected
+        }
+
         if (review.IsActive)
         {
-            // If currently active, we can always deactivate (mark as inactive/rejected)
             review.IsActive = false;
             review.Status = "Inactive";
         }
         else
         {
-            // If currently inactive or pending
-            if (review.Status == "Pending")
-            {
-                var hoursSinceCreation = (DateTime.Now - (review.CreatedAt ?? DateTime.Now)).TotalHours;
-                if (hoursSinceCreation < 12)
-                {
-                    // Within 12 hours, admin can only mark as Inactive (reject)
-                    // Since it's already IsActive = false, let's allow setting status to Inactive
-                    review.Status = "Inactive";
-                }
-                else
-                {
-                    // After 12 hours, allow activation
-                    review.IsActive = true;
-                    review.Status = "Active";
-                }
-            }
-            else if (review.Status == "Inactive")
-            {
-                // If explicitly inactive, allow reactivation
-                review.IsActive = true;
-                review.Status = "Active";
-            }
+            review.IsActive = true;
+            review.Status = "Active";
         }
+
+        _repository.Update(review);
+        await _repository.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<bool> ApproveAsync(int id)
+    {
+        var review = await _repository.GetByIdAsync(id);
+        if (review == null || review.Status != "Pending") return false;
+
+        review.IsActive = true;
+        review.Status = "Active";
+
+        _repository.Update(review);
+        await _repository.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<bool> RejectAsync(int id)
+    {
+        var review = await _repository.GetByIdAsync(id);
+        if (review == null || review.Status != "Pending") return false;
+
+        review.IsActive = false;
+        review.Status = "Inactive";
 
         _repository.Update(review);
         await _repository.SaveChangesAsync();

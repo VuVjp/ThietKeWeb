@@ -71,4 +71,9 @@ export const receptionApi = {
   cancelBooking: async (id: number): Promise<void> => {
     await httpClient.post(`/Bookings/${id}/cancel`);
   },
+  
+  getMyActiveRooms: async (): Promise<any[]> => {
+    const response = await httpClient.get<any[]>('/Bookings/my-active-rooms');
+    return response.data;
+  },
 };

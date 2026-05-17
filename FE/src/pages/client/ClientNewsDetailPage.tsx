@@ -4,6 +4,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { CalendarDaysIcon, TagIcon, ArrowLeftIcon, ShareIcon, BookmarkIcon, UserIcon, PhotoIcon } from '@heroicons/react/24/outline';
 import { articleService } from '../../modules/article/services/articleService';
 import type { ArticleItem } from '../../modules/article/types/article.types';
+import { AttractionCard } from '../../components/AttractionCard';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -176,28 +177,9 @@ export function ClientNewsDetailPage() {
                             <span className="w-8 h-px bg-cyan-500"></span>
                             <h3 className="text-lg font-bold text-slate-900 uppercase tracking-widest">Recommended Nearby</h3>
                         </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                             {article.attractions.map((attr) => (
-                                <div key={attr.id} className="flex gap-5 p-5 rounded-2xl border border-slate-100 bg-white shadow-sm hover:shadow-md transition-shadow">
-                                    {attr.imageUrl && (
-                                        <div className="w-24 h-24 flex-shrink-0 overflow-hidden rounded-xl">
-                                            <img src={attr.imageUrl} alt={attr.name} className="w-full h-full object-cover" />
-                                        </div>
-                                    )}
-                                    <div className="flex flex-col justify-center">
-                                        <h4 className="font-bold text-slate-900 text-base mb-1">{attr.name}</h4>
-                                        <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed mb-2">{attr.description}</p>
-                                        {attr.distanceKm && (
-                                            <div className="flex items-center gap-1 text-[10px] font-bold text-cyan-600 bg-cyan-50 w-fit px-2 py-0.5 rounded">
-                                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                                                </svg>
-                                                {attr.distanceKm} km from hotel
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
+                                <AttractionCard key={attr.id} attraction={attr as any} />
                             ))}
                         </div>
                     </div>

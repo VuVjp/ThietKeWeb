@@ -92,11 +92,45 @@ export function ReviewsPage() {
 
         try {
             await reviewsApi.toggleActive(item.id);
+            setRows(prev => prev.map(row => {
+                if (row.id === item.id) {
+                    const newIsActive = !row.isActive;
+                    return { ...row, isActive: newIsActive, status: newIsActive ? 'Active' : 'Inactive' };
+                }
+                return row;
+            }));
             toast.success(`Review #${item.id} status updated`);
-            void loadData();
         } catch (error) {
             const apiError = toApiError(error);
             toast.error(apiError.message || 'Failed to toggle review status');
+        }
+    };
+
+    const approveReview = async (item: ReviewItem) => {
+        if (!ensure('MANAGE_REVIEWS', 'approve review')) return;
+        try {
+            await reviewsApi.approve(item.id);
+            setRows(prev => prev.map(row => 
+                row.id === item.id ? { ...row, status: 'Active', isActive: true } : row
+            ));
+            toast.success(`Review #${item.id} approved`);
+        } catch (error) {
+            const apiError = toApiError(error);
+            toast.error(apiError.message || 'Failed to approve review');
+        }
+    };
+
+    const rejectReview = async (item: ReviewItem) => {
+        if (!ensure('MANAGE_REVIEWS', 'reject review')) return;
+        try {
+            await reviewsApi.reject(item.id);
+            setRows(prev => prev.map(row => 
+                row.id === item.id ? { ...row, status: 'Inactive', isActive: false } : row
+            ));
+            toast.success(`Review #${item.id} rejected`);
+        } catch (error) {
+            const apiError = toApiError(error);
+            toast.error(apiError.message || 'Failed to reject review');
         }
     };
 
@@ -174,6 +208,26 @@ export function ReviewsPage() {
                         default: return 'neutral';
                     }
                 };
+
+                if (row.status === 'Pending') {
+                    return (
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => void approveReview(row)}
+                                className="px-3 py-1 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 text-xs font-bold rounded-lg transition-colors"
+                            >
+                                Approve
+                            </button>
+                            <button
+                                onClick={() => void rejectReview(row)}
+                                className="px-3 py-1 bg-rose-100 text-rose-700 hover:bg-rose-200 text-xs font-bold rounded-lg transition-colors"
+                            >
+                                Reject
+                            </button>
+                        </div>
+                    );
+                }
+
                 return (
                     <button
                         type="button"

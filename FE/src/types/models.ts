@@ -162,3 +162,10 @@ export interface PaginatedResult<T> {
   pageSize: number;
 }
 
+export interface ActiveRoom {
+  bookingDetailId: number;
+  roomNumber: string;
+  guestName: string;
+  bookingId: number;
+}
+

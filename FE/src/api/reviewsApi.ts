@@ -137,4 +137,12 @@ export const reviewsApi = {
     async update(id: number, payload: UpdateReviewPayload) {
         await httpClient.put(`reviews/${id}`, payload);
     },
+
+    async approve(id: number) {
+        await httpClient.patch(`reviews/${id}/approve`);
+    },
+
+    async reject(id: number) {
+        await httpClient.patch(`reviews/${id}/reject`);
+    },
 };

@@ -52,4 +52,13 @@ export const orderServicesApi = {
       },
     });
   },
+
+  async createClient(payload: { bookingDetailId: number }) {
+    const { data } = await httpClient.post<{ id: number }>('orderservices/client/create', payload);
+    return data;
+  },
+
+  async addItemClient(id: number, payload: { serviceId: number; quantity: number }) {
+    await httpClient.post(`orderservices/client/${id}/items`, payload);
+  },
 };

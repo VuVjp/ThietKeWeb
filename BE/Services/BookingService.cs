@@ -494,6 +494,37 @@ public class BookingService : IBookingService
         return result;
     }
 
+    public async Task<IEnumerable<ActiveRoomDto>> GetActiveRoomsByUserIdAsync(int userId)
+    {
+        var bookings = await _repository.GetByUserIdAsync(userId);
+        var inHouseBookings = bookings.Where(b => b.Status == "CheckedIn");
+
+        var result = new List<ActiveRoomDto>();
+        foreach (var b in inHouseBookings)
+        {
+            // We need to make sure we have details and rooms
+            // GetByUserIdAsync might not include them, let's check repository
+            var fullBooking = await _repository.GetBookingByIdWithDetailsAsync(b.Id, includeRoom: true);
+            if (fullBooking == null) continue;
+
+            foreach (var detail in fullBooking.BookingDetails)
+            {
+                if (detail.Room != null && detail.ActualCheckOutDate == null)
+                {
+                    result.Add(new ActiveRoomDto
+                    {
+                        BookingDetailId = detail.Id,
+                        RoomNumber = detail.Room.RoomNumber,
+                        GuestName = fullBooking.GuestName ?? "Unknown",
+                        BookingId = fullBooking.Id
+                    });
+                }
+            }
+        }
+
+        return result;
+    }
+
     private static BookingSummaryDto MapToSummaryDto(Booking booking)
     {
         var orderedDetails = booking.BookingDetails

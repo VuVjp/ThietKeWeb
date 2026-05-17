@@ -144,4 +144,44 @@ public class ReviewsController : ControllerBase
 
         return Ok(new { message = "Review active status toggled successfully." });
     }
+
+    [Permission(PermissionNames.ManageReviews)]
+    [HttpPatch("{id}/approve")]
+    public async Task<IActionResult> Approve(int id)
+    {
+        var ok = await _service.ApproveAsync(id);
+        if (!ok) return BadRequest("Review cannot be approved. It might not exist or is not in Pending status.");
+
+        await TryNotifyRolesAsync(
+            GetRoles(),
+            new CreateNotificationDto
+            {
+                Title = "Review approved",
+                Content = $"Review #{id} was approved and is now active.",
+                Type = NotificationAction.ReviewActivated,
+                ReferenceLink = $"admin/reviews/{id}"
+            });
+
+        return Ok(new { message = "Review approved successfully." });
+    }
+
+    [Permission(PermissionNames.ManageReviews)]
+    [HttpPatch("{id}/reject")]
+    public async Task<IActionResult> Reject(int id)
+    {
+        var ok = await _service.RejectAsync(id);
+        if (!ok) return BadRequest("Review cannot be rejected. It might not exist or is not in Pending status.");
+
+        await TryNotifyRolesAsync(
+            GetRoles(),
+            new CreateNotificationDto
+            {
+                Title = "Review rejected",
+                Content = $"Review #{id} was rejected and is now inactive.",
+                Type = NotificationAction.ReviewDeactivated,
+                ReferenceLink = $"admin/reviews/{id}"
+            });
+
+        return Ok(new { message = "Review rejected successfully." });
+    }
 }
