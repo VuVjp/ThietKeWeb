@@ -18,7 +18,7 @@ namespace HotelManagement.Controllers
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterDto dto)
         {
-            var (userId, email, role) = await _authService.RegisterAsync(dto.Email, dto.FullName, dto.Password);
+            var (userId, email, role) = await _authService.RegisterAsync(dto.Email, dto.FullName, dto.Password, dto.Phone);
 
             return Ok(new { Id = userId, Email = email, Role = role });
         }

@@ -21,7 +21,7 @@ public class AuthService : IAuthService
 
     }
 
-    public async Task<(int, string, string)> RegisterAsync(string email, string fullName, string password)
+    public async Task<(int, string, string)> RegisterAsync(string email, string fullName, string password, string? phone = null)
     {
         if (await _userRepository.IsEmailExistAsync(email))
         {
@@ -32,6 +32,7 @@ public class AuthService : IAuthService
         {
             Email = email,
             FullName = fullName,
+            Phone = phone,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
             RoleId = 6, // Assuming 6 is the ID for the "Guest" role
         };

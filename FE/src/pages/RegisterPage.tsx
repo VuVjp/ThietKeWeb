@@ -63,6 +63,7 @@ export function RegisterPage() {
                 email: formData.email.trim().toLowerCase(),
                 fullName: formData.fullName.trim(),
                 password: formData.password,
+                phone: formData.phone.trim() || undefined,
             });
             toast.success('Account created successfully!');
 
