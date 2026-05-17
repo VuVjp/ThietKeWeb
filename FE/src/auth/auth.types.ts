@@ -60,4 +60,5 @@ export interface AppUser {
     email: string;
     role: AppRole | string;
     permissions: AppPermission[];
+    avatarUrl?: string;
 }
