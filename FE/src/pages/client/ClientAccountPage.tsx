@@ -1,7 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+<<<<<<< Updated upstream
 import { UserCircleIcon, ArrowRightOnRectangleIcon, CalendarDaysIcon, ArrowPathIcon, CreditCardIcon, XMarkIcon, CheckCircleIcon, CameraIcon } from '@heroicons/react/24/outline';
+=======
+import { UserCircleIcon, ArrowRightOnRectangleIcon, CalendarDaysIcon, ArrowPathIcon, CreditCardIcon, XMarkIcon, CheckCircleIcon, SparklesIcon } from '@heroicons/react/24/outline';
+>>>>>>> Stashed changes
 import { receptionApi } from '../../api/receptionApi';
 import { userProfileApi } from '../../api/userProfileApi';
 import type { UserProfile } from '../../api/userProfileApi';
@@ -233,6 +237,7 @@ export function ClientAccountPage() {
                 <div className="flex-1">
                     {/* PROFILE TAB */}
                     {activeTab === 'profile' && (
+<<<<<<< Updated upstream
                         <div className="bg-white p-8 md:p-10 rounded-xl shadow-sm border border-slate-200">
                             <h2 className="text-2xl font-bold mb-8 border-b pb-4">Personal Information</h2>
                             
@@ -293,6 +298,36 @@ export function ClientAccountPage() {
                             </div>
 
                             <form className="space-y-6 max-w-2xl" onSubmit={handleUpdateProfile}>
+=======
+                        <div className="space-y-8">
+                            {/* Membership Banner */}
+                            <div className="bg-gradient-to-br from-slate-900 to-slate-800 p-8 rounded-xl shadow-lg border border-slate-700 relative overflow-hidden">
+                                {/* Decorative Background element */}
+                                <div className="absolute -right-8 -top-8 text-white/5 transform rotate-12">
+                                    <SparklesIcon className="w-48 h-48" />
+                                </div>
+                                <div className="relative z-10">
+                                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Current Membership</h3>
+                                    <div className="flex items-center gap-4">
+                                        <span className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">
+                                            {profile?.membershipTierName || 'Standard Tier'}
+                                        </span>
+                                        {profile?.membershipDiscountPercent ? (
+                                            <span className="bg-cyan-500/10 text-cyan-400 text-xs font-bold px-3 py-1 rounded-full border border-cyan-500/20 shadow-inner">
+                                                {profile.membershipDiscountPercent}% Room Discount
+                                            </span>
+                                        ) : null}
+                                    </div>
+                                    <p className="text-slate-500 text-sm mt-3">
+                                        Your discount is automatically applied to all eligible room bookings.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="bg-white p-8 md:p-10 rounded-xl shadow-sm border border-slate-200">
+                                <h2 className="text-2xl font-bold mb-8 border-b pb-4">Personal Information</h2>
+                                <form className="space-y-6 max-w-2xl" onSubmit={handleUpdateProfile}>
+>>>>>>> Stashed changes
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div>
                                         <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Full Name</label>
@@ -348,6 +383,7 @@ export function ClientAccountPage() {
                                     </button>
                                 </div>
                             </form>
+                            </div>
                         </div>
                     )}
 

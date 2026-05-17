@@ -29,7 +29,9 @@ public class UserProfileService : IUserProfileService
             IsActive = user.IsActive,
             AvatarUrl = user.AvatarUrl,
             Birthday = user.Birthday,
-            BirthdayUpdateCount = user.BirthdayUpdateCount
+            BirthdayUpdateCount = user.BirthdayUpdateCount,
+            MembershipTierName = user.Membership?.TierName,
+            MembershipDiscountPercent = user.Membership?.DiscountPercent
         };
     }
 
@@ -90,7 +92,9 @@ public class UserProfileService : IUserProfileService
             Phone = user.Phone,
             AvatarUrl = user.AvatarUrl,
             Birthday = user.Birthday,
-            BirthdayUpdateCount = user.BirthdayUpdateCount
+            BirthdayUpdateCount = user.BirthdayUpdateCount,
+            MembershipTierName = user.Membership?.TierName,
+            MembershipDiscountPercent = user.Membership?.DiscountPercent
         };
     }
 
@@ -116,7 +120,9 @@ public class UserProfileService : IUserProfileService
             Phone = user.Phone,
             RoleName = user.Role?.Name ?? string.Empty,
             IsActive = user.IsActive,
-            AvatarUrl = user.AvatarUrl
+            AvatarUrl = user.AvatarUrl,
+            MembershipTierName = user.Membership?.TierName,
+            MembershipDiscountPercent = user.Membership?.DiscountPercent
         };
     }
 

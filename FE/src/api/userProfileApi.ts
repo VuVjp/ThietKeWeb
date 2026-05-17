@@ -13,6 +13,8 @@ export interface UserProfile {
     avatarUrl?: string;
     birthday?: string;
     birthdayUpdateCount: number;
+    membershipTierName?: string;
+    membershipDiscountPercent?: number;
 }
 
 export interface UpdateProfilePayload {
