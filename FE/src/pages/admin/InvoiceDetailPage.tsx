@@ -466,10 +466,6 @@ export function InvoiceDetailPage() {
                                 <span>Penalties:</span>
                                 <span>${invoice.totalLossDamageAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                             </div>
-                            <div className="flex justify-between text-sm text-rose-600 font-medium">
-                                <span>Discount:</span>
-                                <span>-${invoice.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                            </div>
                             <div className="flex justify-between text-sm text-slate-500">
                                 <span>Tax (10%):</span>
                                 <span>${invoice.taxAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
@@ -479,17 +475,21 @@ export function InvoiceDetailPage() {
                                 <span>${(invoice.paidAmount ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                             </div>
                             <div className="flex justify-between text-sm text-slate-500">
-                                <span>Allocated Deposit:</span>
-                                <span>${(invoice.allocatedDeposit ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                <span>Final Total:</span>
+                                <span>${invoice.finalTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                             </div>
-                            <div className="flex justify-between text-sm font-semibold text-amber-700">
-                                <span>Remaining:</span>
-                                <span>${(invoice.remainingAmount ?? Math.max(0, invoice.finalTotal - (invoice.paidAmount ?? 0) - (invoice.allocatedDeposit ?? 0))).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                            <div className="flex justify-between text-sm text-rose-600 font-medium">
+                                <span>Discount:</span>
+                                <span>-${invoice.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                            </div>
+                            <div className="flex justify-between text-sm text-rose-600 font-medium">
+                                <span>Allocated Deposit:</span>
+                                <span>-${(invoice.allocatedDeposit ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                             </div>
                             <div className="flex justify-between items-end border-t border-slate-100 pt-3">
-                                <span className="text-lg font-bold text-slate-900">Final Total:</span>
+                                <span className="text-lg font-bold text-slate-900">Remaining:</span>
                                 <span className="text-3xl font-black text-cyan-700 tracking-tighter">
-                                    ${invoice.finalTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                    ${(invoice.remainingAmount ?? Math.max(0, invoice.finalTotal - (invoice.paidAmount ?? 0) - (invoice.allocatedDeposit ?? 0))).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                 </span>
                             </div>
                         </div>
