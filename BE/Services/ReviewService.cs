@@ -83,6 +83,11 @@ public class ReviewService : IReviewService
             queryable = queryable.Where(r => r.IsActive == query.IsActive.Value);
         }
 
+        if (!string.IsNullOrWhiteSpace(query.Status))
+        {
+            queryable = queryable.Where(r => r.Status == query.Status);
+        }
+
         // Sorting
         queryable = query.SortOrder?.ToLower() == "asc"
             ? queryable.OrderBy(r => r.Id)

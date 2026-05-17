@@ -9,6 +9,7 @@ import type { RoomAvailability, Voucher } from '../../../types/models';
 import { SparklesIcon, CheckCircleIcon, ArrowRightIcon, UserIcon, IdentificationIcon, TicketIcon, XMarkIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import { useNavigate } from 'react-router-dom';
 import { roomTypesApi, type RoomTypeItem } from '../../../api/roomTypesApi';
+import { Pagination } from '../../../components/Pagination';
 
 export function CreateBookingPage() {
     const navigate = useNavigate();
@@ -28,6 +29,8 @@ export function CreateBookingPage() {
     // Step 2 State
     const [availableRooms, setAvailableRooms] = useState<RoomAvailability[]>([]);
     const [selectedRoomIds, setSelectedRoomIds] = useState<number[]>([]);
+    const [roomPage, setRoomPage] = useState(1);
+    const roomsPerPage = 9;
 
     // Step 3 State
     const [guestType, setGuestType] = useState<'walkin' | 'existing'>('walkin');
@@ -152,6 +155,7 @@ export function CreateBookingPage() {
                 setRoomTypes(types);
             }
             
+            setRoomPage(1);
             setStep(2);
         } catch (error) {
             const apiError = toApiError(error);
@@ -317,7 +321,7 @@ export function CreateBookingPage() {
                             <div className="flex items-center gap-3 w-full sm:w-auto">
                                 <select 
                                     value={selectedRoomTypeFilter}
-                                    onChange={(e) => setSelectedRoomTypeFilter(e.target.value)}
+                                    onChange={(e) => { setSelectedRoomTypeFilter(e.target.value); setRoomPage(1); }}
                                     className="text-sm border border-slate-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all bg-white"
                                 >
                                     <option value="All">All Room Types</option>
@@ -336,35 +340,47 @@ export function CreateBookingPage() {
                             </div>
                         </div>
 
-                        <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
-                            {availableRooms
-                                .filter(r => selectedRoomTypeFilter === 'All' || r.roomTypeName === selectedRoomTypeFilter)
-                                .map((room) => {
-                                const isSelected = selectedRoomIds.includes(room.roomId);
-                                return (
-                                    <div
-                                        key={room.roomId}
-                                        onClick={() => handleRoomSelection(room.roomId)}
-                                        className={`cursor-pointer rounded-xl border p-4 transition-all ${isSelected ? 'border-cyan-500 bg-cyan-50 ring-1 ring-cyan-500' : 'border-slate-200 hover:border-cyan-300'}`}
-                                    >
-                                        <div className="flex justify-between items-start">
-                                            <div>
-                                                <h4 className="font-bold text-slate-900">Room {room.roomNumber}</h4>
-                                                <p className="text-xs text-slate-500">{room.roomTypeName}</p>
-                                            </div>
-                                            {isSelected && <CheckCircleIcon className="h-5 w-5 text-cyan-600" />}
-                                        </div>
-                                        <div className="mt-3 text-sm font-medium text-slate-700">
-                                            ${room.pricePerNight} <span className="text-xs font-normal text-slate-400">/ night</span>
-                                        </div>
+                        {(() => {
+                            const filteredRooms = availableRooms.filter(r => selectedRoomTypeFilter === 'All' || r.roomTypeName === selectedRoomTypeFilter);
+                            const pagedRooms = filteredRooms.slice((roomPage - 1) * roomsPerPage, roomPage * roomsPerPage);
+                            
+                            return (
+                                <>
+                                    <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 min-h-[1000px] sm:min-h-[580px] md:min-h-[350px] content-start">
+                                        {pagedRooms.map((room) => {
+                                            const isSelected = selectedRoomIds.includes(room.roomId);
+                                            return (
+                                                <div
+                                                    key={room.roomId}
+                                                    onClick={() => handleRoomSelection(room.roomId)}
+                                                    className={`cursor-pointer rounded-xl border p-4 transition-all ${isSelected ? 'border-cyan-500 bg-cyan-50 ring-1 ring-cyan-500' : 'border-slate-200 hover:border-cyan-300'}`}
+                                                >
+                                                    <div className="flex justify-between items-start">
+                                                        <div>
+                                                            <h4 className="font-bold text-slate-900">Room {room.roomNumber}</h4>
+                                                            <p className="text-xs text-slate-500">{room.roomTypeName}</p>
+                                                        </div>
+                                                        {isSelected && <CheckCircleIcon className="h-5 w-5 text-cyan-600" />}
+                                                    </div>
+                                                    <div className="mt-3 text-sm font-medium text-slate-700">
+                                                        ${room.pricePerNight} <span className="text-xs font-normal text-slate-400">/ night</span>
+                                                    </div>
+                                                </div>
+                                            )
+                                        })}
+                                        {filteredRooms.length === 0 && (
+                                            <div className="col-span-full py-8 text-center text-slate-500">No rooms available for the selected criteria.</div>
+                                        )}
                                     </div>
-                                )
-                            })}
-                            {availableRooms.length === 0 && (
-                                <div className="col-span-full py-8 text-center text-slate-500">No rooms available for the selected time.</div>
-                            )}
-
-                        </div>
+                                    
+                                    {filteredRooms.length > roomsPerPage && (
+                                        <div className="mt-4">
+                                            <Pagination page={roomPage} pageSize={roomsPerPage} total={filteredRooms.length} onPageChange={setRoomPage} />
+                                        </div>
+                                    )}
+                                </>
+                            );
+                        })()}
 
                         <div className="mt-6 flex justify-between">
                             <button onClick={() => setStep(1)} className="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600">Back</button>

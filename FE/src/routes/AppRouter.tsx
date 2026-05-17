@@ -13,6 +13,8 @@ import { EquipmentPage } from '../pages/admin/EquipmentPage';
 import { AmenitiesPage } from '../pages/admin/AmenitiesPage';
 import { RoomTypesPage } from '../pages/admin/RoomTypesPage';
 import { VouchersPage } from '../pages/admin/VouchersPage';
+import { SendVoucherPage } from '../pages/admin/SendVoucherPage';
+import { VoucherFormPage } from '../pages/admin/VoucherFormPage';
 import { MembershipsPage } from '../pages/admin/MembershipsPage';
 import { AttractionsPage } from '../pages/admin/AttractionsPage';
 import { AuditLogPage } from '../pages/admin/AuditLogPage';
@@ -136,6 +138,9 @@ export const AppRouter = () => {
 
                     <Route element={<RequirePermission permission="MANAGE_VOUCHERS" />}>
                         <Route path="admin/vouchers" element={<VouchersPage />} />
+                        <Route path="admin/vouchers/new" element={<VoucherFormPage />} />
+                        <Route path="admin/vouchers/:id/edit" element={<VoucherFormPage />} />
+                        <Route path="admin/vouchers/send" element={<SendVoucherPage />} />
                     </Route>
 
                     <Route element={<RequirePermission permission="VIEW_DASHBOARD" />}>

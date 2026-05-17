@@ -430,20 +430,20 @@ export function AuditLogPage() {
 
             {/* Table */}
             {isLoading ? (
-                <div className="rounded-xl border border-slate-200 bg-white p-12 text-center">
-                    <ClipboardDocumentListIcon className="mx-auto mb-3 h-10 w-10 text-slate-300 animate-pulse" />
-                    <p className="text-sm text-slate-400">Loading audit logs...</p>
+                <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-slate-200 shadow-sm">
+                    <div className="w-10 h-10 border-4 border-cyan-600 border-t-transparent rounded-full animate-spin"></div>
+                    <p className="mt-4 text-sm font-bold text-slate-600 animate-pulse">Loading audit logs...</p>
                 </div>
             ) : filtered.length === 0 ? (
-                <div className="rounded-xl border border-slate-200 bg-white p-12 text-center">
-                    <ClipboardDocumentListIcon className="mx-auto mb-3 h-10 w-10 text-slate-300" />
-                    <p className="text-sm font-medium text-slate-500">No audit logs found</p>
-                    {hasActiveFilter && (
-                        <p className="mt-1 text-xs text-slate-400">Try adjusting your filters.</p>
-                    )}
+                <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm p-16 text-center">
+                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-100 text-slate-400 mb-4">
+                        <ClipboardDocumentListIcon className="h-8 w-8 text-slate-300" />
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-900">No audit logs found</h3>
+                    <p className="text-slate-500 text-sm mt-1">Try adjusting your filters or search terms.</p>
                 </div>
             ) : (
-                <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden p-4">
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden relative p-4">
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
                         <p className="text-xs text-slate-500">
                             Showing <span className="font-semibold text-slate-700">{startItem}-{endItem}</span> of{' '}
@@ -465,7 +465,9 @@ export function AuditLogPage() {
                         </div>
                     </div>
                     <Table columns={visibleColumns} rows={paged} />
-                    <Pagination page={page} pageSize={pageSize} total={filtered.length} onPageChange={setPage} />
+                    <div className="pt-4">
+                        <Pagination page={page} pageSize={pageSize} total={filtered.length} onPageChange={setPage} />
+                    </div>
                 </div>
             )}
         </div>

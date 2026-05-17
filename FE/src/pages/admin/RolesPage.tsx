@@ -117,7 +117,24 @@ export function RolesPage() {
         </div>
       </div>
 
-      <Table columns={columns} rows={isLoading ? [] : roles} />
+      {isLoading ? (
+        <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-slate-200 shadow-sm">
+          <div className="w-10 h-10 border-4 border-cyan-600 border-t-transparent rounded-full animate-spin"></div>
+          <p className="mt-4 text-sm font-bold text-slate-600 animate-pulse">Loading roles...</p>
+        </div>
+      ) : roles.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm p-16 text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-100 text-slate-400 mb-4">
+            <PlusIcon className="h-8 w-8 text-slate-300" />
+          </div>
+          <h3 className="text-lg font-bold text-slate-900">No roles found</h3>
+          <p className="text-slate-500 text-sm mt-1">Try reloading or contact system administrator.</p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden relative">
+          <Table columns={columns} rows={roles} />
+        </div>
+      )}
 
       <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <h3 className="text-lg font-semibold text-slate-900">Permission Matrix: {selectedRole?.name ?? 'No role selected'}</h3>

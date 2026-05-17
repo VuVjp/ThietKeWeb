@@ -4,6 +4,7 @@ import { roomTypesApi, type RoomTypeItem } from '../../api/roomTypesApi';
 import { receptionApi } from '../../api/receptionApi';
 import toast from 'react-hot-toast';
 import { ShieldCheckIcon, CreditCardIcon, InformationCircleIcon, MapPinIcon, CalendarDaysIcon, UserGroupIcon, SparklesIcon, CheckCircleIcon, ArrowRightIcon, TicketIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { Pagination } from '../../components/Pagination';
 import type { RoomAvailability, Voucher } from '../../types/models';
 import { useAppAuth } from '../../auth/useAppAuth';
 import { vouchersApi } from '../../api/vouchersApi';
@@ -25,6 +26,11 @@ export function ClientBookingPage() {
     const [availableRooms, setAvailableRooms] = useState<RoomAvailability[]>([]);
     const [selectedRoomIds, setSelectedRoomIds] = useState<number[]>([]);
     const [isSearching, setIsSearching] = useState(false);
+
+    // Pagination for rooms
+    const [suggestedRoomPage, setSuggestedRoomPage] = useState(1);
+    const [otherRoomPage, setOtherRoomPage] = useState(1);
+    const roomsPerPage = 8;
 
     // Voucher & Membership State
     const [voucherCode, setVoucherCode] = useState('');
@@ -149,14 +155,11 @@ export function ClientBookingPage() {
             const checkOutISO = formData.checkOut;
             const rooms = await receptionApi.getAvailableRooms(checkInISO, checkOutISO);
 
-            // Filter rooms by selected type
-            const filtered = selectedRoomType
-                ? rooms.filter(r => r.roomTypeName?.toLowerCase() === selectedRoomType.name?.toLowerCase())
-                : rooms;
-
-            setAvailableRooms(filtered);
+            setAvailableRooms(rooms);
             setStep(2);
             setSelectedRoomIds([]); // Reset selection when searching new dates
+            setSuggestedRoomPage(1);
+            setOtherRoomPage(1);
         } catch (error) {
             toast.error("Cannot find available rooms. Please try again.");
         } finally {
@@ -416,38 +419,105 @@ export function ClientBookingPage() {
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                                        {availableRooms.map((room) => {
-                                            const isSelected = selectedRoomIds.includes(room.roomId);
-                                            return (
-                                                <div
-                                                    key={room.roomId}
-                                                    onClick={() => handleRoomToggle(room.roomId)}
-                                                    className={`relative cursor-pointer rounded-2xl border-2 p-6 transition-all group ${isSelected
-                                                        ? 'border-cyan-500 bg-cyan-50 shadow-lg shadow-cyan-500/10 ring-2 ring-cyan-500/20'
-                                                        : 'border-slate-100 hover:border-cyan-200 hover:bg-slate-50'
-                                                        }`}
-                                                >
-                                                    <div className="text-center">
-                                                        <span className={`block text-xs font-bold uppercase tracking-widest mb-1 ${isSelected ? 'text-cyan-600' : 'text-slate-400'}`}>Room</span>
-                                                        <span className={`text-3xl font-black ${isSelected ? 'text-cyan-700' : 'text-slate-800'}`}>{room.roomNumber}</span>
-                                                        <div className={`mt-3 mx-auto w-8 h-1 rounded-full transition-all ${isSelected ? 'bg-cyan-500' : 'bg-slate-100 group-hover:bg-cyan-200'}`} />
-                                                    </div>
-                                                    {isSelected && (
-                                                        <div className="absolute top-2 right-2">
-                                                            <CheckCircleIcon className="w-6 h-6 text-cyan-600" />
+                                    {/* Suggested Rooms */}
+                                    {(() => {
+                                        const suggestedRooms = availableRooms.filter(r => r.roomTypeName?.toLowerCase() === selectedRoomType?.name?.toLowerCase());
+                                        const pagedSuggested = suggestedRooms.slice((suggestedRoomPage - 1) * roomsPerPage, suggestedRoomPage * roomsPerPage);
+
+                                        return (
+                                            <>
+                                                <h3 className="text-sm font-bold text-slate-500 uppercase tracking-widest mt-6 mb-4">
+                                                    Recommended: {selectedRoomType?.name}
+                                                </h3>
+                                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 min-h-[600px] sm:min-h-[450px] md:min-h-[300px] content-start">
+                                                    {pagedSuggested.map((room) => {
+                                                        const isSelected = selectedRoomIds.includes(room.roomId);
+                                                        return (
+                                                            <div
+                                                                key={room.roomId}
+                                                                onClick={() => handleRoomToggle(room.roomId)}
+                                                                className={`relative cursor-pointer rounded-2xl border-2 p-6 transition-all group ${isSelected
+                                                                    ? 'border-cyan-500 bg-cyan-50 shadow-lg shadow-cyan-500/10 ring-2 ring-cyan-500/20'
+                                                                    : 'border-slate-100 hover:border-cyan-200 hover:bg-slate-50'
+                                                                    }`}
+                                                            >
+                                                                <div className="text-center">
+                                                                    <span className={`block text-xs font-bold uppercase tracking-widest mb-1 ${isSelected ? 'text-cyan-600' : 'text-slate-400'}`}>Room</span>
+                                                                    <span className={`text-3xl font-black ${isSelected ? 'text-cyan-700' : 'text-slate-800'}`}>{room.roomNumber}</span>
+                                                                    <div className={`mt-3 mx-auto w-8 h-1 rounded-full transition-all ${isSelected ? 'bg-cyan-500' : 'bg-slate-100 group-hover:bg-cyan-200'}`} />
+                                                                </div>
+                                                                {isSelected && (
+                                                                    <div className="absolute top-2 right-2">
+                                                                        <CheckCircleIcon className="w-6 h-6 text-cyan-600" />
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                    {suggestedRooms.length === 0 && (
+                                                        <div className="col-span-full py-8 text-center bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-slate-500">
+                                                            <p className="text-sm font-medium">Sorry, no {selectedRoomType?.name} rooms available.</p>
                                                         </div>
                                                     )}
                                                 </div>
-                                            );
-                                        })}
-                                        {availableRooms.length === 0 && (
-                                            <div className="col-span-full py-12 text-center bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-slate-500">
-                                                <p className="text-lg font-medium">Sorry, no rooms available of this type.</p>
-                                                <button onClick={() => setStep(1)} className="mt-4 text-cyan-600 font-bold hover:underline">Change dates or room type</button>
-                                            </div>
-                                        )}
-                                    </div>
+                                                {suggestedRooms.length > roomsPerPage && (
+                                                    <div className="mt-4">
+                                                        <Pagination page={suggestedRoomPage} pageSize={roomsPerPage} total={suggestedRooms.length} onPageChange={setSuggestedRoomPage} />
+                                                    </div>
+                                                )}
+                                            </>
+                                        );
+                                    })()}
+
+                                    {/* Other Rooms */}
+                                    {(() => {
+                                        const otherRooms = availableRooms.filter(r => r.roomTypeName?.toLowerCase() !== selectedRoomType?.name?.toLowerCase());
+                                        const pagedOther = otherRooms.slice((otherRoomPage - 1) * roomsPerPage, otherRoomPage * roomsPerPage);
+                                        
+                                        if (otherRooms.length === 0) return null;
+
+                                        return (
+                                            <>
+                                                <h3 className="text-sm font-bold text-slate-500 uppercase tracking-widest mt-8 mb-4">
+                                                    Other Available Rooms
+                                                </h3>
+                                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 min-h-[600px] sm:min-h-[450px] md:min-h-[300px] content-start">
+                                                    {pagedOther.map((room) => {
+                                                        const isSelected = selectedRoomIds.includes(room.roomId);
+                                                        return (
+                                                            <div
+                                                                key={room.roomId}
+                                                                onClick={() => handleRoomToggle(room.roomId)}
+                                                                className={`relative cursor-pointer rounded-2xl border-2 p-6 transition-all group ${isSelected
+                                                                    ? 'border-cyan-500 bg-cyan-50 shadow-lg shadow-cyan-500/10 ring-2 ring-cyan-500/20'
+                                                                    : 'border-slate-100 hover:border-cyan-200 hover:bg-slate-50'
+                                                                    }`}
+                                                            >
+                                                                <div className="text-center">
+                                                                    <span className={`block text-xs font-bold uppercase tracking-widest mb-1 ${isSelected ? 'text-cyan-600' : 'text-slate-400'}`}>
+                                                                        {room.roomTypeName}
+                                                                    </span>
+                                                                    <span className={`text-2xl font-black ${isSelected ? 'text-cyan-700' : 'text-slate-800'}`}>{room.roomNumber}</span>
+                                                                    <div className={`text-xs mt-1 font-medium ${isSelected ? 'text-cyan-600' : 'text-slate-500'}`}>${room.pricePerNight}</div>
+                                                                    <div className={`mt-2 mx-auto w-8 h-1 rounded-full transition-all ${isSelected ? 'bg-cyan-500' : 'bg-slate-100 group-hover:bg-cyan-200'}`} />
+                                                                </div>
+                                                                {isSelected && (
+                                                                    <div className="absolute top-2 right-2">
+                                                                        <CheckCircleIcon className="w-6 h-6 text-cyan-600" />
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                                {otherRooms.length > roomsPerPage && (
+                                                    <div className="mt-4">
+                                                        <Pagination page={otherRoomPage} pageSize={roomsPerPage} total={otherRooms.length} onPageChange={setOtherRoomPage} />
+                                                    </div>
+                                                )}
+                                            </>
+                                        );
+                                    })()}
 
                                     <div className="pt-6 border-t border-slate-100 flex justify-between items-center">
                                         <button onClick={() => setStep(1)} className="text-slate-400 font-bold uppercase tracking-widest text-xs hover:text-slate-600 transition-colors">Back to dates</button>

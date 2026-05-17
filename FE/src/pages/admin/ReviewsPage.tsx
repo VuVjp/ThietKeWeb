@@ -28,6 +28,7 @@ export function ReviewsPage() {
     const debouncedSearch = useDebounce(search, 500);
     const [selectedRoomType, setSelectedRoomType] = useState<number | null>(null);
     const [selectedRating, setSelectedRating] = useState<number | null>(null);
+    const [statusFilter, setStatusFilter] = useState('');
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [sortBy, setSortBy] = useState('id');
@@ -40,6 +41,7 @@ export function ReviewsPage() {
                 search: debouncedSearch,
                 roomTypeId: selectedRoomType || undefined,
                 rating: selectedRating || undefined,
+                status: statusFilter || undefined,
                 startDate: startDate || undefined,
                 endDate: endDate || undefined,
                 sortBy,
@@ -55,7 +57,7 @@ export function ReviewsPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [debouncedSearch, selectedRoomType, selectedRating, startDate, endDate, sortBy, sortOrder, page]);
+    }, [debouncedSearch, selectedRoomType, selectedRating, statusFilter, startDate, endDate, sortBy, sortOrder, page]);
 
     const loadRoomTypes = useCallback(async () => {
         try {
@@ -78,6 +80,7 @@ export function ReviewsPage() {
         setSearch('');
         setSelectedRoomType(null);
         setSelectedRating(null);
+        setStatusFilter('');
         setStartDate('');
         setEndDate('');
         setSortBy('id');
@@ -277,7 +280,7 @@ export function ReviewsPage() {
                     </div>
 
                     {/* Date Range */}
-                    <div className="lg:col-span-4 space-y-1.5">
+                    <div className="lg:col-span-3 space-y-1.5">
                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Date Range</label>
                         <div className="flex gap-2">
                             <Input 
@@ -295,8 +298,8 @@ export function ReviewsPage() {
                         </div>
                     </div>
 
-                    {/* Room Type (Searchable via CategorySelect) */}
-                    <div className="lg:col-span-3 space-y-1.5">
+                    {/* Room Type */}
+                    <div className="lg:col-span-2 space-y-1.5">
                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Room Type</label>
                         <CategorySelect 
                             categories={roomTypes}
@@ -304,6 +307,21 @@ export function ReviewsPage() {
                             onChange={(id) => setSelectedRoomType(id)}
                             placeholder="All types"
                         />
+                    </div>
+
+                    {/* Status */}
+                    <div className="lg:col-span-2 space-y-1.5">
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Status</label>
+                        <select 
+                            className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all outline-none appearance-none h-[38px]"
+                            value={statusFilter} 
+                            onChange={(e) => setStatusFilter(e.target.value)}
+                        >
+                            <option value="">All</option>
+                            <option value="Pending">Pending</option>
+                            <option value="Active">Active</option>
+                            <option value="Inactive">Inactive</option>
+                        </select>
                     </div>
 
                     {/* Rating */}
@@ -349,26 +367,24 @@ export function ReviewsPage() {
                 </div>
             </div>
 
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden relative">
-                <Table columns={columns} rows={isLoading ? [] : rows} />
-                
-                {isLoading && (
-                    <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] flex flex-col items-center justify-center z-10 transition-all">
-                        <div className="w-10 h-10 border-4 border-cyan-600 border-t-transparent rounded-full animate-spin"></div>
-                        <p className="mt-4 text-sm font-bold text-slate-600 animate-pulse">Loading ratings...</p>
+            {isLoading ? (
+                <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-slate-200 shadow-sm">
+                    <div className="w-10 h-10 border-4 border-cyan-600 border-t-transparent rounded-full animate-spin"></div>
+                    <p className="mt-4 text-sm font-bold text-slate-600 animate-pulse">Loading ratings...</p>
+                </div>
+            ) : rows.length === 0 ? (
+                <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm p-16 text-center">
+                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-50 text-slate-400 mb-4">
+                        <MagnifyingGlassIcon className="h-8 w-8" />
                     </div>
-                )}
-
-                {!isLoading && rows.length === 0 && (
-                    <div className="p-16 text-center">
-                        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-50 text-slate-400 mb-4">
-                            <MagnifyingGlassIcon className="h-8 w-8" />
-                        </div>
-                        <h3 className="text-lg font-bold text-slate-900">No ratings found</h3>
-                        <p className="text-slate-500 text-sm mt-1">Try adjusting your filters or search terms.</p>
-                    </div>
-                )}
-            </div>
+                    <h3 className="text-lg font-bold text-slate-900">No ratings found</h3>
+                    <p className="text-slate-500 text-sm mt-1">Try adjusting your filters or search terms.</p>
+                </div>
+            ) : (
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden relative">
+                    <Table columns={columns} rows={rows} />
+                </div>
+            )}
 
             <Pagination 
                 page={page} 

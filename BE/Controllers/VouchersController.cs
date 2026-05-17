@@ -176,12 +176,16 @@ public class VouchersController : ControllerBase
         using var scope = HttpContext.RequestServices.CreateScope();
         var userRepo = scope.ServiceProvider.GetRequiredService<IUserRepository>();
         var users = await userRepo.GetQueryable()
+            .Include(u => u.Role)
+            .Include(u => u.Membership)
             .Where(u => u.IsActive)
             .Select(u => new
             {
                 u.Id,
                 u.FullName,
                 u.Email,
+                RoleName = u.Role != null ? u.Role.Name : "Guest",
+                MembershipName = u.Membership != null ? u.Membership.TierName : "None"
             })
             .ToListAsync();
 
