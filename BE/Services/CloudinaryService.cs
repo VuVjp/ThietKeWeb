@@ -28,7 +28,12 @@ public class CloudinaryService : ICloudinaryService
 
         var result = await _cloudinary.UploadAsync(uploadParams);
 
-        return result.SecureUrl.ToString();
+        if (result.Error != null)
+        {
+            throw new Exception($"Cloudinary upload failed: {result.Error.Message}");
+        }
+
+        return result.SecureUrl?.ToString() ?? throw new Exception("Cloudinary returned a null URL.");
     }
 
     public async Task<string> UploadVideoAsync(IFormFile file, string folder, string publicId = null!)
