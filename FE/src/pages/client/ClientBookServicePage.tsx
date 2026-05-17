@@ -35,7 +35,7 @@ export function ClientBookServicePage() {
     const [allServices, setAllServices] = useState<Service[]>([]);
     const [categories, setCategories] = useState<ServiceCategory[]>([]);
     const [myActiveRooms, setMyActiveRooms] = useState<ActiveRoom[]>([]);
-    const [selectedRoomDetailId, setSelectedRoomDetailId] = useState<number | ''>('');
+    const [selectedRoomDetailIds, setSelectedRoomDetailIds] = useState<number[]>([]);
     const [selectedServices, setSelectedServices] = useState<SelectedServiceItem[]>([]);
     
     // UI Loading state
@@ -64,8 +64,9 @@ export function ClientBookServicePage() {
                 // Fetch active check-ins
                 const rooms = await receptionApi.getMyActiveRooms();
                 setMyActiveRooms(rooms);
+                // Auto-select all rooms if there's only one
                 if (rooms.length === 1) {
-                    setSelectedRoomDetailId(rooms[0].bookingDetailId);
+                    setSelectedRoomDetailIds([rooms[0].bookingDetailId]);
                 }
 
                 // Fetch Categories
@@ -135,10 +136,19 @@ export function ClientBookServicePage() {
         return allServices.filter(s => s.categoryId === Number(selectedOtherCategoryId));
     }, [allServices, selectedOtherCategoryId]);
 
-    // Selected Room details
-    const selectedRoom = useMemo(() => {
-        return myActiveRooms.find(r => r.bookingDetailId === selectedRoomDetailId);
-    }, [myActiveRooms, selectedRoomDetailId]);
+    // Selected Rooms details
+    const selectedRooms = useMemo(() => {
+        return myActiveRooms.filter(r => selectedRoomDetailIds.includes(r.bookingDetailId));
+    }, [myActiveRooms, selectedRoomDetailIds]);
+
+    // Toggle a room in/out of the multi-selection
+    const handleRoomToggle = (bookingDetailId: number) => {
+        setSelectedRoomDetailIds(prev =>
+            prev.includes(bookingDetailId)
+                ? prev.filter(id => id !== bookingDetailId)
+                : [...prev, bookingDetailId]
+        );
+    };
 
     // Selected service IDs helper
     const selectedServiceIds = useMemo(() => {
@@ -217,10 +227,10 @@ export function ClientBookServicePage() {
 
     const grandTotal = subtotal + serviceCharge + vat;
 
-    // Confirm multi-item order booking
+    // Confirm multi-item order booking for ALL selected rooms
     const handleConfirmBooking = async () => {
-        if (!selectedRoomDetailId) {
-            toast.error('Please select a room to deliver services.');
+        if (selectedRoomDetailIds.length === 0) {
+            toast.error('Please select at least one room to deliver services.');
             return;
         }
         if (selectedServices.length === 0) {
@@ -230,20 +240,24 @@ export function ClientBookServicePage() {
 
         setIsBooking(true);
         try {
-            // 1. Create a client service order
-            const orderResult = await orderServicesApi.createClient({ 
-                bookingDetailId: Number(selectedRoomDetailId) 
-            });
-
-            // 2. Add each service item to the order
-            for (const item of selectedServices) {
-                await orderServicesApi.addItemClient(orderResult.id, {
-                    serviceId: item.service.id,
-                    quantity: item.quantity
+            // Create one order per selected room, each with the same service items
+            for (const roomDetailId of selectedRoomDetailIds) {
+                // 1. Create a client service order for this room
+                const orderResult = await orderServicesApi.createClient({ 
+                    bookingDetailId: roomDetailId 
                 });
+
+                // 2. Add each service item to that order
+                for (const item of selectedServices) {
+                    await orderServicesApi.addItemClient(orderResult.id, {
+                        serviceId: item.service.id,
+                        quantity: item.quantity
+                    });
+                }
             }
 
-            toast.success(`Successfully booked ${selectedServices.length} service(s) for Room ${selectedRoom?.roomNumber}!`);
+            const roomNums = selectedRooms.map(r => `Room ${r.roomNumber}`).join(', ');
+            toast.success(`Successfully booked ${selectedServices.length} service(s) for ${roomNums}!`);
             navigate('/services');
         } catch (error: any) {
             console.error('Multi-service booking failed:', error);
@@ -295,19 +309,19 @@ export function ClientBookServicePage() {
                                     <HomeIcon className="w-5 h-5" />
                                 </div>
                                 <div>
-                                    <h2 className="text-xl font-extrabold text-slate-900">1. Select Your Active Room</h2>
-                                    <p className="text-xs text-slate-500">Pick which of your checked-in rooms this order is for.</p>
+                                    <h2 className="text-xl font-extrabold text-slate-900">1. Select Delivery Rooms</h2>
+                                    <p className="text-xs text-slate-500">Pick one or more checked-in rooms — the same services will be ordered for each.</p>
                                 </div>
                             </div>
 
                             {myActiveRooms.length > 0 ? (
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     {myActiveRooms.map((room) => {
-                                        const isSelected = selectedRoomDetailId === room.bookingDetailId;
+                                        const isSelected = selectedRoomDetailIds.includes(room.bookingDetailId);
                                         return (
                                             <div
                                                 key={room.bookingDetailId}
-                                                onClick={() => setSelectedRoomDetailId(room.bookingDetailId)}
+                                                onClick={() => handleRoomToggle(room.bookingDetailId)}
                                                 className={`cursor-pointer rounded-2xl border-2 p-5 transition-all flex items-center justify-between ${
                                                     isSelected 
                                                     ? 'border-cyan-500 bg-cyan-50/50 shadow-md shadow-cyan-500/5 ring-1 ring-cyan-500/25' 
@@ -325,11 +339,16 @@ export function ClientBookServicePage() {
                                                         Guest: {room.guestName}
                                                     </span>
                                                 </div>
-                                                {isSelected ? (
-                                                    <CheckCircleIcon className="w-7 h-7 text-cyan-500" />
-                                                ) : (
-                                                    <div className="w-6 h-6 rounded-full border-2 border-slate-200 bg-white" />
-                                                )}
+                                                {/* Checkbox indicator */}
+                                                <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-colors ${
+                                                    isSelected ? 'border-cyan-500 bg-cyan-500' : 'border-slate-300 bg-white'
+                                                }`}>
+                                                    {isSelected && (
+                                                        <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                                        </svg>
+                                                    )}
+                                                </div>
                                             </div>
                                         );
                                     })}
@@ -602,22 +621,25 @@ export function ClientBookServicePage() {
                                 <p className="text-xs text-slate-500 mt-0.5">Deliverable details and price invoice breakdown.</p>
                             </div>
 
-                            {/* Target Delivery Room */}
+                            {/* Target Delivery Rooms */}
                             <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
-                                <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 block mb-1">
-                                    Delivery Address
+                                <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 block mb-2">
+                                    Delivery Rooms ({selectedRooms.length} selected)
                                 </span>
-                                {selectedRoom ? (
-                                    <div>
-                                        <span className="font-extrabold text-slate-800 text-sm">
-                                            Room {selectedRoom.roomNumber}
-                                        </span>
-                                        <span className="block text-xs text-slate-500">
-                                            Registered Guest: {selectedRoom.guestName}
-                                        </span>
+                                {selectedRooms.length > 0 ? (
+                                    <div className="space-y-1.5">
+                                        {selectedRooms.map(room => (
+                                            <div key={room.bookingDetailId} className="flex items-center gap-2">
+                                                <span className="w-2 h-2 rounded-full bg-cyan-500 flex-shrink-0" />
+                                                <span className="font-extrabold text-slate-800 text-xs">
+                                                    Room {room.roomNumber}
+                                                </span>
+                                                <span className="text-[10px] text-slate-400">— {room.guestName}</span>
+                                            </div>
+                                        ))}
                                     </div>
                                 ) : (
-                                    <span className="text-xs text-slate-400 italic">No room selected. Choose room in step 1.</span>
+                                    <span className="text-xs text-slate-400 italic">No rooms selected. Choose rooms in step 1.</span>
                                 )}
                             </div>
 
@@ -672,10 +694,13 @@ export function ClientBookServicePage() {
                             {/* Action Button */}
                             <button
                                 onClick={() => void handleConfirmBooking()}
-                                disabled={isBooking || !selectedRoomDetailId || selectedServices.length === 0}
+                                disabled={isBooking || selectedRoomDetailIds.length === 0 || selectedServices.length === 0}
                                 className="w-full flex items-center justify-center gap-2 py-4 bg-cyan-700 hover:bg-cyan-800 text-white rounded-2xl font-bold uppercase tracking-widest text-xs transition-all shadow-lg shadow-cyan-100 disabled:opacity-50 disabled:shadow-none"
                             >
-                                {isBooking ? 'Placing Order...' : 'Confirm Order & Pay'} <ArrowRightIcon className="w-4 h-4" />
+                                {isBooking 
+                                    ? 'Placing Order...' 
+                                    : `Confirm Order${selectedRooms.length > 1 ? ` for ${selectedRooms.length} Rooms` : ''}`
+                                } <ArrowRightIcon className="w-4 h-4" />
                             </button>
                         </div>
                     </div>
