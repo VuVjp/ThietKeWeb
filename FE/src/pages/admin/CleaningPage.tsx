@@ -163,12 +163,17 @@ export function CleaningPage() {
 
     const reportLossRows = useMemo(() => inspectingState?.losses ?? [], [inspectingState]);
 
+    const inspectingEquipments = useMemo(
+        () => (inspectingState?.inventories ?? []).filter((item) => item.equipmentId != null),
+        [inspectingState]
+    );
+
     const selectedLossInventory = useMemo(
         () =>
             lossDraft.roomInventoryId
-                ? inspectingState?.inventories.find((item) => item.id === Number(lossDraft.roomInventoryId)) ?? null
+                ? inspectingEquipments.find((item) => item.id === Number(lossDraft.roomInventoryId)) ?? null
                 : null,
-        [inspectingState, lossDraft.roomInventoryId],
+        [inspectingEquipments, lossDraft.roomInventoryId],
     );
 
     const penaltyAmount = useMemo(
@@ -192,8 +197,8 @@ export function CleaningPage() {
     );
 
     const availableInventoriesForDraft = useMemo(
-        () => (inspectingState?.inventories ?? []).filter((item) => !selectedPendingInventoryIds.has(item.id)),
-        [inspectingState, selectedPendingInventoryIds],
+        () => inspectingEquipments.filter((item) => !selectedPendingInventoryIds.has(item.id)),
+        [inspectingEquipments, selectedPendingInventoryIds],
     );
 
     const sendPendingReports = async (roomId: number) => {
@@ -557,12 +562,10 @@ export function CleaningPage() {
                                 <p className="mt-1 text-sm text-slate-600">Room: {selectedInspectingRoom?.roomNumber ?? '-'}</p>
                                 <p className="mt-1 text-sm text-slate-600">Room Type: {selectedInspectingRoom?.roomType ?? '-'}</p>
                                 <p className="mt-1 text-sm text-slate-600">Status: Inspecting</p>
-                            </div>
-
-                            <div className="min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-4">
+                            </div>                             <div className="min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-4">
                                 <div className="flex flex-wrap items-center justify-between gap-2">
                                     <div>
-                                        <h4 className="text-sm font-semibold text-slate-900">Equipment & Amenities</h4>
+                                        <h4 className="text-sm font-semibold text-slate-900">Equipment</h4>
                                         <p className="text-xs text-slate-500">Choose an item to record damage or loss.</p>
                                     </div>
                                     <button
@@ -590,10 +593,10 @@ export function CleaningPage() {
                                             <div className="w-10 h-10 border-4 border-cyan-600 border-t-transparent rounded-full animate-spin"></div>
                                             <p className="mt-4 text-sm font-bold text-slate-600 animate-pulse">Loading cleaning items...</p>
                                         </div>
-                                    ) : inspectingState?.inventories.length ? (
-                                        <Table columns={inventoryColumns} rows={inspectingState.inventories} />
+                                    ) : inspectingEquipments.length ? (
+                                        <Table columns={inventoryColumns} rows={inspectingEquipments} />
                                     ) : (
-                                        <p className="text-sm text-slate-500">No equipment or amenity items found for this room.</p>
+                                        <p className="text-sm text-slate-500">No equipment items found for this room.</p>
                                     )}
                                 </div>
                             </div>
