@@ -187,6 +187,31 @@ export function ClientAccountPage() {
         );
     }
 
+    const currentPoints = profile?.loyaltyPoints || 0;
+    const currentTier = (profile?.membershipTierName || 'Bronze').toLowerCase();
+    
+    let nextTierName = '';
+    let nextTierMinPoints = 0;
+    let progressPercent = 0;
+
+    if (currentTier.includes('platinum')) {
+        nextTierName = 'Max Tier';
+        nextTierMinPoints = 10000;
+        progressPercent = 100;
+    } else if (currentTier.includes('gold')) {
+        nextTierName = 'Platinum';
+        nextTierMinPoints = 10000;
+        progressPercent = Math.max(0, Math.min(((currentPoints - 5000) / 5000) * 100, 100));
+    } else if (currentTier.includes('silver')) {
+        nextTierName = 'Gold';
+        nextTierMinPoints = 5000;
+        progressPercent = Math.max(0, Math.min(((currentPoints - 1000) / 4000) * 100, 100));
+    } else {
+        nextTierName = 'Silver';
+        nextTierMinPoints = 1000;
+        progressPercent = Math.max(0, Math.min((currentPoints / 1000) * 100, 100));
+    }
+
     return (
         <div className="w-full bg-[#f4f7f6] min-h-screen pb-24 font-sans text-slate-800">
             {/* Header */}
@@ -255,6 +280,30 @@ export function ClientAccountPage() {
                                     <p className="text-slate-500 text-sm mt-3">
                                         Your discount is automatically applied to all eligible room bookings.
                                     </p>
+                                    
+                                    {/* Progress Bar to Next Membership Tier */}
+                                    <div className="mt-6 border-t border-slate-700/50 pt-5">
+                                        <div className="flex justify-between items-center text-xs font-bold text-slate-400 mb-2">
+                                            <span>{currentPoints.toLocaleString()} Points</span>
+                                            {nextTierName !== 'Max Tier' ? (
+                                                <span className="text-cyan-400">{Math.max(0, nextTierMinPoints - currentPoints).toLocaleString()} points to {nextTierName}</span>
+                                            ) : (
+                                                <span className="text-emerald-400">✨ Highest Tier Reached</span>
+                                            )}
+                                        </div>
+                                        <div className="w-full bg-slate-700/50 h-2.5 rounded-full overflow-hidden p-0.5 border border-slate-700/30">
+                                            <div 
+                                                className="bg-gradient-to-r from-cyan-400 to-blue-500 h-full rounded-full transition-all duration-1000 ease-out" 
+                                                style={{ width: `${progressPercent}%` }}
+                                            ></div>
+                                        </div>
+                                        {nextTierName !== 'Max Tier' && (
+                                            <div className="flex justify-between text-[10px] text-slate-500 mt-2 font-semibold">
+                                                <span>{profile?.membershipTierName || 'Bronze'}</span>
+                                                <span>{nextTierName} ({nextTierMinPoints.toLocaleString()} pts)</span>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 

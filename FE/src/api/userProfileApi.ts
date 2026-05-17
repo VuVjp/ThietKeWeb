@@ -15,6 +15,7 @@ export interface UserProfile {
     birthdayUpdateCount: number;
     membershipTierName?: string;
     membershipDiscountPercent?: number;
+    loyaltyPoints: number;
 }
 
 export interface UpdateProfilePayload {

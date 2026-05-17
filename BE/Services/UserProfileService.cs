@@ -31,7 +31,8 @@ public class UserProfileService : IUserProfileService
             Birthday = user.Birthday,
             BirthdayUpdateCount = user.BirthdayUpdateCount,
             MembershipTierName = user.Membership?.TierName,
-            MembershipDiscountPercent = user.Membership?.DiscountPercent
+            MembershipDiscountPercent = user.Membership?.DiscountPercent,
+            LoyaltyPoints = user.LoyaltyPoints
         };
     }
 
@@ -94,7 +95,8 @@ public class UserProfileService : IUserProfileService
             Birthday = user.Birthday,
             BirthdayUpdateCount = user.BirthdayUpdateCount,
             MembershipTierName = user.Membership?.TierName,
-            MembershipDiscountPercent = user.Membership?.DiscountPercent
+            MembershipDiscountPercent = user.Membership?.DiscountPercent,
+            LoyaltyPoints = user.LoyaltyPoints
         };
     }
 
@@ -122,7 +124,8 @@ public class UserProfileService : IUserProfileService
             IsActive = user.IsActive,
             AvatarUrl = user.AvatarUrl,
             MembershipTierName = user.Membership?.TierName,
-            MembershipDiscountPercent = user.Membership?.DiscountPercent
+            MembershipDiscountPercent = user.Membership?.DiscountPercent,
+            LoyaltyPoints = user.LoyaltyPoints
         };
     }
 
@@ -159,7 +162,8 @@ public class UserProfileService : IUserProfileService
             Birthday = user.Birthday,
             BirthdayUpdateCount = user.BirthdayUpdateCount,
             MembershipTierName = user.Membership?.TierName,
-            MembershipDiscountPercent = user.Membership?.DiscountPercent
+            MembershipDiscountPercent = user.Membership?.DiscountPercent,
+            LoyaltyPoints = user.LoyaltyPoints
         };
     }
 }
