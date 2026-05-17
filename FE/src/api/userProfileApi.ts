@@ -24,6 +24,11 @@ export interface UpdateProfilePayload {
     birthday?: string;
 }
 
+export interface ChangePasswordPayload {
+    currentPassword: string;
+    newPassword: string;
+}
+
 export const userProfileApi = {
     getMyProfile: async (): Promise<UserProfile> => {
         const response = await httpClient.get<UserProfile>('/UserProfile/my-profile');
@@ -32,6 +37,11 @@ export const userProfileApi = {
 
     updateProfile: async (payload: UpdateProfilePayload): Promise<UserProfile> => {
         const response = await httpClient.put<UserProfile>('/UserProfile/update-profile', payload);
+        return response.data;
+    },
+
+    changePassword: async (payload: ChangePasswordPayload): Promise<UserProfile> => {
+        const response = await httpClient.put<UserProfile>('/UserProfile/change-password', payload);
         return response.data;
     },
 
