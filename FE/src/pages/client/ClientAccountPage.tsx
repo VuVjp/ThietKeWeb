@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { UserCircleIcon, ArrowRightOnRectangleIcon, CalendarDaysIcon, ArrowPathIcon, CreditCardIcon, XMarkIcon, CheckCircleIcon, CameraIcon, SparklesIcon } from '@heroicons/react/24/outline';
+import { UserCircleIcon, ArrowRightOnRectangleIcon, CalendarDaysIcon, ArrowPathIcon, CreditCardIcon, XMarkIcon, CheckCircleIcon, CameraIcon, SparklesIcon, LockClosedIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import { receptionApi } from '../../api/receptionApi';
 import { userProfileApi } from '../../api/userProfileApi';
 import type { UserProfile } from '../../api/userProfileApi';
 import type { Booking } from '../../types/models';
-import { getAccessToken, clearAuthTokens } from '../../api/httpClient';
+import { getAccessToken } from '../../api/httpClient';
 import momoApi from '../../api/momoApi';
 import { useAppAuth } from '../../auth/useAppAuth';
 
@@ -18,6 +18,16 @@ export function ClientAccountPage() {
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+
+    const [pwdCurrent, setPwdCurrent] = useState('');
+    const [pwdNew, setPwdNew] = useState('');
+    const [pwdConfirm, setPwdConfirm] = useState('');
+    const [pwdSaving, setPwdSaving] = useState(false);
+
+    const [showCurrent, setShowCurrent] = useState(false);
+    const [showNew, setShowNew] = useState(false);
+    const [showConfirm, setShowConfirm] = useState(false);
+    const [showPasswordForm, setShowPasswordForm] = useState(false);
 
     const [formData, setFormData] = useState({
         fullName: '',
@@ -121,6 +131,49 @@ export function ClientAccountPage() {
             toast.error('Failed to update profile');
         } finally {
             setSaving(false);
+        }
+    };
+
+    const handleChangePassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+        
+        if (!pwdCurrent) {
+            toast.error('Please enter your current password');
+            return;
+        }
+        if (!pwdNew) {
+            toast.error('Please enter your new password');
+            return;
+        }
+        if (pwdNew.length < 6) {
+            toast.error('New password must be at least 6 characters long');
+            return;
+        }
+        if (pwdNew === pwdCurrent) {
+            toast.error('New password cannot be the same as your current password');
+            return;
+        }
+        if (pwdNew !== pwdConfirm) {
+            toast.error('Confirm password does not match');
+            return;
+        }
+        
+        setPwdSaving(true);
+        try {
+            await userProfileApi.changePassword({
+                currentPassword: pwdCurrent,
+                newPassword: pwdNew
+            });
+            toast.success('Password changed successfully!');
+            setPwdCurrent('');
+            setPwdNew('');
+            setPwdConfirm('');
+        } catch (error: any) {
+            console.error('Password change error:', error);
+            const errMsg = error.response?.data?.message || error.message || 'Incorrect current password';
+            toast.error(errMsg);
+        } finally {
+            setPwdSaving(false);
         }
     };
 
@@ -258,16 +311,255 @@ export function ClientAccountPage() {
                 <div className="flex-1">
                     {/* PROFILE TAB */}
                     {activeTab === 'profile' && (
-                        <div className="space-y-8">
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+                            {/* Personal Information & Change Password Column */}
+                            <div className="order-2 lg:order-1 lg:col-span-2 space-y-8">
+                                {/* Personal Information Card */}
+                                <div className="bg-white p-8 md:p-10 rounded-xl shadow-sm border border-slate-200">
+                                    <h2 className="text-2xl font-bold mb-8 border-b pb-4">Personal Information</h2>
+                                    
+                                    {/* Avatar Section */}
+                                    <div className="mb-10 flex flex-col sm:flex-row items-center gap-8 p-6 rounded-2xl bg-gradient-to-r from-slate-50 to-white border border-slate-100 shadow-sm relative overflow-hidden">
+                                        <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-50 rounded-full blur-3xl opacity-50 -mr-10 -mt-10"></div>
+                                        
+                                        <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+                                            <div className="w-36 h-36 rounded-full overflow-hidden border-4 border-white shadow-md bg-slate-100 flex items-center justify-center ring-4 ring-slate-50 transition-all duration-300 group-hover:shadow-xl">
+                                                {(avatarPreview || profile?.avatarUrl) && !imageError ? (
+                                                    <img 
+                                                        src={avatarPreview || profile?.avatarUrl || ''} 
+                                                        alt="Avatar" 
+                                                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                                        onError={() => setImageError(true)}
+                                                    />
+                                                ) : (
+                                                    <UserCircleIcon className="w-24 h-24 text-slate-300" />
+                                                )}
+                                                
+                                                {/* Hover Overlay */}
+                                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full flex flex-col items-center justify-center text-white">
+                                                    <CameraIcon className="w-8 h-8 mb-1" />
+                                                    <span className="text-xs font-semibold tracking-wider uppercase">Upload</span>
+                                                </div>
+                                            </div>
+                                            <input 
+                                                type="file" 
+                                                ref={fileInputRef}
+                                                onChange={handleAvatarChange}
+                                                className="hidden" 
+                                                accept="image/*"
+                                            />
+                                        </div>
+                                        <div className="text-center sm:text-left flex-1 z-10">
+                                            <h3 className="font-bold text-2xl text-slate-900 tracking-tight mb-1">{profile?.fullName || 'Your Profile'}</h3>
+                                            <p className="text-slate-500 text-sm mb-4">{profile?.email}</p>
+                                            <button 
+                                                type="button"
+                                                onClick={() => fileInputRef.current?.click()}
+                                                className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-full text-sm font-semibold text-slate-700 hover:text-cyan-600 hover:border-cyan-200 hover:bg-cyan-50 transition-all shadow-sm"
+                                            >
+                                                <ArrowPathIcon className="w-4 h-4" />
+                                                Update Photo
+                                            </button>
+                                        </div>
+                                        {avatarFile && (
+                                            <div className="sm:ml-auto animate-pulse flex flex-col items-center sm:items-end z-10">
+                                                <div className="flex items-center gap-2 text-emerald-700 bg-emerald-50 px-4 py-2 rounded-full border border-emerald-200 shadow-sm">
+                                                    <CheckCircleIcon className="w-5 h-5" />
+                                                    <span className="text-xs font-bold uppercase tracking-wide">Ready to save</span>
+                                                </div>
+                                                <span className="text-[11px] text-slate-400 mt-2 text-center sm:text-right w-full">
+                                                    Don't forget to click<br className="hidden sm:block" /> 'Save Changes'
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <form className="space-y-6 max-w-2xl" onSubmit={handleUpdateProfile}>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Full Name</label>
+                                            <input
+                                                type="text"
+                                                value={formData.fullName}
+                                                onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                                                className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:outline-none"
+                                                required
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Phone Number</label>
+                                            <input
+                                                type="tel"
+                                                value={formData.phone}
+                                                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                                                className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:outline-none"
+                                                required
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Birthday</label>
+                                            <input
+                                                type="date"
+                                                value={formData.birthday}
+                                                onChange={(e) => setFormData({ ...formData, birthday: e.target.value })}
+                                                className={`w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:outline-none ${(profile?.birthdayUpdateCount || 0) >= 1 ? 'cursor-not-allowed opacity-75' : ''}`}
+                                                disabled={(profile?.birthdayUpdateCount || 0) >= 1}
+                                            />
+                                            <p className="text-[10px] text-slate-500 mt-1 italic">
+                                                Enter your birthday to receive voucher offers on your birthday 🎉
+                                            </p>
+                                            {(profile?.birthdayUpdateCount || 0) >= 1 && (
+                                                <p className="text-[10px] text-red-500 mt-1">
+                                                    Birthday can only be set once. Please contact support if you need to change it.
+                                                </p>
+                                            )}
+                                        </div>
+                                        <div className="md:col-span-2">
+                                            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Email Address</label>
+                                            <input type="email" value={profile?.email || ''} disabled className="w-full px-4 py-3 bg-slate-100 border border-slate-300 rounded-lg text-slate-500 cursor-not-allowed" />
+                                            <p className="text-xs text-slate-500 mt-1">Contact support to change your email address.</p>
+                                        </div>
+                                    </div>
+                                    <div className="pt-6 flex flex-wrap gap-4 items-center">
+                                        <button
+                                            type="submit"
+                                            disabled={saving}
+                                            className="px-8 py-3 bg-cyan-600 text-white rounded-lg font-bold uppercase tracking-widest text-sm hover:bg-cyan-500 transition-colors shadow-md disabled:opacity-50"
+                                        >
+                                            {saving ? 'Saving...' : 'Save Changes'}
+                                        </button>
+                                        
+                                        {!showPasswordForm && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowPasswordForm(true)}
+                                                className="px-6 py-3 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-lg font-bold uppercase tracking-widest text-sm transition-colors shadow-sm flex items-center gap-2"
+                                            >
+                                                <LockClosedIcon className="w-4 h-4 text-cyan-600 animate-pulse" />
+                                                Change Password
+                                            </button>
+                                        )}
+                                    </div>
+                                </form>
+                                </div>
+
+                                {/* Change Password Card */}
+                                {showPasswordForm && (
+                                    <div className="bg-white p-8 md:p-10 rounded-xl shadow-sm border border-slate-200 transition-all duration-300 ease-in-out">
+                                        <h2 className="text-2xl font-bold mb-8 border-b pb-4 flex items-center gap-2">
+                                            <LockClosedIcon className="w-6 h-6 text-cyan-600 animate-bounce" />
+                                            Change Account Password
+                                        </h2>
+                                        <form className="space-y-6 max-w-2xl" onSubmit={handleChangePassword}>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                <div className="md:col-span-2">
+                                                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Current Password</label>
+                                                    <div className="relative">
+                                                        <input
+                                                            type={showCurrent ? 'text' : 'password'}
+                                                            value={pwdCurrent}
+                                                            onChange={(e) => setPwdCurrent(e.target.value)}
+                                                            className="w-full px-4 py-3 pr-12 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:outline-none"
+                                                            placeholder="Enter current password"
+                                                            required
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setShowCurrent(!showCurrent)}
+                                                            className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-cyan-600 transition-colors"
+                                                        >
+                                                            {showCurrent ? (
+                                                                <EyeSlashIcon className="w-5 h-5" />
+                                                            ) : (
+                                                                <EyeIcon className="w-5 h-5" />
+                                                            )}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">New Password</label>
+                                                    <div className="relative">
+                                                        <input
+                                                            type={showNew ? 'text' : 'password'}
+                                                            value={pwdNew}
+                                                            onChange={(e) => setPwdNew(e.target.value)}
+                                                            className="w-full px-4 py-3 pr-12 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:outline-none"
+                                                            placeholder="New password (minimum 6 characters)"
+                                                            required
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setShowNew(!showNew)}
+                                                            className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-cyan-600 transition-colors"
+                                                        >
+                                                            {showNew ? (
+                                                                <EyeSlashIcon className="w-5 h-5" />
+                                                            ) : (
+                                                                <EyeIcon className="w-5 h-5" />
+                                                            )}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Confirm New Password</label>
+                                                    <div className="relative">
+                                                        <input
+                                                            type={showConfirm ? 'text' : 'password'}
+                                                            value={pwdConfirm}
+                                                            onChange={(e) => setPwdConfirm(e.target.value)}
+                                                            className="w-full px-4 py-3 pr-12 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:outline-none"
+                                                            placeholder="Re-enter new password"
+                                                            required
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setShowConfirm(!showConfirm)}
+                                                            className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-cyan-600 transition-colors"
+                                                        >
+                                                            {showConfirm ? (
+                                                                <EyeSlashIcon className="w-5 h-5" />
+                                                            ) : (
+                                                                <EyeIcon className="w-5 h-5" />
+                                                            )}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="pt-2 flex flex-wrap gap-4 items-center">
+                                                <button
+                                                    type="submit"
+                                                    disabled={pwdSaving}
+                                                    className="px-8 py-3 bg-cyan-600 text-white rounded-lg font-bold uppercase tracking-widest text-sm hover:bg-cyan-500 transition-colors shadow-md disabled:opacity-50 flex items-center gap-2"
+                                                >
+                                                    {pwdSaving ? 'Updating...' : 'Update Password'}
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setShowPasswordForm(false);
+                                                        setPwdCurrent('');
+                                                        setPwdNew('');
+                                                        setPwdConfirm('');
+                                                    }}
+                                                    className="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-bold uppercase tracking-widest text-sm transition-colors shadow-sm"
+                                                >
+                                                    Cancel
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                )}
+                            </div>
+
                             {/* Membership Banner */}
-                            <div className="bg-gradient-to-br from-slate-900 to-slate-800 p-8 rounded-xl shadow-lg border border-slate-700 relative overflow-hidden">
+                            <div className="order-1 lg:order-2 lg:col-span-1 bg-gradient-to-br from-slate-900 to-slate-800 p-8 rounded-xl shadow-lg border border-slate-700 relative overflow-hidden">
                                 {/* Decorative Background element */}
                                 <div className="absolute -right-8 -top-8 text-white/5 transform rotate-12">
                                     <SparklesIcon className="w-48 h-48" />
                                 </div>
                                 <div className="relative z-10">
                                     <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Current Membership</h3>
-                                    <div className="flex items-center gap-4">
+                                    <div className="flex flex-wrap items-center gap-4">
                                         <span className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">
                                             {profile?.membershipTierName || 'Standard Tier'}
                                         </span>
@@ -305,123 +597,6 @@ export function ClientAccountPage() {
                                         )}
                                     </div>
                                 </div>
-                            </div>
-
-                            <div className="bg-white p-8 md:p-10 rounded-xl shadow-sm border border-slate-200">
-                                <h2 className="text-2xl font-bold mb-8 border-b pb-4">Personal Information</h2>
-                                
-                                {/* Avatar Section */}
-                                <div className="mb-10 flex flex-col sm:flex-row items-center gap-8 p-6 rounded-2xl bg-gradient-to-r from-slate-50 to-white border border-slate-100 shadow-sm relative overflow-hidden">
-                                    <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-50 rounded-full blur-3xl opacity-50 -mr-10 -mt-10"></div>
-                                    
-                                    <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
-                                        <div className="w-36 h-36 rounded-full overflow-hidden border-4 border-white shadow-md bg-slate-100 flex items-center justify-center ring-4 ring-slate-50 transition-all duration-300 group-hover:shadow-xl">
-                                            {(avatarPreview || profile?.avatarUrl) && !imageError ? (
-                                                <img 
-                                                    src={avatarPreview || profile?.avatarUrl || ''} 
-                                                    alt="Avatar" 
-                                                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                                                    onError={() => setImageError(true)}
-                                                />
-                                            ) : (
-                                                <UserCircleIcon className="w-24 h-24 text-slate-300" />
-                                            )}
-                                            
-                                            {/* Hover Overlay */}
-                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full flex flex-col items-center justify-center text-white">
-                                                <CameraIcon className="w-8 h-8 mb-1" />
-                                                <span className="text-xs font-semibold tracking-wider uppercase">Upload</span>
-                                            </div>
-                                        </div>
-                                        <input 
-                                            type="file" 
-                                            ref={fileInputRef}
-                                            onChange={handleAvatarChange}
-                                            className="hidden" 
-                                            accept="image/*"
-                                        />
-                                    </div>
-                                    <div className="text-center sm:text-left flex-1 z-10">
-                                        <h3 className="font-bold text-2xl text-slate-900 tracking-tight mb-1">{profile?.fullName || 'Your Profile'}</h3>
-                                        <p className="text-slate-500 text-sm mb-4">{profile?.email}</p>
-                                        <button 
-                                            type="button"
-                                            onClick={() => fileInputRef.current?.click()}
-                                            className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-full text-sm font-semibold text-slate-700 hover:text-cyan-600 hover:border-cyan-200 hover:bg-cyan-50 transition-all shadow-sm"
-                                        >
-                                            <ArrowPathIcon className="w-4 h-4" />
-                                            Update Photo
-                                        </button>
-                                    </div>
-                                    {avatarFile && (
-                                        <div className="sm:ml-auto animate-pulse flex flex-col items-center sm:items-end z-10">
-                                            <div className="flex items-center gap-2 text-emerald-700 bg-emerald-50 px-4 py-2 rounded-full border border-emerald-200 shadow-sm">
-                                                <CheckCircleIcon className="w-5 h-5" />
-                                                <span className="text-xs font-bold uppercase tracking-wide">Ready to save</span>
-                                            </div>
-                                            <span className="text-[11px] text-slate-400 mt-2 text-center sm:text-right w-full">
-                                                Don't forget to click<br className="hidden sm:block" /> 'Save Changes'
-                                            </span>
-                                        </div>
-                                    )}
-                                </div>
-
-                                <form className="space-y-6 max-w-2xl" onSubmit={handleUpdateProfile}>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Full Name</label>
-                                        <input
-                                            type="text"
-                                            value={formData.fullName}
-                                            onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:outline-none"
-                                            required
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Phone Number</label>
-                                        <input
-                                            type="tel"
-                                            value={formData.phone}
-                                            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:outline-none"
-                                            required
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Birthday</label>
-                                        <input
-                                            type="date"
-                                            value={formData.birthday}
-                                            onChange={(e) => setFormData({ ...formData, birthday: e.target.value })}
-                                            className={`w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:outline-none ${(profile?.birthdayUpdateCount || 0) >= 1 ? 'cursor-not-allowed opacity-75' : ''}`}
-                                            disabled={(profile?.birthdayUpdateCount || 0) >= 1}
-                                        />
-                                        <p className="text-[10px] text-slate-500 mt-1 italic">
-                                            Enter your birthday to receive voucher offers on your birthday 🎉
-                                        </p>
-                                        {(profile?.birthdayUpdateCount || 0) >= 1 && (
-                                            <p className="text-[10px] text-red-500 mt-1">
-                                                Birthday can only be set once. Please contact support if you need to change it.
-                                            </p>
-                                        )}
-                                    </div>
-                                    <div className="md:col-span-2">
-                                        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Email Address</label>
-                                        <input type="email" value={profile?.email || ''} disabled className="w-full px-4 py-3 bg-slate-100 border border-slate-300 rounded-lg text-slate-500 cursor-not-allowed" />
-                                        <p className="text-xs text-slate-500 mt-1">Contact support to change your email address.</p>
-                                    </div>
-                                </div>
-                                <div className="pt-6">
-                                    <button
-                                        type="submit"
-                                        disabled={saving}
-                                        className="px-8 py-3 bg-cyan-600 text-white rounded-lg font-bold uppercase tracking-widest text-sm hover:bg-cyan-500 transition-colors shadow-md disabled:opacity-50"
-                                    >
-                                        {saving ? 'Saving...' : 'Save Changes'}
-                                    </button>
-                                </div>
-                            </form>
                             </div>
                         </div>
                     )}
