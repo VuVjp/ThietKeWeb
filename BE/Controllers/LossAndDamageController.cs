@@ -32,13 +32,12 @@ public class LossAndDamageController : ControllerBase
     public async Task<IActionResult> GetAll() => Ok(await _service.GetAllAsync());
 
     [HttpGet("room/{roomId}")]
-    [Permission(PermissionNames.ApproveLoss)]
-
+    [Permission(PermissionNames.UpdateCleaning)]
     public async Task<IActionResult> GetByRoom(int roomId) => Ok(await _service.GetByRoomAsync(roomId));
 
     [HttpPost]
     [Consumes("application/json")]
-    [Permission(PermissionNames.ApproveLoss)]
+    [Permission(PermissionNames.UpdateCleaning)]
     public async Task<IActionResult> Create([FromBody] CreateLossAndDamageDto dto)
     {
         var ok = await _service.CreateAsync(dto);
@@ -47,7 +46,7 @@ public class LossAndDamageController : ControllerBase
 
     [HttpPost("with-image")]
     [Consumes("multipart/form-data")]
-    [Permission(PermissionNames.ApproveLoss)]
+    [Permission(PermissionNames.UpdateCleaning)]
     public async Task<IActionResult> CreateWithImage([FromForm] CreateLossAndDamageWithImageFormDto form)
     {
         var dto = new CreateLossAndDamageDto
