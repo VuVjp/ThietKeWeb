@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
-import DOMPurify from "dompurify";
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { CalendarDaysIcon, TagIcon, ArrowLeftIcon, ShareIcon, BookmarkIcon, UserIcon, PhotoIcon } from '@heroicons/react/24/outline';
+import { CalendarDaysIcon, ArrowLeftIcon, ShareIcon, BookmarkIcon, UserIcon, PhotoIcon } from '@heroicons/react/24/outline';
 import { articleService } from '../../modules/article/services/articleService';
 import type { ArticleItem } from '../../modules/article/types/article.types';
 import { AttractionCard } from '../../components/AttractionCard';

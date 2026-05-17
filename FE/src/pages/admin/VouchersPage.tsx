@@ -11,7 +11,6 @@ import type { Voucher } from '../../types/models';
 import { toApiError } from '../../api/httpClient';
 import {
   vouchersApi,
-  type CreateVoucherPayload,
 } from '../../api/vouchersApi';
 import { Input } from '../../components/Input';
 import { Select } from '../../components/Select';

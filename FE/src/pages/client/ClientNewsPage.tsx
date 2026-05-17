@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import DOMPurify from "dompurify";
 import { TagIcon, ArrowRightIcon, MagnifyingGlassIcon, PhotoIcon } from '@heroicons/react/24/outline';
 
 import { articleService } from '../../modules/article/services/articleService';
