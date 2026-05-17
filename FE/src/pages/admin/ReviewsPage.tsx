@@ -212,6 +212,29 @@ export function ReviewsPage() {
                     }
                 };
 
+                const isClickable = row.status !== 'Pending';
+
+                return (
+                    <button
+                        type="button"
+                        disabled={!isClickable}
+                        style={{ cursor: isClickable ? 'pointer' : 'default' }}
+                        onClick={() => {
+                            if (isClickable) {
+                                void toggleStatus(row);
+                            }
+                        }}
+                        title={isClickable ? "Toggle Status" : undefined}
+                    >
+                        <Badge value={row.status || (row.isActive ? 'Active' : 'Inactive')} color={getStatusColor(row.status)} />
+                    </button>
+                );
+            },
+        },
+        {
+            key: 'actions',
+            label: 'Actions',
+            render: (row: ReviewItem) => {
                 if (row.status === 'Pending') {
                     return (
                         <div className="flex gap-2">
@@ -230,17 +253,7 @@ export function ReviewsPage() {
                         </div>
                     );
                 }
-
-                return (
-                    <button
-                        type="button"
-                        style={{ cursor: 'pointer' }}
-                        onClick={() => void toggleStatus(row)}
-                        title="Toggle Status"
-                    >
-                        <Badge value={row.status || (row.isActive ? 'Active' : 'Inactive')} color={getStatusColor(row.status)} />
-                    </button>
-                );
+                return <span className="text-slate-400">-</span>;
             },
         },
     ];
