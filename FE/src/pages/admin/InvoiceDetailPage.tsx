@@ -200,8 +200,8 @@ export function InvoiceDetailPage() {
                                     <label
                                         key={room.id}
                                         className={`flex items-center justify-between p-3 rounded-xl border-2 transition cursor-pointer ${selectedRoomIds.includes(room.id)
-                                                ? 'border-cyan-600 bg-cyan-50'
-                                                : 'border-slate-100 hover:border-slate-200'
+                                            ? 'border-cyan-600 bg-cyan-50'
+                                            : 'border-slate-100 hover:border-slate-200'
                                             }`}
                                     >
                                         <div className="flex items-center gap-3">
@@ -381,7 +381,10 @@ export function InvoiceDetailPage() {
                                             <p className="text-xs text-slate-500">{room.roomType}</p>
                                         </td>
                                         <td className="py-4">
-                                            <p>{new Date(room.checkIn).toLocaleDateString()} - {new Date(room.actualCheckOut || room.checkOut).toLocaleDateString()}</p>
+                                            <p>{new Date(room.checkIn).toLocaleDateString()} - {new Date(room.checkOut).toLocaleDateString()}</p>
+                                            {room.actualCheckOut && (
+                                                <p className="text-[10px] text-emerald-600 font-bold uppercase italic">Checked out on: {new Date(room.actualCheckOut).toLocaleDateString()}</p>
+                                            )}
                                         </td>
                                         <td className="py-4 text-right">${room.pricePerNight.toLocaleString()}</td>
                                         <td className="py-4 text-right font-medium">${room.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
