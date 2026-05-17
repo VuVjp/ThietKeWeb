@@ -176,7 +176,7 @@ export const AppRouter = () => {
                         <Route path="admin/reception/order-services/:id" element={<OrderServiceDetailPage />} />
                         <Route path="admin/reception/order-services/:id/add-service" element={<AddServiceToOrderPage />} />
                     </Route>
-                    <Route element={<RequireAnyPermission permissions={['MANAGE_BOOKINGS']} />}>
+                    <Route element={<RequirePermission permission="MANAGE_INVOICE" />}>
                         <Route path="admin/invoices" element={<InvoicesPage />} />
                         <Route path="admin/invoices/:id" element={<InvoiceDetailPage />} />
                     </Route>

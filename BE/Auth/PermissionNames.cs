@@ -2,6 +2,7 @@ namespace HotelManagement;
 
 public static class PermissionNames
 {
+    public const string ManageInvoice = "MANAGE_INVOICE";
     public const string ViewFullAuditLogs = "VIEW_FULL_AUDIT_LOGS";
     public const string ViewDashboard = "VIEW_DASHBOARD";
     public const string ManageUsers = "MANAGE_USERS";

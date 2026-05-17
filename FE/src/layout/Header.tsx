@@ -1,5 +1,5 @@
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
-import { Bars3Icon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { Bars3Icon, MagnifyingGlassIcon, GlobeAltIcon } from '@heroicons/react/24/outline';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { NotificationBell } from '../components/NotificationBell';
@@ -47,6 +47,16 @@ export function Header({ onSidebarToggle, onMobileToggle, onSearchChange, notifi
         </div>
 
         <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => navigate('/')}
+            className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:text-cyan-700 transition"
+            title="Home Page"
+          >
+            <GlobeAltIcon className="h-5 w-5 text-slate-500 hover:text-cyan-600 transition" />
+            {/* <span className="hidden sm:inline"></span> */}
+          </button>
+
           <NotificationBell
             notifications={notifications}
             unreadCount={unreadCount}

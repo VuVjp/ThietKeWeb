@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { HomeIcon, BuildingOffice2Icon, ArchiveBoxIcon, ExclamationTriangleIcon, SparklesIcon, UsersIcon, ShieldCheckIcon, WrenchScrewdriverIcon, Squares2X2Icon, RectangleStackIcon, ChevronDownIcon, CalendarDaysIcon, TicketIcon, StarIcon, CubeIcon } from '@heroicons/react/24/outline';
+import { HomeIcon, BuildingOffice2Icon, ArchiveBoxIcon, ExclamationTriangleIcon, SparklesIcon, UsersIcon, ShieldCheckIcon, WrenchScrewdriverIcon, Squares2X2Icon, RectangleStackIcon, ChevronDownIcon, CalendarDaysIcon, TicketIcon, StarIcon, CubeIcon, BanknotesIcon } from '@heroicons/react/24/outline';
 import { NavLink, useLocation } from 'react-router-dom';
 import type { AppPermission } from '../auth/auth.types';
 import { useAppAuth } from '../auth/useAppAuth';
@@ -35,9 +35,9 @@ const navItems: SidebarNavItem[] = [
       { to: '/admin/reception/in-house', label: 'In-House Guests', permissions: ['MANAGE_BOOKINGS'] as AppPermission[] },
       { to: '/admin/reception/bookings', label: 'All Bookings', permissions: ['MANAGE_BOOKINGS'] as AppPermission[] },
       { to: '/admin/reception/order-services', label: 'Service Orders', permissions: ['MANAGE_SERVICES'] as AppPermission[] },
-      { to: '/admin/invoices', label: 'Invoices', permissions: ['MANAGE_BOOKINGS'] as AppPermission[] },
     ]
   },
+  { to: '/admin/invoices', label: 'Invoices', icon: BanknotesIcon, permissions: ['MANAGE_INVOICE'] as AppPermission[] },
   {
     label: 'Services',
     icon: CubeIcon,
