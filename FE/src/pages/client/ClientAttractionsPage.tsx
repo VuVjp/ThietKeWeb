@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { attractionsApi, type Attraction } from '../../api/attractionsApi';
 import { Spin } from 'antd';
-import { MapIcon, ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline';
+import { MapIcon, ArrowTopRightOnSquareIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import { AttractionCard } from '../../components/AttractionCard';
 import { queryIncludes } from '../../utils/table';
