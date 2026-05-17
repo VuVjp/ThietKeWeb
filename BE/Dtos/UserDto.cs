@@ -11,6 +11,9 @@ namespace HotelManagement.Dtos
         public string? AvatarUrl { get; set; }
         public DateTime? Birthday { get; set; }
         public int BirthdayUpdateCount { get; set; }
+        public string? MembershipTierName { get; set; }
+        public decimal? MembershipDiscountPercent { get; set; }
+        public int LoyaltyPoints { get; set; }
     }
     public class validateUserResponseDto
     {

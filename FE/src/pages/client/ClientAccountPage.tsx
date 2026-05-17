@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { UserCircleIcon, ArrowRightOnRectangleIcon, CalendarDaysIcon, ArrowPathIcon, CreditCardIcon, XMarkIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { UserCircleIcon, ArrowRightOnRectangleIcon, CalendarDaysIcon, ArrowPathIcon, CreditCardIcon, XMarkIcon, CheckCircleIcon, CameraIcon, SparklesIcon } from '@heroicons/react/24/outline';
 import { receptionApi } from '../../api/receptionApi';
 import { userProfileApi } from '../../api/userProfileApi';
 import type { UserProfile } from '../../api/userProfileApi';
@@ -24,6 +24,11 @@ export function ClientAccountPage() {
         phone: '',
         birthday: ''
     });
+
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [avatarFile, setAvatarFile] = useState<File | null>(null);
+    const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+    const [imageError, setImageError] = useState(false);
 
     const [bookingToCancel, setBookingToCancel] = useState<number | null>(null);
     const [isCancelling, setIsCancelling] = useState(false);
@@ -67,6 +72,20 @@ export function ClientAccountPage() {
         navigate('/');
     };
 
+    const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setAvatarFile(file);
+        setImageError(false); // Reset error state
+        
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setAvatarPreview(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+    };
+
     const handleUpdateProfile = async (e: React.FormEvent) => {
         e.preventDefault();
         setSaving(true);
@@ -76,9 +95,27 @@ export function ClientAccountPage() {
                 phone: formData.phone,
                 birthday: formData.birthday || undefined
             };
-            const updated = await userProfileApi.updateProfile(payload);
-            setProfile(updated);
-            toast.success('Profile updated successfully!');
+            
+            let finalProfile = await userProfileApi.updateProfile(payload);
+            
+            if (avatarFile) {
+                try {
+                    const updatedWithAvatar = await userProfileApi.uploadAvatar(avatarFile);
+                    finalProfile = updatedWithAvatar;
+                    setAvatarFile(null);
+                    setAvatarPreview(null);
+                    setImageError(false); // Reset image error for the newly uploaded avatar
+                } catch (avatarError) {
+                    console.error('Error uploading avatar:', avatarError);
+                    toast.error('Profile info saved, but avatar upload failed.');
+                }
+            }
+
+            setProfile(finalProfile);
+            toast.success(`Profile updated! Avatar: ${finalProfile.avatarUrl ? 'Saved' : 'Missing'}`);
+            if (finalProfile.avatarUrl) {
+                console.log('New Avatar URL:', finalProfile.avatarUrl);
+            }
         } catch (error) {
             console.error('Error updating profile:', error);
             toast.error('Failed to update profile');
@@ -150,6 +187,31 @@ export function ClientAccountPage() {
         );
     }
 
+    const currentPoints = profile?.loyaltyPoints || 0;
+    const currentTier = (profile?.membershipTierName || 'Bronze').toLowerCase();
+    
+    let nextTierName = '';
+    let nextTierMinPoints = 0;
+    let progressPercent = 0;
+
+    if (currentTier.includes('platinum')) {
+        nextTierName = 'Max Tier';
+        nextTierMinPoints = 10000;
+        progressPercent = 100;
+    } else if (currentTier.includes('gold')) {
+        nextTierName = 'Platinum';
+        nextTierMinPoints = 10000;
+        progressPercent = Math.max(0, Math.min(((currentPoints - 5000) / 5000) * 100, 100));
+    } else if (currentTier.includes('silver')) {
+        nextTierName = 'Gold';
+        nextTierMinPoints = 5000;
+        progressPercent = Math.max(0, Math.min(((currentPoints - 1000) / 4000) * 100, 100));
+    } else {
+        nextTierName = 'Silver';
+        nextTierMinPoints = 1000;
+        progressPercent = Math.max(0, Math.min((currentPoints / 1000) * 100, 100));
+    }
+
     return (
         <div className="w-full bg-[#f4f7f6] min-h-screen pb-24 font-sans text-slate-800">
             {/* Header */}
@@ -196,9 +258,115 @@ export function ClientAccountPage() {
                 <div className="flex-1">
                     {/* PROFILE TAB */}
                     {activeTab === 'profile' && (
-                        <div className="bg-white p-8 md:p-10 rounded-xl shadow-sm border border-slate-200">
-                            <h2 className="text-2xl font-bold mb-8 border-b pb-4">Personal Information</h2>
-                            <form className="space-y-6 max-w-2xl" onSubmit={handleUpdateProfile}>
+                        <div className="space-y-8">
+                            {/* Membership Banner */}
+                            <div className="bg-gradient-to-br from-slate-900 to-slate-800 p-8 rounded-xl shadow-lg border border-slate-700 relative overflow-hidden">
+                                {/* Decorative Background element */}
+                                <div className="absolute -right-8 -top-8 text-white/5 transform rotate-12">
+                                    <SparklesIcon className="w-48 h-48" />
+                                </div>
+                                <div className="relative z-10">
+                                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Current Membership</h3>
+                                    <div className="flex items-center gap-4">
+                                        <span className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">
+                                            {profile?.membershipTierName || 'Standard Tier'}
+                                        </span>
+                                        {profile?.membershipDiscountPercent ? (
+                                            <span className="bg-cyan-500/10 text-cyan-400 text-xs font-bold px-3 py-1 rounded-full border border-cyan-500/20 shadow-inner">
+                                                {profile.membershipDiscountPercent}% Room Discount
+                                            </span>
+                                        ) : null}
+                                    </div>
+                                    <p className="text-slate-500 text-sm mt-3">
+                                        Your discount is automatically applied to all eligible room bookings.
+                                    </p>
+                                    
+                                    {/* Progress Bar to Next Membership Tier */}
+                                    <div className="mt-6 border-t border-slate-700/50 pt-5">
+                                        <div className="flex justify-between items-center text-xs font-bold text-slate-400 mb-2">
+                                            <span>{currentPoints.toLocaleString()} Points</span>
+                                            {nextTierName !== 'Max Tier' ? (
+                                                <span className="text-cyan-400">{Math.max(0, nextTierMinPoints - currentPoints).toLocaleString()} points to {nextTierName}</span>
+                                            ) : (
+                                                <span className="text-emerald-400">✨ Highest Tier Reached</span>
+                                            )}
+                                        </div>
+                                        <div className="w-full bg-slate-700/50 h-2.5 rounded-full overflow-hidden p-0.5 border border-slate-700/30">
+                                            <div 
+                                                className="bg-gradient-to-r from-cyan-400 to-blue-500 h-full rounded-full transition-all duration-1000 ease-out" 
+                                                style={{ width: `${progressPercent}%` }}
+                                            ></div>
+                                        </div>
+                                        {nextTierName !== 'Max Tier' && (
+                                            <div className="flex justify-between text-[10px] text-slate-500 mt-2 font-semibold">
+                                                <span>{profile?.membershipTierName || 'Bronze'}</span>
+                                                <span>{nextTierName} ({nextTierMinPoints.toLocaleString()} pts)</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="bg-white p-8 md:p-10 rounded-xl shadow-sm border border-slate-200">
+                                <h2 className="text-2xl font-bold mb-8 border-b pb-4">Personal Information</h2>
+                                
+                                {/* Avatar Section */}
+                                <div className="mb-10 flex flex-col sm:flex-row items-center gap-8 p-6 rounded-2xl bg-gradient-to-r from-slate-50 to-white border border-slate-100 shadow-sm relative overflow-hidden">
+                                    <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-50 rounded-full blur-3xl opacity-50 -mr-10 -mt-10"></div>
+                                    
+                                    <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+                                        <div className="w-36 h-36 rounded-full overflow-hidden border-4 border-white shadow-md bg-slate-100 flex items-center justify-center ring-4 ring-slate-50 transition-all duration-300 group-hover:shadow-xl">
+                                            {(avatarPreview || profile?.avatarUrl) && !imageError ? (
+                                                <img 
+                                                    src={avatarPreview || profile?.avatarUrl || ''} 
+                                                    alt="Avatar" 
+                                                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                                    onError={() => setImageError(true)}
+                                                />
+                                            ) : (
+                                                <UserCircleIcon className="w-24 h-24 text-slate-300" />
+                                            )}
+                                            
+                                            {/* Hover Overlay */}
+                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full flex flex-col items-center justify-center text-white">
+                                                <CameraIcon className="w-8 h-8 mb-1" />
+                                                <span className="text-xs font-semibold tracking-wider uppercase">Upload</span>
+                                            </div>
+                                        </div>
+                                        <input 
+                                            type="file" 
+                                            ref={fileInputRef}
+                                            onChange={handleAvatarChange}
+                                            className="hidden" 
+                                            accept="image/*"
+                                        />
+                                    </div>
+                                    <div className="text-center sm:text-left flex-1 z-10">
+                                        <h3 className="font-bold text-2xl text-slate-900 tracking-tight mb-1">{profile?.fullName || 'Your Profile'}</h3>
+                                        <p className="text-slate-500 text-sm mb-4">{profile?.email}</p>
+                                        <button 
+                                            type="button"
+                                            onClick={() => fileInputRef.current?.click()}
+                                            className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-full text-sm font-semibold text-slate-700 hover:text-cyan-600 hover:border-cyan-200 hover:bg-cyan-50 transition-all shadow-sm"
+                                        >
+                                            <ArrowPathIcon className="w-4 h-4" />
+                                            Update Photo
+                                        </button>
+                                    </div>
+                                    {avatarFile && (
+                                        <div className="sm:ml-auto animate-pulse flex flex-col items-center sm:items-end z-10">
+                                            <div className="flex items-center gap-2 text-emerald-700 bg-emerald-50 px-4 py-2 rounded-full border border-emerald-200 shadow-sm">
+                                                <CheckCircleIcon className="w-5 h-5" />
+                                                <span className="text-xs font-bold uppercase tracking-wide">Ready to save</span>
+                                            </div>
+                                            <span className="text-[11px] text-slate-400 mt-2 text-center sm:text-right w-full">
+                                                Don't forget to click<br className="hidden sm:block" /> 'Save Changes'
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <form className="space-y-6 max-w-2xl" onSubmit={handleUpdateProfile}>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div>
                                         <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Full Name</label>
@@ -254,6 +422,7 @@ export function ClientAccountPage() {
                                     </button>
                                 </div>
                             </form>
+                            </div>
                         </div>
                     )}
 
