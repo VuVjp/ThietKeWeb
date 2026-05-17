@@ -30,7 +30,7 @@ export function ClientBookingPage() {
     // Pagination for rooms
     const [suggestedRoomPage, setSuggestedRoomPage] = useState(1);
     const [otherRoomPage, setOtherRoomPage] = useState(1);
-    const roomsPerPage = 8;
+    const roomsPerPage = 4;
 
     // Dropdown selection for other rooms
     const [selectedOtherRoomTypeName, setSelectedOtherRoomTypeName] = useState<string>('');
@@ -440,7 +440,7 @@ export function ClientBookingPage() {
                                                 <h3 className="text-sm font-bold text-slate-500 uppercase tracking-widest mt-6 mb-4">
                                                     Recommended: {selectedRoomType?.name}
                                                 </h3>
-                                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 min-h-[600px] sm:min-h-[450px] md:min-h-[300px] content-start">
+                                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 min-h-[120px] content-start">
                                                     {pagedSuggested.map((room) => {
                                                         const isSelected = selectedRoomIds.includes(room.roomId);
                                                         return (
@@ -528,7 +528,7 @@ export function ClientBookingPage() {
 
                                                 {activeOtherType && (
                                                     <div className="space-y-4 animate-in fade-in duration-300">
-                                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 min-h-[150px] content-start">
+                                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 min-h-[120px] content-start">
                                                             {pagedRooms.map((room) => {
                                                                 const isSelected = selectedRoomIds.includes(room.roomId);
                                                                 return (
