@@ -22,7 +22,7 @@ public class EquipmentService : IEquipmentService
     public async Task<EquipmentDto?> GetByIdAsync(int id)
     {
         var entity = await _repo.GetByIdAsync(id);
-        if (entity == null || !entity.IsActive)
+        if (entity == null)
         {
             throw new NotFoundException($"Equipment with ID {id} not found.");
         }
@@ -134,7 +134,7 @@ public class EquipmentService : IEquipmentService
     public async Task<bool> UpdateAsync(int id, UpdateEquipmentDto dto)
     {
         var entity = await _repo.GetByIdAsync(id);
-        if (entity == null || !entity.IsActive)
+        if (entity == null)
         {
             throw new NotFoundException($"Equipment with ID {id} not found.");
         }

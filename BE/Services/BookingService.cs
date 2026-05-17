@@ -412,9 +412,17 @@ public class BookingService : IBookingService
         }
         else if (status.Equals("Cancelled", StringComparison.OrdinalIgnoreCase))
         {
+            if (string.Equals(booking.Status, "CheckedIn", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException("Cannot cancel booking after check-in has occurred.");
+            }
+            if (string.Equals(booking.Status, "CheckedOut", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException("Cannot cancel booking after check-out has occurred.");
+            }
             if (booking.Status != "Confirmed" && booking.Status != "Pending")
             {
-                throw new InvalidOperationException($"Only pending or confirmed bookings can be cancelled.");
+                throw new InvalidOperationException("Only pending or confirmed bookings can be cancelled.");
             }
             foreach (var detail in booking.BookingDetails)
             {

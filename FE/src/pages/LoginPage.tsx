@@ -12,7 +12,6 @@ interface LoginLocationState {
 
 export function LoginPage() {
     const { login, loginWithGoogle, isAuthenticated, isAuthReady, user } = useAppAuth();
-    const navigate = useNavigate();
     const location = useLocation();
     const state = location.state as LoginLocationState | null;
 

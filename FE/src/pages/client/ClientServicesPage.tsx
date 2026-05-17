@@ -2,26 +2,14 @@ import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useEffect, useState } from 'react';
 import { servicesApi } from '../../api/servicesApi';
-import { receptionApi } from '../../api/receptionApi';
-import { orderServicesApi } from '../../api/orderServicesApi';
 import { useAppAuth } from '../../auth/useAppAuth';
-import type { Service, ActiveRoom } from '../../types/models';
-import { Modal } from '../../components/Modal';
-import { Select } from '../../components/Select';
+import type { Service } from '../../types/models';
 
 export function ClientServicesPage() {
     const navigate = useNavigate();
     const { isAuthenticated } = useAppAuth();
     const [services, setServices] = useState<Service[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-
-    // Booking state
-    const [showBookingModal, setShowBookingModal] = useState(false);
-    const [selectedService, setSelectedService] = useState<Service | null>(null);
-    const [myActiveRooms, setMyActiveRooms] = useState<ActiveRoom[]>([]);
-    const [selectedRoomDetailId, setSelectedRoomDetailId] = useState<number | ''>('');
-    const [isBooking, setIsBooking] = useState(false);
-    const [isLoadingRooms, setIsLoadingRooms] = useState(false);
 
     useEffect(() => {
         const fetchServices = async () => {
