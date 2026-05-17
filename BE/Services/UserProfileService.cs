@@ -157,7 +157,9 @@ public class UserProfileService : IUserProfileService
             IsActive = user.IsActive,
             AvatarUrl = user.AvatarUrl,
             Birthday = user.Birthday,
-            BirthdayUpdateCount = user.BirthdayUpdateCount
+            BirthdayUpdateCount = user.BirthdayUpdateCount,
+            MembershipTierName = user.Membership?.TierName,
+            MembershipDiscountPercent = user.Membership?.DiscountPercent
         };
     }
 }

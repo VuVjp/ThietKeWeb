@@ -1,11 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-<<<<<<< Updated upstream
-import { UserCircleIcon, ArrowRightOnRectangleIcon, CalendarDaysIcon, ArrowPathIcon, CreditCardIcon, XMarkIcon, CheckCircleIcon, CameraIcon } from '@heroicons/react/24/outline';
-=======
-import { UserCircleIcon, ArrowRightOnRectangleIcon, CalendarDaysIcon, ArrowPathIcon, CreditCardIcon, XMarkIcon, CheckCircleIcon, SparklesIcon } from '@heroicons/react/24/outline';
->>>>>>> Stashed changes
+import { UserCircleIcon, ArrowRightOnRectangleIcon, CalendarDaysIcon, ArrowPathIcon, CreditCardIcon, XMarkIcon, CheckCircleIcon, CameraIcon, SparklesIcon } from '@heroicons/react/24/outline';
 import { receptionApi } from '../../api/receptionApi';
 import { userProfileApi } from '../../api/userProfileApi';
 import type { UserProfile } from '../../api/userProfileApi';
@@ -237,68 +233,6 @@ export function ClientAccountPage() {
                 <div className="flex-1">
                     {/* PROFILE TAB */}
                     {activeTab === 'profile' && (
-<<<<<<< Updated upstream
-                        <div className="bg-white p-8 md:p-10 rounded-xl shadow-sm border border-slate-200">
-                            <h2 className="text-2xl font-bold mb-8 border-b pb-4">Personal Information</h2>
-                            
-                            {/* Avatar Section */}
-                            <div className="mb-10 flex flex-col sm:flex-row items-center gap-8 p-6 rounded-2xl bg-gradient-to-r from-slate-50 to-white border border-slate-100 shadow-sm relative overflow-hidden">
-                                <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-50 rounded-full blur-3xl opacity-50 -mr-10 -mt-10"></div>
-                                
-                                <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
-                                    <div className="w-36 h-36 rounded-full overflow-hidden border-4 border-white shadow-md bg-slate-100 flex items-center justify-center ring-4 ring-slate-50 transition-all duration-300 group-hover:shadow-xl">
-                                        {(avatarPreview || profile?.avatarUrl) && !imageError ? (
-                                            <img 
-                                                src={avatarPreview || profile?.avatarUrl || ''} 
-                                                alt="Avatar" 
-                                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                                                onError={() => setImageError(true)}
-                                            />
-                                        ) : (
-                                            <UserCircleIcon className="w-24 h-24 text-slate-300" />
-                                        )}
-                                        
-                                        {/* Hover Overlay */}
-                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full flex flex-col items-center justify-center text-white">
-                                            <CameraIcon className="w-8 h-8 mb-1" />
-                                            <span className="text-xs font-semibold tracking-wider uppercase">Upload</span>
-                                        </div>
-                                    </div>
-                                    <input 
-                                        type="file" 
-                                        ref={fileInputRef}
-                                        onChange={handleAvatarChange}
-                                        className="hidden" 
-                                        accept="image/*"
-                                    />
-                                </div>
-                                <div className="text-center sm:text-left flex-1 z-10">
-                                    <h3 className="font-bold text-2xl text-slate-900 tracking-tight mb-1">{profile?.fullName || 'Your Profile'}</h3>
-                                    <p className="text-slate-500 text-sm mb-4">{profile?.email}</p>
-                                    <button 
-                                        type="button"
-                                        onClick={() => fileInputRef.current?.click()}
-                                        className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-full text-sm font-semibold text-slate-700 hover:text-cyan-600 hover:border-cyan-200 hover:bg-cyan-50 transition-all shadow-sm"
-                                    >
-                                        <ArrowPathIcon className="w-4 h-4" />
-                                        Update Photo
-                                    </button>
-                                </div>
-                                {avatarFile && (
-                                    <div className="sm:ml-auto animate-pulse flex flex-col items-center sm:items-end z-10">
-                                        <div className="flex items-center gap-2 text-emerald-700 bg-emerald-50 px-4 py-2 rounded-full border border-emerald-200 shadow-sm">
-                                            <CheckCircleIcon className="w-5 h-5" />
-                                            <span className="text-xs font-bold uppercase tracking-wide">Ready to save</span>
-                                        </div>
-                                        <span className="text-[11px] text-slate-400 mt-2 text-center sm:text-right w-full">
-                                            Don't forget to click<br className="hidden sm:block" /> 'Save Changes'
-                                        </span>
-                                    </div>
-                                )}
-                            </div>
-
-                            <form className="space-y-6 max-w-2xl" onSubmit={handleUpdateProfile}>
-=======
                         <div className="space-y-8">
                             {/* Membership Banner */}
                             <div className="bg-gradient-to-br from-slate-900 to-slate-800 p-8 rounded-xl shadow-lg border border-slate-700 relative overflow-hidden">
@@ -326,8 +260,64 @@ export function ClientAccountPage() {
 
                             <div className="bg-white p-8 md:p-10 rounded-xl shadow-sm border border-slate-200">
                                 <h2 className="text-2xl font-bold mb-8 border-b pb-4">Personal Information</h2>
+                                
+                                {/* Avatar Section */}
+                                <div className="mb-10 flex flex-col sm:flex-row items-center gap-8 p-6 rounded-2xl bg-gradient-to-r from-slate-50 to-white border border-slate-100 shadow-sm relative overflow-hidden">
+                                    <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-50 rounded-full blur-3xl opacity-50 -mr-10 -mt-10"></div>
+                                    
+                                    <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+                                        <div className="w-36 h-36 rounded-full overflow-hidden border-4 border-white shadow-md bg-slate-100 flex items-center justify-center ring-4 ring-slate-50 transition-all duration-300 group-hover:shadow-xl">
+                                            {(avatarPreview || profile?.avatarUrl) && !imageError ? (
+                                                <img 
+                                                    src={avatarPreview || profile?.avatarUrl || ''} 
+                                                    alt="Avatar" 
+                                                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                                    onError={() => setImageError(true)}
+                                                />
+                                            ) : (
+                                                <UserCircleIcon className="w-24 h-24 text-slate-300" />
+                                            )}
+                                            
+                                            {/* Hover Overlay */}
+                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full flex flex-col items-center justify-center text-white">
+                                                <CameraIcon className="w-8 h-8 mb-1" />
+                                                <span className="text-xs font-semibold tracking-wider uppercase">Upload</span>
+                                            </div>
+                                        </div>
+                                        <input 
+                                            type="file" 
+                                            ref={fileInputRef}
+                                            onChange={handleAvatarChange}
+                                            className="hidden" 
+                                            accept="image/*"
+                                        />
+                                    </div>
+                                    <div className="text-center sm:text-left flex-1 z-10">
+                                        <h3 className="font-bold text-2xl text-slate-900 tracking-tight mb-1">{profile?.fullName || 'Your Profile'}</h3>
+                                        <p className="text-slate-500 text-sm mb-4">{profile?.email}</p>
+                                        <button 
+                                            type="button"
+                                            onClick={() => fileInputRef.current?.click()}
+                                            className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-full text-sm font-semibold text-slate-700 hover:text-cyan-600 hover:border-cyan-200 hover:bg-cyan-50 transition-all shadow-sm"
+                                        >
+                                            <ArrowPathIcon className="w-4 h-4" />
+                                            Update Photo
+                                        </button>
+                                    </div>
+                                    {avatarFile && (
+                                        <div className="sm:ml-auto animate-pulse flex flex-col items-center sm:items-end z-10">
+                                            <div className="flex items-center gap-2 text-emerald-700 bg-emerald-50 px-4 py-2 rounded-full border border-emerald-200 shadow-sm">
+                                                <CheckCircleIcon className="w-5 h-5" />
+                                                <span className="text-xs font-bold uppercase tracking-wide">Ready to save</span>
+                                            </div>
+                                            <span className="text-[11px] text-slate-400 mt-2 text-center sm:text-right w-full">
+                                                Don't forget to click<br className="hidden sm:block" /> 'Save Changes'
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+
                                 <form className="space-y-6 max-w-2xl" onSubmit={handleUpdateProfile}>
->>>>>>> Stashed changes
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div>
                                         <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Full Name</label>
