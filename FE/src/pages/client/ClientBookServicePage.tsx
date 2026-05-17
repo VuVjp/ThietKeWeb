@@ -92,8 +92,8 @@ export function ClientBookServicePage() {
                         const otherCat = activeCats.find(c => c.id !== primaryService.categoryId);
                         if (otherCat) {
                             setSelectedOtherCategoryId(otherCat.id);
-                        } else if (activeCats.length > 0) {
-                            setSelectedOtherCategoryId(activeCats[0].id);
+                        } else {
+                            setSelectedOtherCategoryId('');
                         }
                     }
                 } else if (activeCats.length > 0) {
@@ -265,8 +265,16 @@ export function ClientBookServicePage() {
     }
 
     return (
-        <div className="w-full min-h-screen bg-slate-50 pt-[100px] pb-24 font-sans">
-            <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="w-full bg-[#f4f7f6] min-h-screen pb-24 font-sans text-slate-800">
+            {/* Minimal Header Spacer */}
+            <div className="pt-[100px] pb-10 bg-slate-900 border-b-4 border-cyan-500">
+                <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12 text-center">
+                    <h1 className="text-3xl md:text-5xl font-bold text-white mb-2 uppercase tracking-tighter">Order Services</h1>
+                    <p className="text-cyan-400 text-xs font-bold uppercase tracking-[0.2em] mt-1">Elevate Your Stay Experience</p>
+                </div>
+            </div>
+
+            <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12 mt-12">
                 {/* Header Back Button */}
                 <div className="mb-8 flex items-center justify-between">
                     <Link to="/services" className="inline-flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors text-sm font-semibold">
@@ -499,11 +507,14 @@ export function ClientBookServicePage() {
                                         className="w-full text-xs h-[38px] rounded-xl"
                                     >
                                         <option value="">-- Select Category --</option>
-                                        {categories.map((cat) => (
-                                            <option key={cat.id} value={cat.id}>
-                                                {cat.name}
-                                            </option>
-                                        ))}
+                                        {categories
+                                            .filter(cat => cat.id !== primaryService?.categoryId)
+                                            .map((cat) => (
+                                                <option key={cat.id} value={cat.id}>
+                                                    {cat.name}
+                                                </option>
+                                            ))
+                                        }
                                     </Select>
                                 </div>
                             </div>
