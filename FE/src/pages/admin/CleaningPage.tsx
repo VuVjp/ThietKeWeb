@@ -281,7 +281,7 @@ export function CleaningPage() {
                     <span className="text-slate-400">No image</span>
                 ),
         },
-        { key: 'date', label: 'Date', render: (row: LossRecord) => row.date },
+        { key: 'date', label: 'Date', render: (row: LossRecord) => row.createdAt },
     ];
 
     const completeInspection = () => {

@@ -253,13 +253,7 @@ export function ClientBookServicePage() {
         return selectedServices.reduce((sum, item) => sum + (item.service.price * item.quantity), 0);
     }, [selectedServices]);
 
-    const serviceCharge = useMemo(() => {
-        return Math.round(subtotal * 0.05); // 5% service charge
-    }, [subtotal]);
 
-    const vat = useMemo(() => {
-        return Math.round(subtotal * 0.10); // 10% VAT
-    }, [subtotal]);
 
     const grandTotal = subtotal * selectedRooms.length;
 

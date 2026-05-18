@@ -24,8 +24,7 @@ L.Icon.Default.mergeOptions({
     shadowUrl: markerShadow,
 });
 
-const HOTEL_LAT = 10.9539722; // 10°57'14.3"N
-const HOTEL_LNG = 106.8019444; // 106°48'07.0"E
+
 
 function calculateDistanceAsKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
     const R = 6371; // Radius of the earth in km

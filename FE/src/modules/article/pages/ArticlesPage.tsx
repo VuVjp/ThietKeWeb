@@ -4,7 +4,6 @@ import toast from 'react-hot-toast';
 import {
     PencilSquareIcon,
     PlusIcon,
-    TrashIcon,
     MagnifyingGlassIcon,
     ArrowPathIcon,
 } from '@heroicons/react/24/outline';
@@ -149,7 +148,7 @@ export function ArticlesPage() {
 
     // Initial load only if not loaded
     useEffect(() => {
-        if (!ensure('MANAGE_ARTICLES')) return;
+        if (!ensure('MANAGE_ARTICLES', 'access articles page')) return;
         if (!useArticleStore.getState().isLoaded) {
             void loadArticles();
         }

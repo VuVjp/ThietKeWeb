@@ -28,7 +28,7 @@ import {
 } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import { dashboardApi } from '../../api/dashboardApi';
-import type { DashboardOverview, DashboardPendingService, DashboardRecentBooking, DashboardRoomTask, ManagerDashboard, DashboardMetricComparison } from '../../api/dashboardApi';
+import type { DashboardOverview, DashboardMetricComparison } from '../../api/dashboardApi';
 import { toApiError } from '../../api/httpClient';
 import toast from 'react-hot-toast';
 import { useAppAuth } from '../../auth/useAppAuth';
@@ -148,22 +148,24 @@ export function DashboardPage() {
     };
 
     const overview: DashboardOverview = stats?.overview ?? emptyOverview;
-    const managerExtras: ManagerDashboard = stats?.manager ?? {
-        pendingCleaningRequests: 0,
-        pendingServiceOrders: 0,
-        completedServiceOrders: 0,
-        totalLossPenalty: 0,
-        serviceRevenue: 0,
-        netProfit: 0,
-        pendingArticles: 0,
-        publishedArticles: 0,
+
+    const housekeeper = stats?.housekeeper ?? {
+        cleanedToday: 0,
+        cleanedInRange: 0,
+        cleaningRequests: 0,
+        inspectionRequests: 0,
         inspectingCount: 0,
         pendingCleaningRooms: [],
         inspectingRooms: [],
     };
-
-    const housekeeper = stats?.housekeeper ?? { cleanedToday: 0, cleanedInRange: 0, cleaningRequests: 0, inspectionRequests: 0, inspectingCount: 0 };
-    const accountant = stats?.accountant ?? { totalRevenue: 0, totalLossPenalty: 0, netProfit: 0, revenueChartData: [], topInvoices: [] };
+    const accountant = stats?.accountant ?? {
+        totalRevenue: 0,
+        totalLossPenalty: 0,
+        serviceRevenue: 0,
+        netProfit: 0,
+        revenueChartData: [],
+        topInvoices: [],
+    };
     const receptionist = stats?.receptionist ?? { publishedArticles: 0, pendingArticles: 0, pendingServiceOrders: 0, completedServiceOrders: 0, serviceQueue: [], pendingCleaningRooms: [], inspectingRooms: [] };
 
     const occupancy = overview.breakdown.occupancy;

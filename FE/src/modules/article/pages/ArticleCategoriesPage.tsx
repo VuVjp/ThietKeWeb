@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { PencilSquareIcon, PlusIcon, TrashIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import { PencilSquareIcon, PlusIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import { Table } from '../../../components/Table';
 import { Modal } from '../../../components/Modal';
 import { Input } from '../../../components/Input';
@@ -56,7 +56,7 @@ export function ArticleCategoriesPage() {
     }, []);
 
     useEffect(() => {
-        if (!ensure('MANAGE_ARTICLE_CATEGORY')) return;
+        if (!ensure('MANAGE_ARTICLE_CATEGORY', 'access categories page')) return;
         void loadCategories();
     }, [loadCategories, ensure]);
 
