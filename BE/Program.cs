@@ -111,7 +111,7 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddSignalR();
 
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-    ?? new[] { "http://localhost:5173", "http://localhost:5174" };
+    ?? new[] { "http://localhost:5173", "http://localhost:5174", "https://grandeurhotel8.vercel.app/" };
 
 builder.Services.AddCors(options =>
 {
