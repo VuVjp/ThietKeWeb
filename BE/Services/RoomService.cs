@@ -200,6 +200,16 @@ public class RoomService : IRoomService
 		{
 			room.CleaningStatus = "Inspecting";
 		}
+		if (room.CleaningStatus != null && room.CleaningStatus.Equals("Inspecting", StringComparison.OrdinalIgnoreCase) || string.Equals(targetStatus.ToLower(), "Cleaning", StringComparison.OrdinalIgnoreCase))
+		{
+			await _notificationService.SendByRoleAsync(RoleName.Housekeeping, new CreateNotificationDto
+			{
+				Title = $"{room.CleaningStatus} request for Room {room.RoomNumber}",
+				Content = $"{room.CleaningStatus} needed for Room {room.RoomNumber}",
+				Type = NotificationAction.CheckOut,
+				ReferenceLink = $"admin/rooms/{room.Id}"
+			});
+		}
 		room.Status = targetStatus;
 		_repository.Update(room);
 		await _repository.SaveChangesAsync();
@@ -213,8 +223,17 @@ public class RoomService : IRoomService
 		room.CleaningStatus = newCleaningStatus;
 		_repository.Update(room);
 		await _repository.SaveChangesAsync();
-
-		if (newCleaningStatus.Equals("Cleaning", StringComparison.OrdinalIgnoreCase) || 
+		if (newCleaningStatus != null && (newCleaningStatus.Equals("Inspecting", StringComparison.OrdinalIgnoreCase) || newCleaningStatus.Equals("Cleaning", StringComparison.OrdinalIgnoreCase)))
+		{
+			await _notificationService.SendByRoleAsync(RoleName.Housekeeping, new CreateNotificationDto
+			{
+				Title = $"{room.CleaningStatus} request for Room {room.RoomNumber}",
+				Content = $"{room.CleaningStatus} needed for Room {room.RoomNumber}",
+				Type = NotificationAction.CheckOut,
+				ReferenceLink = $"admin/rooms/{room.Id}"
+			});
+		}
+		if (newCleaningStatus.Equals("Cleaning", StringComparison.OrdinalIgnoreCase) ||
 			newCleaningStatus.Equals("Clean", StringComparison.OrdinalIgnoreCase))
 		{
 			// Find the most recent CheckedOut booking for this room
@@ -229,9 +248,9 @@ public class RoomService : IRoomService
 			if (booking != null)
 			{
 				// Check if ALL rooms in this booking are either Cleaning or Clean
-				bool allRoomsReady = booking.BookingDetails.All(bd => 
-					bd.Room != null && 
-					(bd.Room.CleaningStatus.Equals("Cleaning", StringComparison.OrdinalIgnoreCase) || 
+				bool allRoomsReady = booking.BookingDetails.All(bd =>
+					bd.Room != null &&
+					(bd.Room.CleaningStatus.Equals("Cleaning", StringComparison.OrdinalIgnoreCase) ||
 					 bd.Room.CleaningStatus.Equals("Clean", StringComparison.OrdinalIgnoreCase)));
 
 				if (allRoomsReady)

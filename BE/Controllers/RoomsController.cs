@@ -60,7 +60,18 @@ public class RoomsController : ControllerBase
 	public async Task<IActionResult> ToggleCleaningRequest(int id, [FromBody] bool requested)
 	{
 		await _service.ChangeCleaningRequestedAsync(id, requested);
-
+		if (requested)
+		{
+			await TryNotifyRolesAsync(
+				new[] { RoleName.Housekeeping },
+				new CreateNotificationDto
+				{
+					Title = "Cleaning requested",
+					Content = $"Room #{id} has a new cleaning request.",
+					Type = NotificationAction.RoomCleaningStatusChanged,
+					ReferenceLink = $"admin/rooms/{id}"
+				});
+		}
 		await TryNotifyRolesAsync(
 			new[] { RoleName.Manager, RoleName.Housekeeping },
 			new CreateNotificationDto
@@ -81,9 +92,9 @@ public class RoomsController : ControllerBase
 		try
 		{
 			await _service.ChangeCleaningRequestedAsync(id, false);
-
+			var rolesToNotify = new[] { RoleName.Manager, RoleName.Housekeeping };
 			await TryNotifyRolesAsync(
-				new[] { RoleName.Manager, RoleName.Housekeeping },
+				rolesToNotify,
 				new CreateNotificationDto
 				{
 					Title = "Cleaning completed",
@@ -232,8 +243,14 @@ public class RoomsController : ControllerBase
 		{
 			await _service.ChangeRoomCleaningStatusAsync(id, newCleaningStatus);
 
+			var rolesToNotify = new List<RoleName> { RoleName.Manager };
+			if (string.Equals(newCleaningStatus?.Trim(), "Inspecting", StringComparison.OrdinalIgnoreCase))
+			{
+				rolesToNotify.Add(RoleName.Housekeeping);
+			}
+
 			await TryNotifyRolesAsync(
-				new[] { RoleName.Manager, RoleName.Housekeeping },
+				rolesToNotify,
 				new CreateNotificationDto
 				{
 					Title = "Room cleaning status changed",

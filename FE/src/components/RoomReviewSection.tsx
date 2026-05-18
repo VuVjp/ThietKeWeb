@@ -43,8 +43,8 @@ export function RoomReviewSection({ roomTypeId, averageRating, reviewCount }: Ro
         if (!isAuthenticated || !user) return;
         try {
             const history = await receptionApi.getMyHistory();
-            const roomTypeBookings = history.filter(b => 
-                b.status === 'CheckedOut' && 
+            const roomTypeBookings = history.filter(b =>
+                b.status === 'CheckedOut' &&
                 b.roomTypeIds?.includes(roomTypeId)
             );
 
@@ -53,9 +53,9 @@ export function RoomReviewSection({ roomTypeId, averageRating, reviewCount }: Ro
                 // We only hide the review section if there are NO unreviewed bookings OR if all bookings have APPROVED reviews
                 const userReviews = reviews.filter(r => r.userId === user.id);
                 const approvedBookingIds = userReviews.filter(r => r.isActive).map(r => r.bookingId).filter(id => id !== undefined) as number[];
-                
+
                 const unapprovedBooking = roomTypeBookings.find(b => !approvedBookingIds.includes(b.id));
-                
+
                 if (unapprovedBooking) {
                     setIsEligible(true);
                     setEligibleBookingId(unapprovedBooking.id);
@@ -171,8 +171,8 @@ export function RoomReviewSection({ roomTypeId, averageRating, reviewCount }: Ro
                                         {star} <StarIconSolid className="w-3.5 h-3.5 text-amber-400" />
                                     </div>
                                     <div className="flex-1 h-3 bg-slate-100 rounded-full overflow-hidden">
-                                        <div 
-                                            className="h-full bg-amber-400 rounded-full transition-all duration-1000" 
+                                        <div
+                                            className="h-full bg-amber-400 rounded-full transition-all duration-1000"
                                             style={{ width: `${percentage}%` }}
                                         />
                                     </div>
@@ -191,8 +191,8 @@ export function RoomReviewSection({ roomTypeId, averageRating, reviewCount }: Ro
                 <div className="bg-gradient-to-r from-cyan-600 to-blue-700 rounded-3xl p-8 text-white shadow-xl shadow-cyan-900/20 flex flex-col md:flex-row items-center justify-between gap-6">
                     <div className="space-y-2 text-center md:text-left">
                         <h3 className="text-2xl font-bold">
-                            {reviews.some(r => r.userId === user?.id && r.bookingId === eligibleBookingId && !r.isActive) 
-                                ? 'Your review is pending approval' 
+                            {reviews.some(r => r.userId === user?.id && r.bookingId === eligibleBookingId && !r.isActive)
+                                ? 'Your review is pending approval'
                                 : 'Share your experience!'}
                         </h3>
                         <p className="text-cyan-50/80">
@@ -201,7 +201,7 @@ export function RoomReviewSection({ roomTypeId, averageRating, reviewCount }: Ro
                                 : 'Your feedback helps us improve and helps others choose their perfect stay.'}
                         </p>
                     </div>
-                    <button 
+                    <button
                         onClick={() => {
                             // If we already have a pending review for this booking, edit it instead
                             const pendingReview = reviews.find(r => r.userId === user?.id && r.bookingId === eligibleBookingId && !r.isActive);
@@ -241,8 +241,8 @@ export function RoomReviewSection({ roomTypeId, averageRating, reviewCount }: Ro
                             <label className="text-sm font-bold text-slate-500 uppercase tracking-wider">Your Rating</label>
                             <div className="flex gap-2">
                                 {[1, 2, 3, 4, 5].map((s) => (
-                                    <button 
-                                        key={s} 
+                                    <button
+                                        key={s}
                                         type="button"
                                         onClick={() => setRating(s)}
                                         className="transition-transform active:scale-90"
@@ -259,7 +259,7 @@ export function RoomReviewSection({ roomTypeId, averageRating, reviewCount }: Ro
 
                         <div className="space-y-3">
                             <label className="text-sm font-bold text-slate-500 uppercase tracking-wider">Your Experience</label>
-                            <textarea 
+                            <textarea
                                 className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 min-h-[150px] transition"
                                 placeholder="What did you like about this room? How was the service?"
                                 value={comment}
@@ -276,14 +276,14 @@ export function RoomReviewSection({ roomTypeId, averageRating, reviewCount }: Ro
                         </div>
 
                         <div className="flex gap-4">
-                            <button 
+                            <button
                                 type="submit"
                                 disabled={submitting}
                                 className="flex-1 bg-slate-900 text-white py-4 rounded-2xl font-black text-sm uppercase tracking-wider hover:bg-cyan-600 transition shadow-lg disabled:opacity-50"
                             >
                                 {submitting ? <Spin /> : (editingReviewId ? 'Update Review' : 'Submit Review')}
                             </button>
-                            <button 
+                            <button
                                 type="button"
                                 onClick={() => { setShowForm(false); setEditingReviewId(null); }}
                                 className="px-8 py-4 border border-slate-200 rounded-2xl font-bold text-slate-600 hover:bg-slate-50 transition"
@@ -306,14 +306,14 @@ export function RoomReviewSection({ roomTypeId, averageRating, reviewCount }: Ro
                     <div className="flex items-center gap-2">
                         <FunnelIcon className="w-4 h-4 text-slate-400" />
                         <div className="flex gap-2 bg-slate-100 p-1 rounded-xl">
-                            <button 
+                            <button
                                 onClick={() => setFilterRating(null)}
                                 className={`px-4 py-1.5 rounded-lg text-xs font-bold transition ${filterRating === null ? 'bg-white text-cyan-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                             >
                                 All
                             </button>
                             {[5, 4, 3, 2, 1].map(star => (
-                                <button 
+                                <button
                                     key={star}
                                     onClick={() => setFilterRating(star)}
                                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 ${filterRating === star ? 'bg-white text-cyan-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
@@ -368,7 +368,7 @@ export function RoomReviewSection({ roomTypeId, averageRating, reviewCount }: Ro
                                             ))}
                                         </div>
                                         {review.canEdit && (
-                                            <button 
+                                            <button
                                                 onClick={() => handleEdit(review)}
                                                 className="text-xs font-bold text-cyan-600 hover:text-cyan-700 underline underline-offset-4 flex items-center gap-1"
                                             >

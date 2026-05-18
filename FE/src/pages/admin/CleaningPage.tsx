@@ -339,7 +339,8 @@ export function CleaningPage() {
             setIsUpdatingStatus(true);
             try {
                 await roomsApi.changeCleaningStatus(selectedCleaningRoom.id, 'Clean');
-                await roomsApi.requestCleaning(selectedCleaningRoom.id, false);
+                //await roomsApi.requestCleaning(selectedCleaningRoom.id, false);
+                await roomsApi.completeCleaning(selectedCleaningRoom.id);
                 // const updatedRoom = await roomsApi.getById(selectedCleaningRoom.id);
                 // if (updatedRoom.status === 'Maintenance') {
                 //     toast.error(`Room ${selectedCleaningRoom.roomNumber} was moved to Maintenance. Admin has been notified.`);

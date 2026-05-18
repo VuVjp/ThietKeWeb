@@ -142,10 +142,10 @@ public class BookingsController : ControllerBase
             }
 
             var rolesToNotify = new List<RoleName> { RoleName.Admin, RoleName.Manager, RoleName.Receptionist };
-            if (IsOperationalBookingStatus(dto.Status))
-            {
-                rolesToNotify.Add(RoleName.Housekeeping);
-            }
+            // if (IsOperationalBookingStatus(dto.Status))
+            // {
+            //     rolesToNotify.Add(RoleName.Housekeeping);
+            // }
 
             await TryNotifyRolesAsync(
                 rolesToNotify,

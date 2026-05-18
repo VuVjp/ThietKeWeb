@@ -104,6 +104,9 @@ export const roomsApi = {
         const { data } = await httpClient.get<RoomDto[]>(`rooms/cleaning-status/${cleaningStatus}`);
         return data.map(normalizeRoom);
     },
+    async completeCleaning(id: number) {
+        await httpClient.patch(`rooms/${id}/complete-cleaning`);
+    },
 
     async remove(id: number) {
         await httpClient.delete(`rooms/${id}`);

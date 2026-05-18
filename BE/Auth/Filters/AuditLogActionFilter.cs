@@ -81,7 +81,7 @@ public class AuditLogActionFilter : IAsyncActionFilter
                 ["statusCode"] = ResolveStatusCode(executed),
             };
 
-            var newData = BuildActionArgumentsPayload(context.ActionArguments);
+            var newData = BuildActionArgumentsPayload(context.ActionArguments, descriptor?.ActionName);
             var oldDataForMessage = oldData;
             var newDataForMessage = newData;
             var oldDataForStorage = oldData;
@@ -468,6 +468,19 @@ public class AuditLogActionFilter : IAsyncActionFilter
         var oldValues = FlattenJsonValues(ToJsonNode(oldData));
         var updateValues = FlattenUpdateValues(newData);
 
+        if (actionName.Equals("ChangeCleaningStatus", StringComparison.OrdinalIgnoreCase))
+        {
+            var newCleaningStatus = ResolveStringArgument(actionArguments, "newCleaningStatus")
+                ?? ResolveStringArgument(actionArguments, "CleaningStatus");
+
+            if (IsCleaningCompletedStatus(newCleaningStatus))
+            {
+                var messageEntity = HumanizeEntityName(entityType);
+                var messageRecordLabel = ResolveRecordLabel(oldValues, recordId);
+                return $"{ComposeEntityLabel(messageEntity, messageRecordLabel)} cleaning completed.".Trim();
+            }
+        }
+
         if (updateValues.Count == 0)
         {
             return BuildNoPayloadMessage(actionName, entityType, recordId, oldValues, actionArguments);
@@ -602,6 +615,24 @@ public class AuditLogActionFilter : IAsyncActionFilter
         }
 
         return null;
+    }
+
+    private static string? ResolveStringArgument(IDictionary<string, object?> actionArguments, string key)
+    {
+        if (!actionArguments.TryGetValue(key, out var value) || value == null)
+        {
+            return null;
+        }
+
+        var text = Convert.ToString(value);
+        return string.IsNullOrWhiteSpace(text) ? null : text;
+    }
+
+    private static bool IsCleaningCompletedStatus(string? status)
+    {
+        return !string.IsNullOrWhiteSpace(status)
+            && (status.Equals("Clean", StringComparison.OrdinalIgnoreCase)
+                || status.Equals("Completed", StringComparison.OrdinalIgnoreCase));
     }
 
     private static (Dictionary<string, object?> OldValues, Dictionary<string, object?> NewValues) BuildChangedPayload(
@@ -960,7 +991,7 @@ public class AuditLogActionFilter : IAsyncActionFilter
         return FormatValue(ToJsonNode(value));
     }
 
-    private static Dictionary<string, object?> BuildActionArgumentsPayload(IDictionary<string, object?> actionArguments)
+    private static Dictionary<string, object?> BuildActionArgumentsPayload(IDictionary<string, object?> actionArguments, string? actionName)
     {
         var payload = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
 
@@ -971,7 +1002,16 @@ public class AuditLogActionFilter : IAsyncActionFilter
                 continue;
             }
 
-            payload[argument.Key] = SanitizeValue(argument.Value);
+            var payloadKey = argument.Key;
+
+            if (actionName != null
+                && actionName.Equals("ChangeCleaningStatus", StringComparison.OrdinalIgnoreCase)
+                && argument.Key.Equals("newCleaningStatus", StringComparison.OrdinalIgnoreCase))
+            {
+                payloadKey = "CleaningStatus";
+            }
+
+            payload[payloadKey] = SanitizeValue(argument.Value);
         }
 
         return payload;
