@@ -63,7 +63,7 @@ export function ClientLayout() {
         <div className="min-h-screen flex flex-col font-['Manrope'] bg-[#F9FAFB] text-slate-800">
             {/* Elegant Header */}
             <header
-                className={`fixed top-0 w-full z-50 transition-all duration-500 ease-in-out ${isScrolled
+                className={`fixed top-0 left-0 right-0 w-full z-50 transition-all duration-500 ease-in-out ${isScrolled
                         ? 'bg-white/90 backdrop-blur-xl shadow-sm py-3 border-b border-gray-100'
                         : 'bg-transparent py-6'
                     }`}
@@ -84,8 +84,8 @@ export function ClientLayout() {
                                         key={link.name}
                                         to={link.href}
                                         className={`text-[13px] font-bold uppercase tracking-widest transition-colors hover:text-cyan-500 ${isActive
-                                                ? 'text-cyan-500'
-                                                : isScrolled ? 'text-slate-700' : 'text-slate-200'
+                                            ? 'text-cyan-500'
+                                            : isScrolled ? 'text-slate-700' : 'text-slate-200'
                                             }`}
                                     >
                                         {link.name}

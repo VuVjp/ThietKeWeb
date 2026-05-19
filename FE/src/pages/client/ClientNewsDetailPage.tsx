@@ -79,7 +79,7 @@ export function ClientNewsDetailPage() {
     return (
         <div className="w-full bg-[#f8fafc] text-slate-800 pb-24 font-sans min-h-screen">
             {/* ── Hero Image ──────────────────────────────────────────── */}
-            <div className="relative h-[280px] md:h-[360px] overflow-hidden bg-slate-200 flex items-center justify-center">
+            <div className="relative h-[480px] md:h-[360px] overflow-hidden bg-slate-200 flex items-center justify-center">
                 {article.thumbnailUrl ? (
                     <img
                         src={article.thumbnailUrl}
