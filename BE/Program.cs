@@ -18,7 +18,7 @@ using HotelManagement.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var port = Environment.GetEnvironmentVariable("PORT") ?? "5173";
+var port = Environment.GetEnvironmentVariable("PORT") ?? "5082";
 builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
 const string FrontendCorsPolicy = "FrontendCorsPolicy";
