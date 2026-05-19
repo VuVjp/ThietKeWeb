@@ -6,7 +6,6 @@ import {
     UserIcon,
     ArrowsPointingOutIcon,
     SparklesIcon,
-    ArrowLeftIcon,
     CheckCircleIcon,
     NoSymbolIcon
 } from '@heroicons/react/24/outline';
