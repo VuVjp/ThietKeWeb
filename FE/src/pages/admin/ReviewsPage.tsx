@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { ArrowPathIcon, StarIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
@@ -67,6 +67,15 @@ export function ReviewsPage() {
             console.error('Failed to load room types', error);
         }
     }, []);
+
+    const ratingStats = useMemo(() => {
+        const total = rows.length;
+        const sum = rows.reduce((s, r) => s + (r.rating || 0), 0);
+        const avg = total ? +(sum / total).toFixed(1) : 0;
+        const counts = [5, 4, 3, 2, 1].map(star => rows.filter(r => r.rating === star).length);
+        const distribution = counts.map(c => total ? Math.round((c / total) * 100) : 0);
+        return { total, avg, counts, distribution };
+    }, [rows]);
 
     useEffect(() => {
         void loadData();
@@ -273,6 +282,64 @@ export function ReviewsPage() {
                     <ArrowPathIcon className={`h-5 w-5 ${isLoading ? 'animate-spin' : ''}`} />
                 </button>
             </div>
+
+            {/* Rating statistics (show skeleton while loading) */}
+            {isLoading ? (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                    <div className="md:col-span-1 bg-white p-4 rounded-2xl border border-slate-200 flex items-center gap-4">
+                        <div className="w-16 h-10 bg-slate-200 rounded animate-pulse" />
+                        <div className="flex-1">
+                            <div className="w-32 h-4 bg-slate-200 rounded mb-2 animate-pulse" />
+                            <div className="w-20 h-3 bg-slate-200 rounded animate-pulse" />
+                        </div>
+                    </div>
+
+                    <div className="md:col-span-2 bg-white p-4 rounded-2xl border border-slate-200">
+                        {[1,2,3,4,5].map((_) => (
+                            <div key={_} className="flex items-center gap-3 mb-3">
+                                <div className="w-14 h-4 bg-slate-200 rounded animate-pulse" />
+                                <div className="flex-1 bg-slate-100 h-3 rounded overflow-hidden">
+                                    <div className="h-3 bg-slate-200 animate-pulse" style={{ width: '40%' }} />
+                                </div>
+                                <div className="w-20 h-4 bg-slate-200 rounded animate-pulse" />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                    <div className="md:col-span-1 bg-white p-4 rounded-2xl border border-slate-200 flex items-center gap-4">
+                        <div className="text-4xl font-extrabold text-slate-900">{(ratingStats.avg ?? 0).toFixed(1)}</div>
+                        <div>
+                            <div className="flex items-center text-amber-400 mb-1">
+                                {[1,2,3,4,5].map(i => (
+                                    (i <= Math.round(ratingStats.avg ?? 0)) ? (
+                                        <StarIconSolid key={i} className="h-5 w-5" />
+                                    ) : (
+                                        <StarIcon key={i} className="h-5 w-5" />
+                                    )
+                                ))}
+                            </div>
+                            <div className="text-sm text-slate-500">{ratingStats.total} total reviews</div>
+                        </div>
+                    </div>
+
+                    <div className="md:col-span-2 bg-white p-4 rounded-2xl border border-slate-200">
+                        {[5,4,3,2,1].map((star, idx) => (
+                            <div key={star} className="flex items-center gap-3 mb-3">
+                                <div className="w-14 text-sm font-semibold text-slate-700 flex items-center gap-1">
+                                    <span>{star}</span>
+                                    <StarIconSolid className="h-4 w-4 text-amber-400" />
+                                </div>
+                                <div className="flex-1 bg-slate-100 h-3 rounded overflow-hidden">
+                                    <div className="h-3 bg-amber-400" style={{ width: `${ratingStats.distribution[idx] ?? 0}%` }} />
+                                </div>
+                                <div className="w-20 text-right text-sm text-slate-500">{ratingStats.counts[idx] ?? 0} • {ratingStats.distribution[idx] ?? 0}%</div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {/* Filter Bar - Matching Order Service Page Layout */}
             <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-4">

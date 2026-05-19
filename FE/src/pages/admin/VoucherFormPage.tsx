@@ -23,7 +23,7 @@ export function VoucherFormPage() {
   const { ensure } = usePermissionCheck();
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  
+
   const [form, setForm] = useState<CreateVoucherPayload>(emptyForm);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -68,13 +68,16 @@ export function VoucherFormPage() {
       toast.error('Voucher code is required');
       return;
     }
-    if (form.discountValue <= 0) {
-      toast.error('Discount value must be greater than 0');
-      return;
-    }
-    if (form.discountType === 'Percentage' && form.discountValue > 100) {
-      toast.error('Percentage discount cannot exceed 100%');
-      return;
+    if (form.discountType === 'Percentage') {
+      if (form.discountValue <= 0 || form.discountValue > 100) {
+        toast.error('For percentage discounts value must be > 0 and ≤ 100');
+        return;
+      }
+    } else {
+      if (form.discountValue <= 0) {
+        toast.error('Discount value must be greater than 0');
+        return;
+      }
     }
     if (form.minBookingValue < 0) {
       toast.error('Minimum booking value cannot be negative');
@@ -88,7 +91,7 @@ export function VoucherFormPage() {
       toast.error('Usage limit must be greater than 0');
       return;
     }
-    
+
     setIsSubmitting(true);
     try {
       if (isEdit) {
@@ -175,7 +178,11 @@ export function VoucherFormPage() {
                 <label className="text-xs font-bold text-slate-500 uppercase">Max Discount Cap ($)</label>
                 <Input type="number" placeholder="0 = no limit" value={form.maxDiscountValue}
                   onChange={e => setForm({ ...form, maxDiscountValue: Number(e.target.value) })} />
-                <p className="text-xs text-slate-400">Set 0 to disable the cap.</p>
+                {form.discountType === 'Percentage' ? (
+                  <p className="text-xs text-slate-400">Required for percentage discounts — must be greater than 0.</p>
+                ) : (
+                  <p className="text-xs text-slate-400">Set 0 to disable the cap.</p>
+                )}
               </div>
             )}
           </div>
