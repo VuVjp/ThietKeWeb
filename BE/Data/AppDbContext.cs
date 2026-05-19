@@ -40,6 +40,7 @@ public class AppDbContext : DbContext
 
     public DbSet<RefreshToken> RefreshTokens { get; set; }
     public DbSet<HotelManagement.Entities.Snapshots.DashboardSnapshot> DashboardSnapshots { get; set; }
+    public DbSet<SystemSetting> SystemSettings { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -86,6 +87,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Voucher>().ToTable("Vouchers");
         modelBuilder.Entity<RefreshToken>().ToTable("Refresh_Tokens");
         modelBuilder.Entity<HotelManagement.Entities.Snapshots.DashboardSnapshot>().ToTable("Dashboard_Snapshots");
+        modelBuilder.Entity<SystemSetting>().ToTable("System_Settings");
 
         // Column name mappings
         modelBuilder.Entity<Amenity>(e =>
@@ -638,6 +640,14 @@ public class AppDbContext : DbContext
 
         modelBuilder.Entity<Article>()
             .HasOne(a => a.Author).WithMany(u => u.Articles).HasForeignKey(a => a.AuthorId).OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<SystemSetting>(e =>
+        {
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.Key).HasColumnName("key");
+            e.Property(x => x.Value).HasColumnName("value");
+            e.HasIndex(x => x.Key).IsUnique();
+        });
     }
 }
 

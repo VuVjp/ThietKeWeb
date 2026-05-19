@@ -3,6 +3,8 @@ using HotelManagement.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
 using System;
+using System.IO;
+using System.Text.Json;
 using HotelManagement.Dtos;
 
 namespace HotelManagement.Controllers;
@@ -18,6 +20,30 @@ public class AttractionsController : ControllerBase
 	{
 		_service = service;
 		_notificationService = notificationService;
+	}
+
+	[HttpGet("hotel-location")]
+	public async Task<IActionResult> GetHotelLocation()
+	{
+		var data = await _service.GetHotelLocationAsync();
+		return Ok(data);
+	}
+
+	[Permission(PermissionNames.ManageAttractions)]
+	[HttpPost("hotel-location")]
+	public async Task<IActionResult> UpdateHotelLocation([FromBody] HotelLocationDto dto)
+	{
+		if (dto == null) return BadRequest("Invalid data.");
+
+		try
+		{
+			await _service.UpdateHotelLocationAsync(dto);
+			return Ok(new { message = "Hotel location updated successfully.", data = dto });
+		}
+		catch (Exception ex)
+		{
+			return StatusCode(500, $"Error saving hotel location: {ex.Message}");
+		}
 	}
 
 	private async Task NotifyRolesAsync(IEnumerable<RoleName> roles, CreateNotificationDto dto)

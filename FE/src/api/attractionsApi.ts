@@ -60,4 +60,6 @@ export const attractionsApi = {
     headers: { 'Content-Type': 'multipart/form-data' }
   }).then(res => res.data),
   delete: (id: number) => httpClient.delete<string>(`/Attractions/${id}`).then(res => res.data),
+  getHotelLocation: () => httpClient.get<{ latitude: number, longitude: number }>('/Attractions/hotel-location').then(res => res.data),
+  updateHotelLocation: (data: { latitude: number, longitude: number }) => httpClient.post<{ message: string, data: { latitude: number, longitude: number } }>('/Attractions/hotel-location', data).then(res => res.data),
 };

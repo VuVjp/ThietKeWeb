@@ -1267,6 +1267,33 @@ namespace BE.Migrations
                     b.ToTable("Dashboard_Snapshots", (string)null);
                 });
 
+            modelBuilder.Entity("HotelManagement.Entities.SystemSetting", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)")
+                        .HasColumnName("key");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("value");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Key")
+                        .IsUnique();
+
+                    b.ToTable("System_Settings", (string)null);
+                });
+
             modelBuilder.Entity("HotelManagement.Entities.User", b =>
                 {
                     b.Property<int>("Id")
@@ -1883,6 +1910,8 @@ namespace BE.Migrations
 
                                     b2.Property<int>("BookingCount");
 
+                                    b2.Property<int>("CompletedServiceOrdersCount");
+
                                     b2.Property<decimal>("NetProfit");
 
                                     b2.Property<int>("ServiceOrdersCount");
@@ -1994,6 +2023,32 @@ namespace BE.Migrations
                                                         });
 
                                                     b4.OwnsOne("HotelManagement.Dtos.DashboardMetricComparisonDto", "CleaningRequests", b5 =>
+                                                        {
+                                                            b5.Property<int>("DashboardMetricsComparisonContainerDashboardComparisonDtoDashboardSummaryDtoDashboardOverviewDtoDashboardSnapshotId");
+
+                                                            b5.Property<decimal>("Current");
+
+                                                            b5.Property<decimal>("Difference");
+
+                                                            b5.Property<string>("DirectionMeaning")
+                                                                .IsRequired();
+
+                                                            b5.Property<decimal>("GrowthRate");
+
+                                                            b5.Property<decimal>("Previous");
+
+                                                            b5.Property<string>("Trend")
+                                                                .IsRequired();
+
+                                                            b5.HasKey("DashboardMetricsComparisonContainerDashboardComparisonDtoDashboardSummaryDtoDashboardOverviewDtoDashboardSnapshotId");
+
+                                                            b5.ToTable("Dashboard_Snapshots");
+
+                                                            b5.WithOwner()
+                                                                .HasForeignKey("DashboardMetricsComparisonContainerDashboardComparisonDtoDashboardSummaryDtoDashboardOverviewDtoDashboardSnapshotId");
+                                                        });
+
+                                                    b4.OwnsOne("HotelManagement.Dtos.DashboardMetricComparisonDto", "CompletedServiceOrders", b5 =>
                                                         {
                                                             b5.Property<int>("DashboardMetricsComparisonContainerDashboardComparisonDtoDashboardSummaryDtoDashboardOverviewDtoDashboardSnapshotId");
 
@@ -2180,6 +2235,8 @@ namespace BE.Migrations
                                                     b4.Navigation("Bookings");
 
                                                     b4.Navigation("CleaningRequests");
+
+                                                    b4.Navigation("CompletedServiceOrders");
 
                                                     b4.Navigation("DamageReports");
 

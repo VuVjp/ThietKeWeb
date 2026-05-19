@@ -59,14 +59,8 @@ export function AttractionsPage() {
 
     // Hotel Base Location State
     const [openHotelModal, setOpenHotelModal] = useState(false);
-    const [hotelLat, setHotelLat] = useState(() => {
-        const saved = localStorage.getItem('hotel_base_latitude');
-        return saved ? Number(saved) : 10.9539722;
-    });
-    const [hotelLng, setHotelLng] = useState(() => {
-        const saved = localStorage.getItem('hotel_base_longitude');
-        return saved ? Number(saved) : 106.8019444;
-    });
+    const [hotelLat, setHotelLat] = useState(10.9539722);
+    const [hotelLng, setHotelLng] = useState(106.8019444);
 
     const [tempHotelLat, setTempHotelLat] = useState(String(hotelLat));
     const [tempHotelLng, setTempHotelLng] = useState(String(hotelLng));
@@ -135,9 +129,20 @@ export function AttractionsPage() {
         }
     }, []);
 
+    const loadHotelLocation = useCallback(async () => {
+        try {
+            const loc = await attractionsApi.getHotelLocation();
+            setHotelLat(loc.latitude);
+            setHotelLng(loc.longitude);
+        } catch (error) {
+            console.error('Failed to load hotel location', error);
+        }
+    }, []);
+
     useEffect(() => {
         void loadAttractions();
-    }, [loadAttractions]);
+        void loadHotelLocation();
+    }, [loadAttractions, loadHotelLocation]);
 
     const filtered = useMemo(() => {
         return attractions.filter(item => queryIncludes(item.name, search) || queryIncludes(item.description ?? '', search));
@@ -580,19 +585,22 @@ export function AttractionsPage() {
                         </button>
                         <button 
                             type="button" 
-                            onClick={() => {
+                            onClick={async () => {
                                 const lat = Number(tempHotelLat);
                                 const lng = Number(tempHotelLng);
                                 if (isNaN(lat) || isNaN(lng) || tempHotelLat === '' || tempHotelLng === '') {
                                     toast.error('Invalid coordinates');
                                     return;
                                 }
-                                setHotelLat(lat);
-                                setHotelLng(lng);
-                                localStorage.setItem('hotel_base_latitude', String(lat));
-                                localStorage.setItem('hotel_base_longitude', String(lng));
-                                toast.success('Hotel base location updated successfully!');
-                                setOpenHotelModal(false);
+                                try {
+                                    await attractionsApi.updateHotelLocation({ latitude: lat, longitude: lng });
+                                    setHotelLat(lat);
+                                    setHotelLng(lng);
+                                    toast.success('Hotel base location updated successfully!');
+                                    setOpenHotelModal(false);
+                                } catch (error) {
+                                    toast.error('Failed to update hotel location');
+                                }
                             }} 
                             className="rounded-lg bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800"
                         >

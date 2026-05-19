@@ -23,28 +23,29 @@ export function ClientAttractionsPage() {
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
 
-    const hotelLat = useMemo(() => {
-        const saved = localStorage.getItem('hotel_base_latitude');
-        return saved ? Number(saved) : 10.9539722;
-    }, []);
-
-    const hotelLng = useMemo(() => {
-        const saved = localStorage.getItem('hotel_base_longitude');
-        return saved ? Number(saved) : 106.8019444;
-    }, []);
+    const [hotelLat, setHotelLat] = useState(10.9539722);
+    const [hotelLng, setHotelLng] = useState(106.8019444);
 
     useEffect(() => {
-        const fetchAttractions = async () => {
+        const fetchData = async () => {
             try {
-                const data = await attractionsApi.getAll();
-                setAttractions(data.filter((a: Attraction) => a.isActive));
+                const [attractionsData, hotelLoc] = await Promise.all([
+                    attractionsApi.getAll(),
+                    attractionsApi.getHotelLocation().catch(err => {
+                        console.error('Failed to load hotel location', err);
+                        return { latitude: 10.9539722, longitude: 106.8019444 };
+                    })
+                ]);
+                setHotelLat(hotelLoc.latitude);
+                setHotelLng(hotelLoc.longitude);
+                setAttractions(attractionsData.filter((a: Attraction) => a.isActive));
             } catch (error) {
                 toast.error('Failed to load attractions');
             } finally {
                 setLoading(false);
             }
         };
-        fetchAttractions();
+        fetchData();
     }, []);
 
     const processedAttractions = useMemo(() => {

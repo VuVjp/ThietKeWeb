@@ -1,6 +1,7 @@
 using HotelManagement.Entities;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using HotelManagement.Dtos;
 
 public interface IAttractionService
 {
@@ -9,4 +10,6 @@ public interface IAttractionService
 	Task<bool> CreateAsync(CreateAttractionDto dto);
 	Task<bool> UpdateAsync(int id, UpdateAttractionDto dto);
 	Task<bool> DeleteAsync(int id);
+	Task<HotelLocationDto> GetHotelLocationAsync();
+	Task UpdateHotelLocationAsync(HotelLocationDto dto);
 }
