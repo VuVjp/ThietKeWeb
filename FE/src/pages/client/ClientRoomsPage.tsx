@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { amenitiesApi, type AmenityItem } from '../../api/amenitiesApi';
 import { roomTypesApi, type RoomTypeItem } from '../../api/roomTypesApi';
 import { Spin } from 'antd';
 import { UserIcon, MagnifyingGlassIcon, AdjustmentsHorizontalIcon, XMarkIcon } from '@heroicons/react/24/outline';
@@ -20,6 +21,7 @@ export function ClientRoomsPage() {
     const queryChildren = Number(searchParams.get('children')) || 0;
 
     const [roomTypes, setRoomTypes] = useState<RoomTypeItem[]>([]);
+    const [amenities, setAmenities] = useState<AmenityItem[]>([]);
     const [loading, setLoading] = useState(true);
 
     // Filter & sort state
@@ -29,6 +31,8 @@ export function ClientRoomsPage() {
     const [minChildren, setMinChildren] = useState<number>(queryChildren || 0);
     const [sortBy, setSortBy] = useState('price_asc');
     const [filtersOpen, setFiltersOpen] = useState(false);
+    const [selectedAmenityIds, setSelectedAmenityIds] = useState<number[]>([]);
+    const [amenitySearch, setAmenitySearch] = useState('');
 
     // Sync URL params to state if they change
     useEffect(() => {
@@ -40,8 +44,12 @@ export function ClientRoomsPage() {
     useEffect(() => {
         const fetchRoomTypes = async () => {
             try {
-                const data = await roomTypesApi.getAll();
-                setRoomTypes(data.filter((rt: RoomTypeItem) => rt.isActive));
+                const [roomTypeData, amenityData] = await Promise.all([
+                    roomTypesApi.getAll(),
+                    amenitiesApi.getAll(),
+                ]);
+                setRoomTypes(roomTypeData.filter((rt: RoomTypeItem) => rt.isActive));
+                setAmenities(amenityData.filter((amenity: AmenityItem) => amenity.isActive));
             } catch (error) {
                 console.error('Failed to load room types', error);
             } finally {
@@ -69,16 +77,18 @@ export function ClientRoomsPage() {
         if (minAdults > 1) count++;
         if (minChildren > 0) count++;
         if (sortBy !== 'price_asc') count++;
+        if (selectedAmenityIds.length > 0) count++;
         return count;
-    }, [searchQuery, maxPrice, minAdults, minChildren, sortBy, maxBasePrice]);
+    }, [searchQuery, maxPrice, minAdults, minChildren, sortBy, maxBasePrice, selectedAmenityIds.length]);
 
     const isResetDisabled = useMemo(() => (
         !searchQuery.trim() &&
         maxPrice === maxBasePrice &&
         minAdults === 1 &&
         minChildren === 0 &&
-        sortBy === 'price_asc'
-    ), [searchQuery, maxPrice, minAdults, minChildren, sortBy, maxBasePrice]);
+        sortBy === 'price_asc' &&
+        selectedAmenityIds.length === 0
+    ), [searchQuery, maxPrice, minAdults, minChildren, sortBy, maxBasePrice, selectedAmenityIds.length]);
 
     const handleReset = () => {
         setSearchQuery('');
@@ -86,7 +96,26 @@ export function ClientRoomsPage() {
         setMinAdults(1);
         setMinChildren(0);
         setSortBy('price_asc');
+        setSelectedAmenityIds([]);
     };
+
+    const handleAmenityToggle = (amenityId: number) => {
+        setSelectedAmenityIds((current) => (
+            current.includes(amenityId)
+                ? current.filter((id) => id !== amenityId)
+                : [...current, amenityId]
+        ));
+    };
+
+    const filteredAmenities = useMemo(() => {
+        const query = amenitySearch.trim().toLowerCase();
+        if (!query) return amenities;
+        return amenities.filter((amenity) => amenity.name.toLowerCase().includes(query));
+    }, [amenities, amenitySearch]);
+
+    const selectedAmenities = useMemo(() => (
+        amenities.filter((amenity) => selectedAmenityIds.includes(amenity.id))
+    ), [amenities, selectedAmenityIds]);
 
     // Filtered & sorted list
     const filteredRooms = useMemo(() => {
@@ -96,7 +125,9 @@ export function ClientRoomsPage() {
             const matchesPrice = rt.basePrice <= maxPrice;
             const matchesAdults = rt.capacityAdults >= minAdults;
             const matchesChildren = rt.capacityChildren >= minChildren;
-            return matchesName && matchesPrice && matchesAdults && matchesChildren;
+            const matchesAmenities = selectedAmenityIds.length === 0
+                || selectedAmenityIds.every((amenityId) => rt.amenities?.some((amenity) => amenity.id === amenityId));
+            return matchesName && matchesPrice && matchesAdults && matchesChildren && matchesAmenities;
         });
 
         switch (sortBy) {
@@ -113,7 +144,7 @@ export function ClientRoomsPage() {
         }
 
         return result;
-    }, [roomTypes, searchQuery, maxPrice, minAdults, minChildren, sortBy]);
+    }, [roomTypes, searchQuery, maxPrice, minAdults, minChildren, sortBy, selectedAmenityIds]);
 
     return (
         <div className="w-full bg-[#f9fafb] min-h-screen font-sans text-slate-800">
@@ -191,72 +222,174 @@ export function ClientRoomsPage() {
 
                     {/* Expanded filters panel */}
                     {filtersOpen && (
-                        <div className="p-6 bg-slate-50 flex flex-col md:flex-row gap-8 items-start md:items-center border-t border-slate-100">
-                            {/* Price range */}
-                            <div className="flex-1 w-full">
-                                <div className="flex justify-between mb-2">
-                                    <label className="text-xs font-bold uppercase tracking-wider text-slate-600">Max Price</label>
-                                    <span className="text-sm font-bold text-cyan-600">${maxPrice.toLocaleString()}<span className="text-slate-400 font-normal">/night</span></span>
+                        <div className="p-6 bg-slate-50 border-t border-slate-100">
+                            <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+                                {/* Amenities */}
+                                <div className="xl:col-span-12">
+                                    <details className="group bg-white border border-slate-200 rounded-2xl">
+                                        <summary className="flex items-center justify-between gap-4 px-5 py-4 cursor-pointer">
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-xs font-bold uppercase tracking-wider text-slate-600">Amenities</span>
+                                                {selectedAmenityIds.length > 0 && (
+                                                    <span className="text-xs font-semibold text-cyan-700 bg-cyan-50 border border-cyan-100 px-2 py-0.5 rounded-full">
+                                                        {selectedAmenityIds.length} selected
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 group-open:text-slate-700">
+                                                Toggle
+                                            </span>
+                                        </summary>
+
+                                        <div className="border-t border-slate-100 px-5 py-4">
+                                            <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+                                                <label className="text-xs font-bold uppercase tracking-wider text-slate-600">Pick amenities</label>
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setSelectedAmenityIds(amenities.map((amenity) => amenity.id))}
+                                                        className="text-xs font-bold uppercase tracking-wider text-cyan-700 hover:text-cyan-900"
+                                                    >
+                                                        Select All
+                                                    </button>
+                                                    <span className="text-slate-300">|</span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setSelectedAmenityIds([])}
+                                                        className="text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-slate-700"
+                                                    >
+                                                        Clear
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <div className="relative mb-3">
+                                                <MagnifyingGlassIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                                <input
+                                                    type="text"
+                                                    placeholder="Search amenities..."
+                                                    value={amenitySearch}
+                                                    onChange={(e) => setAmenitySearch(e.target.value)}
+                                                    className="w-full pl-9 pr-3 py-2 bg-slate-50 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition"
+                                                />
+                                            </div>
+
+                                            {selectedAmenities.length > 0 && (
+                                                <div className="flex flex-wrap gap-2 mb-3">
+                                                    {selectedAmenities.map((amenity) => (
+                                                        <button
+                                                            key={amenity.id}
+                                                            type="button"
+                                                            onClick={() => handleAmenityToggle(amenity.id)}
+                                                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-cyan-50 text-cyan-700 text-xs font-semibold border border-cyan-100 hover:border-cyan-300"
+                                                        >
+                                                            {amenity.name}
+                                                            <XMarkIcon className="w-3.5 h-3.5" />
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            {filteredAmenities.length === 0 ? (
+                                                <div className="text-xs text-slate-400">No amenities found.</div>
+                                            ) : (
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-40 overflow-auto pr-1">
+                                                    {filteredAmenities.map((amenity) => (
+                                                        <label
+                                                            key={amenity.id}
+                                                            className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm cursor-pointer transition ${selectedAmenityIds.includes(amenity.id)
+                                                                    ? 'border-cyan-500 bg-cyan-50 text-cyan-700'
+                                                                    : 'border-slate-200 bg-white text-slate-600 hover:border-cyan-300'
+                                                                }`}
+                                                        >
+                                                            <input
+                                                                type="checkbox"
+                                                                className="h-4 w-4 accent-cyan-600"
+                                                                checked={selectedAmenityIds.includes(amenity.id)}
+                                                                onChange={() => handleAmenityToggle(amenity.id)}
+                                                            />
+                                                            {amenity.iconUrl ? (
+                                                                <img src={amenity.iconUrl} alt={amenity.name} className="w-4 h-4 object-contain" />
+                                                            ) : (
+                                                                <span className="w-4 h-4 rounded bg-slate-200" />
+                                                            )}
+                                                            <span className="truncate">{amenity.name}</span>
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </details>
                                 </div>
-                                <input
-                                    type="range"
-                                    min={0}
-                                    max={maxBasePrice}
-                                    step={10}
-                                    value={maxPrice}
-                                    onChange={e => setMaxPrice(Number(e.target.value))}
-                                    className="w-full h-2 bg-slate-200 rounded appearance-none cursor-pointer accent-cyan-600"
-                                />
-                                <div className="flex justify-between mt-1 text-xs text-slate-400">
-                                    <span>$0</span>
-                                    <span>${maxBasePrice.toLocaleString()}</span>
+                                <div className="xl:col-span-12 flex flex-col md:flex-row items-center gap-4">
+                                    {/* Price range - takes remaining horizontal space on md+ */}
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex justify-between mb-2">
+                                            <label className="text-xs font-bold uppercase tracking-wider text-slate-600">Max Price</label>
+                                            <span className="text-sm font-bold text-cyan-600">${maxPrice.toLocaleString()}<span className="text-slate-400 font-normal">/night</span></span>
+                                        </div>
+                                        <input
+                                            type="range"
+                                            min={0}
+                                            max={maxBasePrice}
+                                            step={10}
+                                            value={maxPrice}
+                                            onChange={e => setMaxPrice(Number(e.target.value))}
+                                            className="w-full h-2 bg-slate-200 rounded appearance-none cursor-pointer accent-cyan-600"
+                                        />
+                                        <div className="flex justify-between mt-1 text-xs text-slate-400">
+                                            <span>$0</span>
+                                            <span>${maxBasePrice.toLocaleString()}</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Min adults - size to content */}
+                                    <div className="flex-none">
+                                        <label className="text-xs font-bold uppercase tracking-wider text-slate-600 block mb-2">Adults</label>
+                                        <div className="flex items-center gap-3">
+                                            <button
+                                                onClick={() => setMinAdults(g => Math.max(1, g - 1))}
+                                                className="w-9 h-9 rounded-full border border-slate-300 flex items-center justify-center text-lg font-bold hover:bg-cyan-50 hover:border-cyan-400 transition"
+                                            >−</button>
+                                            <span className="text-lg font-bold w-8 text-center">{minAdults}</span>
+                                            <button
+                                                onClick={() => setMinAdults(g => g + 1)}
+                                                className="w-9 h-9 rounded-full border border-slate-300 flex items-center justify-center text-lg font-bold hover:bg-cyan-50 hover:border-cyan-400 transition"
+                                            >+</button>
+                                        </div>
+                                    </div>
+
+                                    {/* Min children - size to content */}
+                                    <div className="flex-none">
+                                        <label className="text-xs font-bold uppercase tracking-wider text-slate-600 block mb-2">Children</label>
+                                        <div className="flex items-center gap-3">
+                                            <button
+                                                onClick={() => setMinChildren(g => Math.max(0, g - 1))}
+                                                className="w-9 h-9 rounded-full border border-slate-300 flex items-center justify-center text-lg font-bold hover:bg-cyan-50 hover:border-cyan-400 transition"
+                                            >−</button>
+                                            <span className="text-lg font-bold w-8 text-center">{minChildren}</span>
+                                            <button
+                                                onClick={() => setMinChildren(g => g + 1)}
+                                                className="w-9 h-9 rounded-full border border-slate-300 flex items-center justify-center text-lg font-bold hover:bg-cyan-50 hover:border-cyan-400 transition"
+                                            >+</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Reset */}
+                                <div className="xl:col-span-12 flex justify-end">
+                                    <button
+                                        onClick={handleReset}
+                                        disabled={isResetDisabled}
+                                        className={`flex items-center gap-2 text-sm font-bold uppercase tracking-wider transition ${isResetDisabled
+                                                ? 'text-slate-400 cursor-not-allowed'
+                                                : 'text-red-500 hover:text-red-700'
+                                            }`}
+                                    >
+                                        <XMarkIcon className="w-4 h-4" /> Clear All
+                                    </button>
                                 </div>
                             </div>
-
-                            {/* Min adults */}
-                            <div className="flex-shrink-0">
-                                <label className="text-xs font-bold uppercase tracking-wider text-slate-600 block mb-2">Adults</label>
-                                <div className="flex items-center gap-3">
-                                    <button
-                                        onClick={() => setMinAdults(g => Math.max(1, g - 1))}
-                                        className="w-9 h-9 rounded-full border border-slate-300 flex items-center justify-center text-lg font-bold hover:bg-cyan-50 hover:border-cyan-400 transition"
-                                    >−</button>
-                                    <span className="text-lg font-bold w-8 text-center">{minAdults}</span>
-                                    <button
-                                        onClick={() => setMinAdults(g => g + 1)}
-                                        className="w-9 h-9 rounded-full border border-slate-300 flex items-center justify-center text-lg font-bold hover:bg-cyan-50 hover:border-cyan-400 transition"
-                                    >+</button>
-                                </div>
-                            </div>
-
-                            {/* Min children */}
-                            <div className="flex-shrink-0">
-                                <label className="text-xs font-bold uppercase tracking-wider text-slate-600 block mb-2">Children</label>
-                                <div className="flex items-center gap-3">
-                                    <button
-                                        onClick={() => setMinChildren(g => Math.max(0, g - 1))}
-                                        className="w-9 h-9 rounded-full border border-slate-300 flex items-center justify-center text-lg font-bold hover:bg-cyan-50 hover:border-cyan-400 transition"
-                                    >−</button>
-                                    <span className="text-lg font-bold w-8 text-center">{minChildren}</span>
-                                    <button
-                                        onClick={() => setMinChildren(g => g + 1)}
-                                        className="w-9 h-9 rounded-full border border-slate-300 flex items-center justify-center text-lg font-bold hover:bg-cyan-50 hover:border-cyan-400 transition"
-                                    >+</button>
-                                </div>
-                            </div>
-
-                            {/* Reset */}
-                            <button
-                                onClick={handleReset}
-                                disabled={isResetDisabled}
-                                className={`flex-shrink-0 flex items-center gap-2 text-sm font-bold uppercase tracking-wider transition ${
-                                    isResetDisabled
-                                        ? 'text-slate-400 cursor-not-allowed'
-                                        : 'text-red-500 hover:text-red-700'
-                                }`}
-                            >
-                                <XMarkIcon className="w-4 h-4" /> Clear All
-                            </button>
                         </div>
                     )}
                 </div>
