@@ -29,6 +29,16 @@ export interface UpdateReviewPayload {
     comment?: string;
 }
 
+export interface ReviewEligibilityItem {
+    id: number;
+    roomTypeId: number;
+    roomTypeName: string;
+    bookingId: number;
+    bookingCode: string;
+    isReviewed: boolean;
+    expiresAt: string;
+}
+
 export interface ReviewQueryPayload {
     search?: string;
     roomTypeId?: number;
@@ -145,5 +155,10 @@ export const reviewsApi = {
 
     async reject(id: number) {
         await httpClient.patch(`reviews/${id}/reject`);
+    },
+
+    async getEligibility() {
+        const { data } = await httpClient.get<ReviewEligibilityItem[]>('reviews/eligibility');
+        return data;
     },
 };

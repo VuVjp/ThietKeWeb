@@ -77,6 +77,17 @@ public class ReviewsController : ControllerBase
     }
 
     [Authorize]
+    [HttpGet("eligibility")]
+    public async Task<IActionResult> GetEligibleRoomTypes()
+    {
+        var userId = GetCurrentUserId();
+        if (!userId.HasValue) return Unauthorized();
+
+        var result = await _service.GetEligibleRoomTypesAsync(userId.Value);
+        return Ok(result);
+    }
+
+    [Authorize]
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateReviewDto dto)
     {

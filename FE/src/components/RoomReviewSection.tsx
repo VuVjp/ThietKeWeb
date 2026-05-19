@@ -42,27 +42,15 @@ export function RoomReviewSection({ roomTypeId, averageRating, reviewCount }: Ro
     const checkEligibility = async () => {
         if (!isAuthenticated || !user) return;
         try {
-            const history = await receptionApi.getMyHistory();
-            const roomTypeBookings = history.filter(b =>
-                b.status === 'CheckedOut' &&
-                b.roomTypeIds?.includes(roomTypeId)
-            );
+            const eligibilityList = await reviewsApi.getEligibility();
+            const matchingEligibility = eligibilityList.find(e => e.roomTypeId === roomTypeId && !e.isReviewed);
 
-            if (roomTypeBookings.length > 0) {
-                // Fetch all approved reviews by this user to see if they've reviewed these bookings
-                // We only hide the review section if there are NO unreviewed bookings OR if all bookings have APPROVED reviews
-                const userReviews = reviews.filter(r => r.userId === user.id);
-                const approvedBookingIds = userReviews.filter(r => r.isActive).map(r => r.bookingId).filter(id => id !== undefined) as number[];
-
-                const unapprovedBooking = roomTypeBookings.find(b => !approvedBookingIds.includes(b.id));
-
-                if (unapprovedBooking) {
-                    setIsEligible(true);
-                    setEligibleBookingId(unapprovedBooking.id);
-                } else {
-                    setIsEligible(false);
-                    setEligibleBookingId(null);
-                }
+            if (matchingEligibility) {
+                setIsEligible(true);
+                setEligibleBookingId(matchingEligibility.bookingId);
+            } else {
+                setIsEligible(false);
+                setEligibleBookingId(null);
             }
         } catch (error) {
             console.error('Failed to check review eligibility', error);
@@ -208,14 +196,19 @@ export function RoomReviewSection({ roomTypeId, averageRating, reviewCount }: Ro
                             if (pendingReview) {
                                 handleEdit(pendingReview);
                             } else {
-                                setShowForm(true);
-                                setRating(5);
-                                setComment('');
-                                setEditingReviewId(null);
-                                // Scroll to form after rendering
-                                setTimeout(() => {
-                                    document.getElementById('review-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                }, 100);
+                                const anyPendingReview = reviews.find(r => r.userId === user?.id && r.canEdit);
+                                if (anyPendingReview) {
+                                    handleEdit(anyPendingReview);
+                                } else {
+                                    setShowForm(true);
+                                    setRating(5);
+                                    setComment('');
+                                    setEditingReviewId(null);
+                                    // Scroll to form after rendering
+                                    setTimeout(() => {
+                                        document.getElementById('review-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                    }, 100);
+                                }
                             }
                         }}
                         className="bg-white text-cyan-700 px-8 py-4 rounded-2xl font-black text-sm uppercase tracking-wider hover:bg-cyan-50 transition shadow-lg flex items-center gap-2 whitespace-nowrap"

@@ -3,6 +3,9 @@ using HotelManagement.Entities;
 using HotelManagement.Repositories.Interfaces;
 using HotelManagement.Services.Interfaces;
 
+using HotelManagement.Data;
+using Microsoft.EntityFrameworkCore;
+
 namespace HotelManagement.Services.Implementations;
 
 public class BookingService : IBookingService
@@ -22,8 +25,9 @@ public class BookingService : IBookingService
     private readonly IVoucherService _voucherService;
     private readonly IInvoiceService _invoiceService;
     private readonly IDashboardService _dashboardService;
+    private readonly AppDbContext _context;
 
-    public BookingService(IBookingRepository repository, IUserRepository userRepository, IVoucherRepository voucherRepository, IVoucherService voucherService, IInvoiceService invoiceService, IDashboardService dashboardService)
+    public BookingService(IBookingRepository repository, IUserRepository userRepository, IVoucherRepository voucherRepository, IVoucherService voucherService, IInvoiceService invoiceService, IDashboardService dashboardService, AppDbContext context)
     {
         _repository = repository;
         _userRepository = userRepository;
@@ -31,6 +35,7 @@ public class BookingService : IBookingService
         _voucherService = voucherService;
         _invoiceService = invoiceService;
         _dashboardService = dashboardService;
+        _context = context;
     }
 
     public async Task<IEnumerable<RoomAvailabilityDto>> GetAvailableRoomsAsync(DateTime checkIn, DateTime checkOut, int? excludeBookingId = null)
@@ -408,6 +413,34 @@ public class BookingService : IBookingService
                 detail.Room.Status = "InsClean";
                 detail.Room.CleaningStatus = "Inspecting";
                 detail.ActualCheckOutDate = DateTime.Now;
+            }
+
+            if (booking.UserId.HasValue)
+            {
+                var roomTypeIds = booking.BookingDetails
+                    .Where(d => d.RoomTypeId.HasValue)
+                    .Select(d => d.RoomTypeId!.Value)
+                    .Distinct()
+                    .ToList();
+
+                foreach (var roomTypeId in roomTypeIds)
+                {
+                    var exists = await _context.ReviewEligibilities.AnyAsync(re => 
+                        re.BookingId == booking.Id && re.RoomTypeId == roomTypeId);
+
+                    if (!exists)
+                    {
+                        var eligibility = new ReviewEligibility
+                        {
+                            UserId = booking.UserId.Value,
+                            RoomTypeId = roomTypeId,
+                            BookingId = booking.Id,
+                            IsReviewed = false,
+                            ExpiresAt = DateTime.Now.AddDays(30)
+                        };
+                        await _context.ReviewEligibilities.AddAsync(eligibility);
+                    }
+                }
             }
         }
         else if (status.Equals("Cancelled", StringComparison.OrdinalIgnoreCase))
