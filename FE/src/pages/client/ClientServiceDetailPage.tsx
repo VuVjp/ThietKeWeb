@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
     CheckCircleIcon,
@@ -11,6 +11,7 @@ import {
 import { servicesApi } from '../../api/servicesApi';
 import { useAppAuth } from '../../auth/useAppAuth';
 import type { Service } from '../../types/models';
+import { ArrowLeftIcon } from 'lucide-react';
 
 export function ClientServiceDetailPage() {
     const { id } = useParams<{ id: string }>();
@@ -81,9 +82,9 @@ export function ClientServiceDetailPage() {
 
                 <div className="absolute inset-0 max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12 flex flex-col justify-end pb-20">
 
-                    {/* <Link to="/services" className="text-white/70 hover:text-white flex items-center gap-2 font-bold uppercase tracking-[0.2em] text-[10px] mb-8 w-max transition-all group">
+                    <Link to="/services" className="text-white/70 hover:text-white flex items-center gap-2 font-bold uppercase tracking-[0.2em] text-[15px] mb-8 w-max transition-all group">
                         <ArrowLeftIcon className="w-4 h-4 transform group-hover:-translate-x-1 transition-transform" /> Back to Services
-                    </Link> */}
+                    </Link>
 
                     <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-10">
                         <div className="max-w-3xl">

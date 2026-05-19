@@ -298,8 +298,8 @@ export function ClientRoomsPage() {
                                                         <label
                                                             key={amenity.id}
                                                             className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm cursor-pointer transition ${selectedAmenityIds.includes(amenity.id)
-                                                                    ? 'border-cyan-500 bg-cyan-50 text-cyan-700'
-                                                                    : 'border-slate-200 bg-white text-slate-600 hover:border-cyan-300'
+                                                                ? 'border-cyan-500 bg-cyan-50 text-cyan-700'
+                                                                : 'border-slate-200 bg-white text-slate-600 hover:border-cyan-300'
                                                                 }`}
                                                         >
                                                             <input
@@ -323,7 +323,7 @@ export function ClientRoomsPage() {
                                 </div>
                                 <div className="xl:col-span-12 flex flex-col md:flex-row items-center gap-4">
                                     {/* Price range - takes remaining horizontal space on md+ */}
-                                    <div className="flex-1 min-w-0">
+                                    <div className="flex-1 min-w-0 w-full">
                                         <div className="flex justify-between mb-2">
                                             <label className="text-xs font-bold uppercase tracking-wider text-slate-600">Max Price</label>
                                             <span className="text-sm font-bold text-cyan-600">${maxPrice.toLocaleString()}<span className="text-slate-400 font-normal">/night</span></span>
@@ -343,35 +343,37 @@ export function ClientRoomsPage() {
                                         </div>
                                     </div>
 
-                                    {/* Min adults - size to content */}
-                                    <div className="flex-none">
-                                        <label className="text-xs font-bold uppercase tracking-wider text-slate-600 block mb-2">Adults</label>
-                                        <div className="flex items-center gap-3">
-                                            <button
-                                                onClick={() => setMinAdults(g => Math.max(1, g - 1))}
-                                                className="w-9 h-9 rounded-full border border-slate-300 flex items-center justify-center text-lg font-bold hover:bg-cyan-50 hover:border-cyan-400 transition"
-                                            >−</button>
-                                            <span className="text-lg font-bold w-8 text-center">{minAdults}</span>
-                                            <button
-                                                onClick={() => setMinAdults(g => g + 1)}
-                                                className="w-9 h-9 rounded-full border border-slate-300 flex items-center justify-center text-lg font-bold hover:bg-cyan-50 hover:border-cyan-400 transition"
-                                            >+</button>
+                                    {/* Adults & Children group: on mobile they share one row; on md+ they sit beside Price */}
+                                    <div className="w-full md:w-auto md:flex-none flex gap-4 items-end">
+                                        <div className="flex-none">
+                                            <label className="text-xs font-bold uppercase tracking-wider text-slate-600 block mb-2">Adults</label>
+                                            <div className="flex items-center gap-3">
+                                                <button
+                                                    onClick={() => setMinAdults(g => Math.max(1, g - 1))}
+                                                    className="w-9 h-9 rounded-full border border-slate-300 flex items-center justify-center text-lg font-bold hover:bg-cyan-50 hover:border-cyan-400 transition"
+                                                >−</button>
+                                                <span className="text-lg font-bold w-8 text-center">{minAdults}</span>
+                                                <button
+                                                    onClick={() => setMinAdults(g => g + 1)}
+                                                    className="w-9 h-9 rounded-full border border-slate-300 flex items-center justify-center text-lg font-bold hover:bg-cyan-50 hover:border-cyan-400 transition"
+                                                >+</button>
+                                            </div>
                                         </div>
-                                    </div>
 
-                                    {/* Min children - size to content */}
-                                    <div className="flex-none">
-                                        <label className="text-xs font-bold uppercase tracking-wider text-slate-600 block mb-2">Children</label>
-                                        <div className="flex items-center gap-3">
-                                            <button
-                                                onClick={() => setMinChildren(g => Math.max(0, g - 1))}
-                                                className="w-9 h-9 rounded-full border border-slate-300 flex items-center justify-center text-lg font-bold hover:bg-cyan-50 hover:border-cyan-400 transition"
-                                            >−</button>
-                                            <span className="text-lg font-bold w-8 text-center">{minChildren}</span>
-                                            <button
-                                                onClick={() => setMinChildren(g => g + 1)}
-                                                className="w-9 h-9 rounded-full border border-slate-300 flex items-center justify-center text-lg font-bold hover:bg-cyan-50 hover:border-cyan-400 transition"
-                                            >+</button>
+                                        {/* Min children - size to content */}
+                                        <div className="flex-none">
+                                            <label className="text-xs font-bold uppercase tracking-wider text-slate-600 block mb-2">Children</label>
+                                            <div className="flex items-center gap-3">
+                                                <button
+                                                    onClick={() => setMinChildren(g => Math.max(0, g - 1))}
+                                                    className="w-9 h-9 rounded-full border border-slate-300 flex items-center justify-center text-lg font-bold hover:bg-cyan-50 hover:border-cyan-400 transition"
+                                                >−</button>
+                                                <span className="text-lg font-bold w-8 text-center">{minChildren}</span>
+                                                <button
+                                                    onClick={() => setMinChildren(g => g + 1)}
+                                                    className="w-9 h-9 rounded-full border border-slate-300 flex items-center justify-center text-lg font-bold hover:bg-cyan-50 hover:border-cyan-400 transition"
+                                                >+</button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -382,8 +384,8 @@ export function ClientRoomsPage() {
                                         onClick={handleReset}
                                         disabled={isResetDisabled}
                                         className={`flex items-center gap-2 text-sm font-bold uppercase tracking-wider transition ${isResetDisabled
-                                                ? 'text-slate-400 cursor-not-allowed'
-                                                : 'text-red-500 hover:text-red-700'
+                                            ? 'text-slate-400 cursor-not-allowed'
+                                            : 'text-red-500 hover:text-red-700'
                                             }`}
                                     >
                                         <XMarkIcon className="w-4 h-4" /> Clear All
