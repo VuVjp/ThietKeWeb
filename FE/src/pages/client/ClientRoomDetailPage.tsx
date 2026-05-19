@@ -64,9 +64,9 @@ export function ClientRoomDetailPage() {
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/20 to-transparent" />
 
                 <div className="absolute inset-0 max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12 flex flex-col justify-end pb-20">
-                    <Link to="/rooms" className="text-white/70 hover:text-white flex items-center gap-2 font-bold uppercase tracking-[0.2em] text-[10px] mb-8 w-max transition-all group">
+                    {/* <Link to="/rooms" className="text-white/70 hover:text-white flex items-center gap-2 font-bold uppercase tracking-[0.2em] text-[10px] mb-8 w-max transition-all group">
                         <ArrowLeftIcon className="w-4 h-4 transform group-hover:-translate-x-1 transition-transform" /> Back to Rooms
-                    </Link>
+                    </Link> */}
 
                     <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-10">
                         <div className="max-w-3xl">
