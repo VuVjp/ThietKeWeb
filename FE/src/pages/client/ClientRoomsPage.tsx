@@ -6,9 +6,9 @@ import { UserIcon, MagnifyingGlassIcon, AdjustmentsHorizontalIcon, XMarkIcon } f
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 
 const SORT_OPTIONS = [
-    { value: 'default', label: 'Default' },
-    { value: 'price_asc', label: 'Price: Low → High' },
+    { value: 'price_asc', label: 'Price: Low → High (Default)' },
     { value: 'price_desc', label: 'Price: High → Low' },
+    { value: 'rating_desc', label: 'Rating: High → Low' },
     { value: 'guests_desc', label: 'Most Guests First' },
     { value: 'name_asc', label: 'Name: A → Z' },
 ];
@@ -27,7 +27,7 @@ export function ClientRoomsPage() {
     const [maxPrice, setMaxPrice] = useState<number>(10000);
     const [minAdults, setMinAdults] = useState<number>(queryAdults || 1);
     const [minChildren, setMinChildren] = useState<number>(queryChildren || 0);
-    const [sortBy, setSortBy] = useState('default');
+    const [sortBy, setSortBy] = useState('price_asc');
     const [filtersOpen, setFiltersOpen] = useState(false);
 
     // Sync URL params to state if they change
@@ -68,16 +68,24 @@ export function ClientRoomsPage() {
         if (maxPrice < maxBasePrice) count++;
         if (minAdults > 1) count++;
         if (minChildren > 0) count++;
-        if (sortBy !== 'default') count++;
+        if (sortBy !== 'price_asc') count++;
         return count;
     }, [searchQuery, maxPrice, minAdults, minChildren, sortBy, maxBasePrice]);
+
+    const isResetDisabled = useMemo(() => (
+        !searchQuery.trim() &&
+        maxPrice === maxBasePrice &&
+        minAdults === 1 &&
+        minChildren === 0 &&
+        sortBy === 'price_asc'
+    ), [searchQuery, maxPrice, minAdults, minChildren, sortBy, maxBasePrice]);
 
     const handleReset = () => {
         setSearchQuery('');
         setMaxPrice(maxBasePrice);
         setMinAdults(1);
         setMinChildren(0);
-        setSortBy('default');
+        setSortBy('price_asc');
     };
 
     // Filtered & sorted list
@@ -94,8 +102,14 @@ export function ClientRoomsPage() {
         switch (sortBy) {
             case 'price_asc': result = [...result].sort((a, b) => a.basePrice - b.basePrice); break;
             case 'price_desc': result = [...result].sort((a, b) => b.basePrice - a.basePrice); break;
+            case 'rating_desc': result = [...result].sort((a, b) => {
+                const ratingDiff = (b.averageRating ?? 0) - (a.averageRating ?? 0);
+                if (ratingDiff !== 0) return ratingDiff;
+                return (b.reviewCount ?? 0) - (a.reviewCount ?? 0);
+            }); break;
             case 'guests_desc': result = [...result].sort((a, b) => (b.capacityAdults + b.capacityChildren) - (a.capacityAdults + a.capacityChildren)); break;
             case 'name_asc': result = [...result].sort((a, b) => a.name.localeCompare(b.name)); break;
+            default: result = [...result].sort((a, b) => a.basePrice - b.basePrice); break;
         }
 
         return result;
@@ -232,14 +246,17 @@ export function ClientRoomsPage() {
                             </div>
 
                             {/* Reset */}
-                            {activeFilterCount > 0 && (
-                                <button
-                                    onClick={handleReset}
-                                    className="flex-shrink-0 flex items-center gap-2 text-sm text-red-500 hover:text-red-700 font-bold uppercase tracking-wider transition"
-                                >
-                                    <XMarkIcon className="w-4 h-4" /> Clear All
-                                </button>
-                            )}
+                            <button
+                                onClick={handleReset}
+                                disabled={isResetDisabled}
+                                className={`flex-shrink-0 flex items-center gap-2 text-sm font-bold uppercase tracking-wider transition ${
+                                    isResetDisabled
+                                        ? 'text-slate-400 cursor-not-allowed'
+                                        : 'text-red-500 hover:text-red-700'
+                                }`}
+                            >
+                                <XMarkIcon className="w-4 h-4" /> Clear All
+                            </button>
                         </div>
                     )}
                 </div>
