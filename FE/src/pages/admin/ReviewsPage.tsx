@@ -15,13 +15,13 @@ import { useDebounce } from '../../hooks/useDebounce';
 
 export function ReviewsPage() {
     const { ensure } = usePermissionCheck();
-    
+
     // Data state
     const [rows, setRows] = useState<ReviewItem[]>([]);
     const [roomTypes, setRoomTypes] = useState<RoomTypeItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [total, setTotal] = useState(0);
-    
+
     // Filter/Pagination state
     const [page, setPage] = useState(1);
     const [search, setSearch] = useState('');
@@ -122,7 +122,7 @@ export function ReviewsPage() {
         if (!ensure('MANAGE_REVIEWS', 'approve review')) return;
         try {
             await reviewsApi.approve(item.id);
-            setRows(prev => prev.map(row => 
+            setRows(prev => prev.map(row =>
                 row.id === item.id ? { ...row, status: 'Active', isActive: true } : row
             ));
             toast.success(`Review #${item.id} approved`);
@@ -136,7 +136,7 @@ export function ReviewsPage() {
         if (!ensure('MANAGE_REVIEWS', 'reject review')) return;
         try {
             await reviewsApi.reject(item.id);
-            setRows(prev => prev.map(row => 
+            setRows(prev => prev.map(row =>
                 row.id === item.id ? { ...row, status: 'Inactive', isActive: false } : row
             ));
             toast.success(`Review #${item.id} rejected`);
@@ -178,12 +178,12 @@ export function ReviewsPage() {
                 </div>
             ),
         },
-        { 
-            key: 'roomType', 
-            label: 'Room Type', 
+        {
+            key: 'roomType',
+            label: 'Room Type',
             render: (row: ReviewItem) => (
                 <span className="text-sm font-medium text-slate-600">{row.roomTypeName || 'N/A'}</span>
-            ) 
+            )
         },
         {
             key: 'rating',
@@ -295,7 +295,7 @@ export function ReviewsPage() {
                     </div>
 
                     <div className="md:col-span-2 bg-white p-4 rounded-2xl border border-slate-200">
-                        {[1,2,3,4,5].map((_) => (
+                        {[1, 2, 3, 4, 5].map((_) => (
                             <div key={_} className="flex items-center gap-3 mb-3">
                                 <div className="w-14 h-4 bg-slate-200 rounded animate-pulse" />
                                 <div className="flex-1 bg-slate-100 h-3 rounded overflow-hidden">
@@ -312,7 +312,7 @@ export function ReviewsPage() {
                         <div className="text-4xl font-extrabold text-slate-900">{(ratingStats.avg ?? 0).toFixed(1)}</div>
                         <div>
                             <div className="flex items-center text-amber-400 mb-1">
-                                {[1,2,3,4,5].map(i => (
+                                {[1, 2, 3, 4, 5].map(i => (
                                     (i <= Math.round(ratingStats.avg ?? 0)) ? (
                                         <StarIconSolid key={i} className="h-5 w-5" />
                                     ) : (
@@ -325,7 +325,7 @@ export function ReviewsPage() {
                     </div>
 
                     <div className="md:col-span-2 bg-white p-4 rounded-2xl border border-slate-200">
-                        {[5,4,3,2,1].map((star, idx) => (
+                        {[5, 4, 3, 2, 1].map((star, idx) => (
                             <div key={star} className="flex items-center gap-3 mb-3">
                                 <div className="w-14 text-sm font-semibold text-slate-700 flex items-center gap-1">
                                     <span>{star}</span>
@@ -344,17 +344,17 @@ export function ReviewsPage() {
             {/* Filter Bar - Matching Order Service Page Layout */}
             <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 items-end">
-                    
+
                     {/* Search */}
                     <div className="lg:col-span-2 space-y-1.5">
                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Search</label>
                         <div className="relative">
                             <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                            <Input 
-                                className="pl-9 h-[38px] rounded-xl" 
-                                placeholder="ID, User name..." 
-                                value={search} 
-                                onChange={(e) => setSearch(e.target.value)} 
+                            <Input
+                                className="pl-9 h-[38px] rounded-xl"
+                                placeholder="ID, User name..."
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
                             />
                         </div>
                     </div>
@@ -363,17 +363,17 @@ export function ReviewsPage() {
                     <div className="lg:col-span-3 space-y-1.5">
                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Date Range</label>
                         <div className="flex gap-2">
-                            <Input 
-                                type="date" 
-                                className="min-w-0 flex-1 px-2 h-[38px] rounded-xl"
-                                value={startDate} 
-                                onChange={(e) => setStartDate(e.target.value)} 
-                            />
-                            <Input 
+                            <Input
                                 type="date"
                                 className="min-w-0 flex-1 px-2 h-[38px] rounded-xl"
-                                value={endDate} 
-                                onChange={(e) => setEndDate(e.target.value)} 
+                                value={startDate}
+                                onChange={(e) => setStartDate(e.target.value)}
+                            />
+                            <Input
+                                type="date"
+                                className="min-w-0 flex-1 px-2 h-[38px] rounded-xl"
+                                value={endDate}
+                                onChange={(e) => setEndDate(e.target.value)}
                             />
                         </div>
                     </div>
@@ -381,7 +381,7 @@ export function ReviewsPage() {
                     {/* Room Type */}
                     <div className="lg:col-span-2 space-y-1.5">
                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Room Type</label>
-                        <CategorySelect 
+                        <CategorySelect
                             categories={roomTypes}
                             selectedId={selectedRoomType}
                             onChange={(id) => setSelectedRoomType(id)}
@@ -392,9 +392,9 @@ export function ReviewsPage() {
                     {/* Status */}
                     <div className="lg:col-span-2 space-y-1.5">
                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Status</label>
-                        <select 
+                        <select
                             className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all outline-none appearance-none h-[38px]"
-                            value={statusFilter} 
+                            value={statusFilter}
                             onChange={(e) => setStatusFilter(e.target.value)}
                         >
                             <option value="">All</option>
@@ -407,9 +407,9 @@ export function ReviewsPage() {
                     {/* Rating */}
                     <div className="lg:col-span-1 space-y-1.5">
                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Rating</label>
-                        <select 
+                        <select
                             className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all outline-none appearance-none h-[38px]"
-                            value={selectedRating || ''} 
+                            value={selectedRating || ''}
                             onChange={(e) => setSelectedRating(e.target.value ? Number(e.target.value) : null)}
                         >
                             <option value="">All</option>
@@ -424,9 +424,9 @@ export function ReviewsPage() {
                     {/* Sort */}
                     <div className="lg:col-span-1 space-y-1.5">
                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Sort</label>
-                        <select 
+                        <select
                             className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all outline-none appearance-none h-[38px]"
-                            value={sortOrder} 
+                            value={sortOrder}
                             onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
                         >
                             <option value="desc">New</option>
@@ -466,11 +466,11 @@ export function ReviewsPage() {
                 </div>
             )}
 
-            <Pagination 
-                page={page} 
-                pageSize={10} 
-                total={total} 
-                onPageChange={(p) => setPage(p)} 
+            <Pagination
+                page={page}
+                pageSize={10}
+                total={total}
+                onPageChange={(p) => setPage(p)}
             />
         </div>
     );
