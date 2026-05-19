@@ -295,7 +295,7 @@ export function ClientBookingPage() {
     return (
         <div className="w-full bg-[#f4f7f6] min-h-screen pb-24 font-sans text-slate-800">
             {/* Minimal Header Spacer */}
-            <div className="pt-[100px] pb-10 bg-slate-900 border-b-4 border-cyan-500">
+            <div className="pt-[100px] pb-10 bg-slate-900 border-b-4 border-cyan-500 overflow-hidden">
                 <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12 text-center">
                     <h1 className="text-3xl md:text-5xl font-bold text-white mb-2 uppercase tracking-tighter">Secure Reservation</h1>
                     <div className="flex items-center justify-center gap-4 mt-6">
@@ -487,10 +487,10 @@ export function ClientBookingPage() {
 
                                         // Get all unique other room type names
                                         const otherRoomTypes = Array.from(new Set(otherRooms.map(r => r.roomTypeName).filter(Boolean))) as string[];
-                                        
+
                                         // Find which other room type is active
-                                        const activeOtherType = otherRoomTypes.includes(selectedOtherRoomTypeName) 
-                                            ? selectedOtherRoomTypeName 
+                                        const activeOtherType = otherRoomTypes.includes(selectedOtherRoomTypeName)
+                                            ? selectedOtherRoomTypeName
                                             : otherRoomTypes[0] || '';
 
                                         const roomsOfActiveType = otherRooms.filter(r => r.roomTypeName === activeOtherType);
@@ -520,7 +520,7 @@ export function ClientBookingPage() {
                                                         </select>
                                                         <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
                                                             <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                                                                <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+                                                                <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
                                                             </svg>
                                                         </div>
                                                     </div>
@@ -690,7 +690,7 @@ export function ClientBookingPage() {
 
                     {/* RIGHT COL: SUMMARY CARD */}
                     <div>
-                        <div className="bg-slate-900 text-white p-8 rounded-2xl shadow-2xl overflow-hidden">
+                        <div className="relative bg-slate-900 text-white p-8 rounded-2xl shadow-2xl overflow-hidden">
                             <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full -mr-16 -mt-16 blur-2xl" />
                             <div className="absolute bottom-0 left-0 w-24 h-24 bg-cyan-500/10 rounded-full -ml-12 -mb-12 blur-2xl" />
 

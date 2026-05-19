@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { 
-    ArrowLeftIcon, 
+import {
+    ArrowLeftIcon,
     CheckCircleIcon,
     SparklesIcon,
     CurrencyDollarIcon,
@@ -17,7 +17,7 @@ export function ClientServiceDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { isAuthenticated } = useAppAuth();
-    
+
     const [service, setService] = useState<Service | null>(null);
     const [loading, setLoading] = useState(true);
 
@@ -72,19 +72,19 @@ export function ClientServiceDetailPage() {
     return (
         <div className="w-full bg-slate-50 min-h-screen pb-24 font-sans">
             {/* HERO SECTION */}
-            <div className="relative h-[65vh] w-full bg-slate-900 overflow-hidden">
+            <div className="relative h-[100vh] sm:h-[90vh] md:h-[80vh] lg:h-[80vh] xl:h-[85vh] w-full bg-slate-900 overflow-hidden">
                 <img
                     src={heroImage}
                     alt={service.name}
                     className="w-full h-full object-cover opacity-60 scale-105"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/20 to-transparent" />
-                
+
                 <div className="absolute inset-0 max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12 flex flex-col justify-end pb-20">
                     <Link to="/services" className="text-white/70 hover:text-white flex items-center gap-2 font-bold uppercase tracking-[0.2em] text-[10px] mb-8 w-max transition-all group">
                         <ArrowLeftIcon className="w-4 h-4 transform group-hover:-translate-x-1 transition-transform" /> Back to Services
                     </Link>
-                    
+
                     <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-10">
                         <div className="max-w-3xl">
                             <span className="text-cyan-400 font-black tracking-[0.3em] uppercase text-xs mb-4 block">{service.categoryName || 'Luxury Amenity'}</span>
@@ -95,7 +95,7 @@ export function ClientServiceDetailPage() {
                                 {service.description || 'An exquisite service designed to elevate your stay to new heights of luxury and comfort.'}
                             </p>
                         </div>
-                        
+
                         <div className="bg-white/10 backdrop-blur-2xl border border-white/20 p-8 rounded-3xl flex-shrink-0 lg:w-96 shadow-2xl">
                             <div className="flex items-center gap-2 mb-6">
                                 <CurrencyDollarIcon className="w-5 h-5 text-cyan-400" />
@@ -105,7 +105,7 @@ export function ClientServiceDetailPage() {
                                 <span className="text-5xl font-black text-white">${service.price.toLocaleString()}</span>
                                 <span className="text-lg text-slate-400 font-medium">/ {service.unit}</span>
                             </div>
-                            <button 
+                            <button
                                 onClick={() => void handleBookClick()}
                                 className="w-full bg-cyan-600 hover:bg-cyan-500 text-white py-5 px-8 rounded-2xl font-black uppercase tracking-[0.15em] text-sm transition-all shadow-xl shadow-cyan-600/30 hover:scale-[1.02] active:scale-95"
                             >
@@ -119,10 +119,10 @@ export function ClientServiceDetailPage() {
             {/* CONTENT SECTION */}
             <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12 mt-20">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
-                    
+
                     {/* LEFT COLUMN: DESCRIPTION & FEATURES */}
                     <div className="lg:col-span-8 space-y-20">
-                        
+
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                             <div className="p-8 bg-white rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center text-center group hover:border-cyan-200 transition-colors">
                                 <div className="w-14 h-14 rounded-2xl bg-cyan-50 text-cyan-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
@@ -215,7 +215,7 @@ export function ClientServiceDetailPage() {
                                     </p>
                                 </div>
                             </div>
-                            
+
                             <div className="p-8 bg-cyan-50 rounded-[2rem] border border-cyan-100 flex items-center gap-6 group">
                                 <div className="w-16 h-16 rounded-2xl bg-white text-cyan-600 flex items-center justify-center shadow-sm group-hover:rotate-12 transition-transform">
                                     <SparklesIcon className="w-8 h-8" />
