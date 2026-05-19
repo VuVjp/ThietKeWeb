@@ -251,6 +251,58 @@ Hệ thống dùng **4 vai trò chính**:
 
 ---
 
+## 💾 Dữ liệu khởi tạo (Seed Data)
+
+Hệ thống được khởi tạo sẵn với các dữ liệu cơ bản sau:
+
+### 1) Hạng thành viên (Memberships)
+| ID | Tên hạng | Điểm tối thiểu | Giảm giá |
+|---|---|---|---|
+| 1 | **Bronze** | 0 | 5.00% |
+| 2 | **Silver** | 1000 | 10.00% |
+| 3 | **Gold** | 5000 | 15.00% |
+| 4 | **Platinum** | 10000 | 20.00% |
+
+### 2) Vai trò (Roles)
+Hệ thống bao gồm **8 vai trò chính**:
+1. **Admin**: Quản trị viên hệ thống (System administrator)
+2. **Manager**: Quản lý vận hành (Operations manager)
+3. **Receptionist**: Nhân viên lễ tân (Front desk staff)
+4. **Accountant**: Nhân viên kế toán (Accounting staff)
+5. **Housekeeping**: Nhân viên buồng phòng (Housekeeping staff)
+6. **Guest**: Khách hàng (Customer / guest)
+7. **Maintenance**: Nhân viên bảo trì (Maintenance technician)
+8. **Security**: Nhân viên bảo vệ (Security staff)
+
+### 3) Quyền hạn (Permissions)
+Bao gồm **21 quyền** hệ thống:
+- **Hệ thống & Người dùng**: `VIEW_DASHBOARD`, `MANAGE_USERS`, `MANAGE_ROLES`, `VIEW_REPORTS`, `VIEW_FULL_AUDIT_LOGS`
+- **Quản lý Phòng**: `MANAGE_ROOMS`, `MANAGE_ROOM_TYPES`, `MANAGE_AMENITY`, `UPDATE_CLEANING`
+- **Quản lý Đặt phòng & Dịch vụ**: `MANAGE_BOOKINGS`, `MANAGE_SERVICES`, `MANAGE_INVOICE`, `MANAGE_VOUCHERS`
+- **Kho & Thiết bị**: `MANAGE_INVENTORY`, `MANAGE_EQUIPMENTS`, `MANAGE_ROOM_INVENTORY`, `APPROVE_LOSS`
+- **Nội dung & Khách hàng**: `MANAGE_ATTRACTIONS`, `MANAGE_ARTICLES`, `MANAGE_ARTICLE_CATEGORY`, `MANAGE_REVIEWS`
+
+---
+
+## ⚙️ Cấu hình Môi trường (Environment Setup)
+
+Trước khi khởi chạy dự án, bạn cần thiết lập cấu hình môi trường cho cả Backend và Frontend:
+
+### 1) Backend (`BE`)
+Tạo file `BE/appsettings.json` (có thể sao chép từ `appsettings.json.example`) và cập nhật các thông tin:
+- **ConnectionStrings**: Chuỗi kết nối đến cơ sở dữ liệu SQL Server.
+- **Jwt**: `Key`, `Issuer`, `Audience` để tạo và xác thực Token.
+- **CloudinarySettings**: Thông tin Cloudinary (`CloudName`, `ApiKey`, `ApiSecret`) dùng để lưu trữ hình ảnh.
+- **EmailSettings**: Thông tin SMTP để gửi email (ví dụ: email xác nhận đặt phòng).
+- **Momo**: Các khóa tích hợp cổng thanh toán MoMo (`PartnerCode`, `AccessKey`, `SecretKey`).
+
+### 2) Frontend (`FE`)
+Tạo file `FE/.env` (sao chép từ `FE/.env.example`) và thiết lập:
+- `VITE_API_BASE_URL`: Địa chỉ API Backend (mặc định thường là `http://localhost:5082/api`).
+- `VITE_GOOGLE_CLIENT_ID`: ID Client từ Google Cloud Console để thực hiện chức năng Đăng nhập bằng Google (Google OAuth).
+
+---
+
 ## 🚀 Hướng dẫn chạy dự án
 ### Backend
 
