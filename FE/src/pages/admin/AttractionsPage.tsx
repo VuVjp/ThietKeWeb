@@ -189,13 +189,7 @@ export function AttractionsPage() {
         { 
             key: 'distance', 
             label: 'Distance', 
-            render: (row: Attraction) => {
-                if (row.latitude && row.longitude && !isNaN(Number(row.latitude)) && !isNaN(Number(row.longitude))) {
-                    const d = calculateDistanceAsKm(hotelLat, hotelLng, Number(row.latitude), Number(row.longitude));
-                    return `${d} km`;
-                }
-                return row.distanceKm ? `${row.distanceKm} km` : '-';
-            } 
+            render: (row: Attraction) => row.distanceKm ? `${row.distanceKm} km` : '-'
         },
         { key: 'status', label: 'Status', render: (row: Attraction) => (
             <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${row.isActive ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-700'}`}>

@@ -6,65 +6,32 @@ import toast from 'react-hot-toast';
 import { AttractionCard } from '../../components/AttractionCard';
 import { queryIncludes } from '../../utils/table';
 
-function calculateDistanceAsKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
-    const R = 6371; // Radius of the earth in km
-    const dLat = (lat2 - lat1) * (Math.PI / 180);
-    const dLon = (lon2 - lon1) * (Math.PI / 180);
-    const a =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
-        Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return parseFloat((R * c).toFixed(1));
-}
-
 export function ClientAttractionsPage() {
     const [attractions, setAttractions] = useState<Attraction[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
 
-    const [hotelLat, setHotelLat] = useState(10.9539722);
-    const [hotelLng, setHotelLng] = useState(106.8019444);
-
     useEffect(() => {
-        const fetchData = async () => {
+        const fetchAttractions = async () => {
             try {
-                const [attractionsData, hotelLoc] = await Promise.all([
-                    attractionsApi.getAll(),
-                    attractionsApi.getHotelLocation().catch(err => {
-                        console.error('Failed to load hotel location', err);
-                        return { latitude: 10.9539722, longitude: 106.8019444 };
-                    })
-                ]);
-                setHotelLat(hotelLoc.latitude);
-                setHotelLng(hotelLoc.longitude);
-                setAttractions(attractionsData.filter((a: Attraction) => a.isActive));
+                const data = await attractionsApi.getAll();
+                setAttractions(data.filter((a: Attraction) => a.isActive));
             } catch (error) {
                 toast.error('Failed to load attractions');
             } finally {
                 setLoading(false);
             }
         };
-        fetchData();
+        fetchAttractions();
     }, []);
 
-    const processedAttractions = useMemo(() => {
-        return attractions.map(a => {
-            if (a.latitude && a.longitude && !isNaN(Number(a.latitude)) && !isNaN(Number(a.longitude))) {
-                const dist = calculateDistanceAsKm(hotelLat, hotelLng, Number(a.latitude), Number(a.longitude));
-                return { ...a, distanceKm: dist };
-            }
-            return a;
-        });
-    }, [attractions, hotelLat, hotelLng]);
-
     const filteredAttractions = useMemo(() => {
-        if (!search.trim()) return processedAttractions;
-        return processedAttractions.filter(a => 
+        if (!search.trim()) return attractions;
+        return attractions.filter(a => 
             queryIncludes(a.name, search) || 
             queryIncludes(a.description || '', search)
         );
-    }, [processedAttractions, search]);
+    }, [attractions, search]);
 
     return (
         <div className="w-full bg-slate-50 min-h-screen">
