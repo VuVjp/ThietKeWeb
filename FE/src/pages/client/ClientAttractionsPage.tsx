@@ -6,10 +6,32 @@ import toast from 'react-hot-toast';
 import { AttractionCard } from '../../components/AttractionCard';
 import { queryIncludes } from '../../utils/table';
 
+function calculateDistanceAsKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const R = 6371; // Radius of the earth in km
+    const dLat = (lat2 - lat1) * (Math.PI / 180);
+    const dLon = (lon2 - lon1) * (Math.PI / 180);
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return parseFloat((R * c).toFixed(1));
+}
+
 export function ClientAttractionsPage() {
     const [attractions, setAttractions] = useState<Attraction[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
+
+    const hotelLat = useMemo(() => {
+        const saved = localStorage.getItem('hotel_base_latitude');
+        return saved ? Number(saved) : 10.9539722;
+    }, []);
+
+    const hotelLng = useMemo(() => {
+        const saved = localStorage.getItem('hotel_base_longitude');
+        return saved ? Number(saved) : 106.8019444;
+    }, []);
 
     useEffect(() => {
         const fetchAttractions = async () => {
@@ -25,13 +47,23 @@ export function ClientAttractionsPage() {
         fetchAttractions();
     }, []);
 
+    const processedAttractions = useMemo(() => {
+        return attractions.map(a => {
+            if (a.latitude && a.longitude && !isNaN(Number(a.latitude)) && !isNaN(Number(a.longitude))) {
+                const dist = calculateDistanceAsKm(hotelLat, hotelLng, Number(a.latitude), Number(a.longitude));
+                return { ...a, distanceKm: dist };
+            }
+            return a;
+        });
+    }, [attractions, hotelLat, hotelLng]);
+
     const filteredAttractions = useMemo(() => {
-        if (!search.trim()) return attractions;
-        return attractions.filter(a => 
+        if (!search.trim()) return processedAttractions;
+        return processedAttractions.filter(a => 
             queryIncludes(a.name, search) || 
             queryIncludes(a.description || '', search)
         );
-    }, [attractions, search]);
+    }, [processedAttractions, search]);
 
     return (
         <div className="w-full bg-slate-50 min-h-screen">
