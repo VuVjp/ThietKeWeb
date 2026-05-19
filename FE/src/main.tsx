@@ -31,5 +31,5 @@ createRoot(document.getElementById('root')!).render(
         </BrowserRouter>
       </GoogleOAuthProvider>
     </QueryClientProvider>
-  </StrictMode>,
+  </StrictMode>
 );
