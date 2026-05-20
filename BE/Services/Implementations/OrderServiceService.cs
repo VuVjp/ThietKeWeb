@@ -161,6 +161,7 @@ public class OrderServiceService : IOrderServiceService
 
         await _repository.AddAsync(order);
         await _repository.SaveChangesAsync();
+        
         // Notify staff roles about the new service order
         try
         {
@@ -177,10 +178,23 @@ public class OrderServiceService : IOrderServiceService
             await _notificationService.SendByRoleAsync(RoleName.Admin, dtoNote);
             await _notificationService.SendByRoleAsync(RoleName.Manager, dtoNote);
             await _notificationService.SendByRoleAsync(RoleName.Receptionist, dtoNote);
+
+            // Notify user
+            if (bookingDetail.Booking != null && bookingDetail.Booking.UserId.HasValue)
+            {
+                await _notificationService.SendToUserAsync(bookingDetail.Booking.UserId.Value, new CreateNotificationDto
+                {
+                    Title = "Service Ordered Successfully",
+                    Content = $"successfully ordered service for room {roomNumber}",
+                    Type = NotificationAction.ServiceCreated,
+                    ReferenceLink = "profile"
+                });
+            }
         }
-        catch
+        catch (Exception ex)
         {
             // Swallow notification errors so order creation is not impacted
+            Console.WriteLine($"[Notification Error] {ex.Message}");
         }
 
         return order.Id;
@@ -347,6 +361,26 @@ public class OrderServiceService : IOrderServiceService
 
             // Increment Completed Service Orders in Dashboard Snapshots
             await _dashboardService.IncrementMetricAsync("CompletedServiceOrders", 1, DateTime.Now);
+
+            // Notify user
+            if (order.BookingDetail.Booking?.UserId != null)
+            {
+                var roomNumber = order.BookingDetail.Room?.RoomNumber ?? "Unknown";
+                try
+                {
+                    await _notificationService.SendToUserAsync(order.BookingDetail.Booking.UserId.Value, new CreateNotificationDto
+                    {
+                        Title = "Service Completed",
+                        Content = $"completed service for room {roomNumber}",
+                        Type = NotificationAction.ServiceUpdated,
+                        ReferenceLink = "profile"
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Notification Error] {ex.Message}");
+                }
+            }
         }
 
         return true;

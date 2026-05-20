@@ -14,12 +14,14 @@ public class ReviewService : IReviewService
     private readonly IReviewRepository _repository;
     private readonly IBookingRepository _bookingRepository;
     private readonly AppDbContext _context;
+    private readonly INotificationService _notificationService;
 
-    public ReviewService(IReviewRepository repository, IBookingRepository bookingRepository, AppDbContext context)
+    public ReviewService(IReviewRepository repository, IBookingRepository bookingRepository, AppDbContext context, INotificationService notificationService)
     {
         _repository = repository;
         _bookingRepository = bookingRepository;
         _context = context;
+        _notificationService = notificationService;
     }
 
     public async Task<IEnumerable<ReviewDto>> GetAllAsync()
@@ -91,6 +93,11 @@ public class ReviewService : IReviewService
         if (!string.IsNullOrWhiteSpace(query.Status))
         {
             queryable = queryable.Where(r => r.Status == query.Status);
+        }
+
+        if (query.UserId.HasValue)
+        {
+            queryable = queryable.Where(r => r.UserId == query.UserId.Value);
         }
 
         // Sorting
@@ -188,7 +195,10 @@ public class ReviewService : IReviewService
 
     public async Task<bool> ApproveAsync(int id)
     {
-        var review = await _repository.GetByIdAsync(id);
+        var review = await _context.Reviews
+            .Include(r => r.RoomType)
+            .FirstOrDefaultAsync(r => r.Id == id);
+
         if (review == null || review.Status != "Pending") return false;
 
         review.IsActive = true;
@@ -196,12 +206,35 @@ public class ReviewService : IReviewService
 
         _repository.Update(review);
         await _repository.SaveChangesAsync();
+
+        try
+        {
+            if (review.UserId.HasValue)
+            {
+                var roomTypeName = review.RoomType?.Name ?? "Room Type";
+                await _notificationService.SendToUserAsync(review.UserId.Value, new CreateNotificationDto
+                {
+                    Title = "Review Approved",
+                    Content = $"your review for {roomTypeName} has been approved",
+                    Type = NotificationAction.ReviewActivated,
+                    ReferenceLink = "profile"
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Notification Error] {ex.Message}");
+        }
+
         return true;
     }
 
     public async Task<bool> RejectAsync(int id)
     {
-        var review = await _repository.GetByIdAsync(id);
+        var review = await _context.Reviews
+            .Include(r => r.RoomType)
+            .FirstOrDefaultAsync(r => r.Id == id);
+
         if (review == null || review.Status != "Pending") return false;
 
         review.IsActive = false;
@@ -209,6 +242,26 @@ public class ReviewService : IReviewService
 
         _repository.Update(review);
         await _repository.SaveChangesAsync();
+
+        try
+        {
+            if (review.UserId.HasValue)
+            {
+                var roomTypeName = review.RoomType?.Name ?? "Room Type";
+                await _notificationService.SendToUserAsync(review.UserId.Value, new CreateNotificationDto
+                {
+                    Title = "Review Rejected",
+                    Content = $"your review for {roomTypeName} has been rejected",
+                    Type = NotificationAction.ReviewDeactivated,
+                    ReferenceLink = "profile"
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Notification Error] {ex.Message}");
+        }
+
         return true;
     }
 
@@ -225,6 +278,17 @@ public class ReviewService : IReviewService
         if (eligibility == null)
         {
             return false; // Not eligible to review this booking's room type
+        }
+
+        // Must be paid (Invoice completed)
+        var isPaid = await _context.BookingDetails
+            .AnyAsync(bd => bd.BookingId == dto.BookingId && 
+                            bd.RoomTypeId == dto.RoomTypeId && 
+                            bd.Invoice != null && 
+                            bd.Invoice.Status == "Completed");
+        if (!isPaid)
+        {
+            return false;
         }
 
         // 2. Create the review
@@ -308,15 +372,28 @@ public class ReviewService : IReviewService
             .Where(re => re.UserId == userId && !re.IsReviewed && re.ExpiresAt > now)
             .ToListAsync();
 
-        return eligibilities.Select(re => new ReviewEligibilityDto
+        var result = new List<ReviewEligibilityDto>();
+        foreach (var re in eligibilities)
         {
-            Id = re.Id,
-            RoomTypeId = re.RoomTypeId,
-            RoomTypeName = re.RoomType?.Name ?? "N/A",
-            BookingId = re.BookingId,
-            BookingCode = re.Booking?.BookingCode ?? "N/A",
-            IsReviewed = re.IsReviewed,
-            ExpiresAt = re.ExpiresAt
-        });
+            var isPaid = await _context.BookingDetails
+                .AnyAsync(bd => bd.BookingId == re.BookingId && 
+                                bd.RoomTypeId == re.RoomTypeId && 
+                                bd.Invoice != null && 
+                                bd.Invoice.Status == "Completed");
+            if (isPaid)
+            {
+                result.Add(new ReviewEligibilityDto
+                {
+                    Id = re.Id,
+                    RoomTypeId = re.RoomTypeId,
+                    RoomTypeName = re.RoomType?.Name ?? "N/A",
+                    BookingId = re.BookingId,
+                    BookingCode = re.Booking?.BookingCode ?? "N/A",
+                    IsReviewed = re.IsReviewed,
+                    ExpiresAt = re.ExpiresAt
+                });
+            }
+        }
+        return result;
     }
 }

@@ -47,6 +47,7 @@ export interface ReviewQueryPayload {
     endDate?: string;
     isActive?: boolean;
     status?: string;
+    userId?: number;
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
     page?: number;

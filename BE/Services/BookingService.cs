@@ -26,8 +26,9 @@ public class BookingService : IBookingService
     private readonly IInvoiceService _invoiceService;
     private readonly IDashboardService _dashboardService;
     private readonly AppDbContext _context;
+    private readonly INotificationService _notificationService;
 
-    public BookingService(IBookingRepository repository, IUserRepository userRepository, IVoucherRepository voucherRepository, IVoucherService voucherService, IInvoiceService invoiceService, IDashboardService dashboardService, AppDbContext context)
+    public BookingService(IBookingRepository repository, IUserRepository userRepository, IVoucherRepository voucherRepository, IVoucherService voucherService, IInvoiceService invoiceService, IDashboardService dashboardService, AppDbContext context, INotificationService notificationService)
     {
         _repository = repository;
         _userRepository = userRepository;
@@ -36,6 +37,7 @@ public class BookingService : IBookingService
         _invoiceService = invoiceService;
         _dashboardService = dashboardService;
         _context = context;
+        _notificationService = notificationService;
     }
 
     public async Task<IEnumerable<RoomAvailabilityDto>> GetAvailableRoomsAsync(DateTime checkIn, DateTime checkOut, int? excludeBookingId = null)
@@ -189,6 +191,25 @@ public class BookingService : IBookingService
 
         // Increment Bookings in Dashboard Snapshots
         await _dashboardService.IncrementMetricAsync("Bookings", 1, DateTime.Now);
+
+        if (booking.UserId.HasValue)
+        {
+            var roomNumStr = string.Join(", ", rooms.Select(r => r.RoomNumber));
+            try
+            {
+                await _notificationService.SendToUserAsync(booking.UserId.Value, new CreateNotificationDto
+                {
+                    Title = "Booking Successful",
+                    Content = $"Successfully booked room: {roomNumStr}",
+                    Type = NotificationAction.BookingCreated,
+                    ReferenceLink = "profile"
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Notification Error] {ex.Message}");
+            }
+        }
 
         return MapToSummaryDto(booking);
     }
@@ -480,6 +501,72 @@ public class BookingService : IBookingService
 
         booking.Status = status;
         await _repository.SaveChangesAsync();
+
+        if (booking.UserId.HasValue)
+        {
+            var roomNumStr = string.Join(", ", booking.BookingDetails
+                .Where(d => d.Room != null)
+                .Select(d => d.Room!.RoomNumber)
+                .Distinct());
+
+            if (string.IsNullOrEmpty(roomNumStr))
+            {
+                roomNumStr = "N/A";
+            }
+
+            if (status.Equals("Confirmed", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    await _notificationService.SendToUserAsync(booking.UserId.Value, new CreateNotificationDto
+                    {
+                        Title = "Deposit Successful",
+                        Content = $"Successfully deposited for room {roomNumStr}",
+                        Type = NotificationAction.BookingUpdated,
+                        ReferenceLink = "profile"
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Notification Error] {ex.Message}");
+                }
+            }
+            else if (status.Equals("CheckedIn", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    await _notificationService.SendToUserAsync(booking.UserId.Value, new CreateNotificationDto
+                    {
+                        Title = "Check-in Successful",
+                        Content = $"Successfully checked in to room {roomNumStr}",
+                        Type = NotificationAction.CheckIn,
+                        ReferenceLink = "profile"
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Notification Error] {ex.Message}");
+                }
+            }
+            else if (status.Equals("CheckedOut", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    await _notificationService.SendToUserAsync(booking.UserId.Value, new CreateNotificationDto
+                    {
+                        Title = "Check-out Successful",
+                        Content = $"Successfully checked out from room {roomNumStr}",
+                        Type = NotificationAction.CheckOut,
+                        ReferenceLink = "profile"
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Notification Error] {ex.Message}");
+                }
+            }
+        }
+
         return true;
     }
 

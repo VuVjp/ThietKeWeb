@@ -9,6 +9,8 @@ import type { Booking } from '../../types/models';
 import { getAccessToken } from '../../api/httpClient';
 import momoApi from '../../api/momoApi';
 import { useAppAuth } from '../../auth/useAppAuth';
+import { reviewsApi } from '../../api/reviewsApi';
+import { roomTypesApi } from '../../api/roomTypesApi';
 
 export function ClientAccountPage() {
     const navigate = useNavigate();
@@ -43,6 +45,129 @@ export function ClientAccountPage() {
     const [bookingToCancel, setBookingToCancel] = useState<number | null>(null);
     const [isCancelling, setIsCancelling] = useState(false);
 
+    // Reviews Tab State
+    const [myReviews, setMyReviews] = useState<any[]>([]);
+    const [eligibilities, setEligibilities] = useState<any[]>([]);
+    const [roomTypes, setRoomTypes] = useState<any[]>([]);
+    const [reviewsTotal, setReviewsTotal] = useState(0);
+    const [reviewsPage, setReviewsPage] = useState(1);
+    const [reviewsPageSize] = useState(5);
+    const [filterRoomTypeId, setFilterRoomTypeId] = useState<number | undefined>(undefined);
+    const [filterRating, setFilterRating] = useState<number | undefined>(undefined);
+    const [filterStatus, setFilterStatus] = useState<string | undefined>(undefined);
+    const [filterStartDate, setFilterStartDate] = useState<string>('');
+    const [filterEndDate, setFilterEndDate] = useState<string>('');
+    const [reviewsLoading, setReviewsLoading] = useState(false);
+
+    // Write/Edit Review Modal State
+    const [showReviewModal, setShowReviewModal] = useState(false);
+    const [reviewModalMode, setReviewModalMode] = useState<'create' | 'edit'>('create');
+    const [selectedEligibility, setSelectedEligibility] = useState<any | null>(null);
+    const [selectedReviewToEdit, setSelectedReviewToEdit] = useState<any | null>(null);
+    const [reviewRating, setReviewRating] = useState(5);
+    const [reviewComment, setReviewComment] = useState('');
+    const [submittingReview, setSubmittingReview] = useState(false);
+
+    const fetchWrittenReviews = async (pageNumber: number) => {
+        if (!profile?.id) return;
+        try {
+            const query: any = {
+                userId: profile.id,
+                page: pageNumber,
+                pageSize: reviewsPageSize,
+                sortBy: 'id',
+                sortOrder: 'desc'
+            };
+            if (filterRoomTypeId) query.roomTypeId = filterRoomTypeId;
+            if (filterRating) query.rating = filterRating;
+            if (filterStatus) query.status = filterStatus;
+            if (filterStartDate) query.startDate = new Date(filterStartDate).toISOString();
+            if (filterEndDate) query.endDate = new Date(filterEndDate).toISOString();
+
+            const paged = await reviewsApi.getPaged(query);
+            setMyReviews(paged.items);
+            setReviewsTotal(paged.total);
+            setReviewsPage(paged.page);
+        } catch (error) {
+            console.error('Error fetching written reviews:', error);
+        }
+    };
+
+    const fetchReviewsData = async () => {
+        if (!profile?.id) return;
+        setReviewsLoading(true);
+        try {
+            const [eligList, rtList] = await Promise.all([
+                reviewsApi.getEligibility(),
+                roomTypesApi.getAll()
+            ]);
+            setEligibilities(eligList);
+            setRoomTypes(rtList);
+            await fetchWrittenReviews(1);
+        } catch (error) {
+            console.error('Error fetching review data:', error);
+            toast.error('Failed to load review data');
+        } finally {
+            setReviewsLoading(false);
+        }
+    };
+
+    const handleReviewsPageChange = (page: number) => {
+        fetchWrittenReviews(page);
+    };
+
+    const handleOpenCreateReview = (eligibility: any) => {
+        setReviewModalMode('create');
+        setSelectedEligibility(eligibility);
+        setReviewRating(5);
+        setReviewComment('');
+        setShowReviewModal(true);
+    };
+
+    const handleOpenEditReview = (reviewItem: any) => {
+        setReviewModalMode('edit');
+        setSelectedReviewToEdit(reviewItem);
+        setReviewRating(reviewItem.rating);
+        setReviewComment(reviewItem.comment || '');
+        setShowReviewModal(true);
+    };
+
+    const handleSubmitReview = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setSubmittingReview(true);
+        try {
+            if (reviewModalMode === 'create' && selectedEligibility) {
+                await reviewsApi.create({
+                    roomTypeId: selectedEligibility.roomTypeId,
+                    bookingId: selectedEligibility.bookingId,
+                    rating: reviewRating,
+                    comment: reviewComment
+                });
+                toast.success('Review submitted successfully for moderation!');
+            } else if (reviewModalMode === 'edit' && selectedReviewToEdit) {
+                await reviewsApi.update(selectedReviewToEdit.id, {
+                    rating: reviewRating,
+                    comment: reviewComment
+                });
+                toast.success('Review updated successfully!');
+            }
+            setShowReviewModal(false);
+            fetchReviewsData();
+        } catch (error: any) {
+            console.error('Error submitting review:', error);
+            const errMsg = error.response?.data?.message || error.response?.data || error.message || 'Failed to submit review';
+            toast.error(errMsg);
+        } finally {
+            setSubmittingReview(false);
+        }
+    };
+
+    useEffect(() => {
+        if (activeTab === 'reviews') {
+            fetchReviewsData();
+        }
+    }, [activeTab, filterRoomTypeId, filterRating, filterStatus, filterStartDate, filterEndDate]);
+
     useEffect(() => {
         const token = getAccessToken();
         if (!token) {
@@ -56,12 +181,14 @@ export function ClientAccountPage() {
     const fetchData = async () => {
         setLoading(true);
         try {
-            const [profileData, bookingsData] = await Promise.all([
+            const [profileData, bookingsData, eligData] = await Promise.all([
                 userProfileApi.getMyProfile(),
-                receptionApi.getMyHistory()
+                receptionApi.getMyHistory(),
+                reviewsApi.getEligibility().catch(() => [])
             ]);
             setProfile(profileData);
             setBookings(bookingsData);
+            setEligibilities(eligData);
             setFormData({
                 fullName: profileData.fullName,
                 phone: profileData.phone,
@@ -301,6 +428,17 @@ export function ClientAccountPage() {
                             {bookings.length > 0 && (
                                 <span className="ml-auto bg-cyan-600 text-white text-xs font-extrabold w-5 h-5 rounded-full flex items-center justify-center">
                                     {bookings.length}
+                                </span>
+                            )}
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('reviews')}
+                            className={`flex items-center gap-3 px-4 py-3 rounded-lg font-bold text-sm uppercase tracking-wider transition-all ${activeTab === 'reviews' ? 'bg-cyan-50 text-cyan-700' : 'text-slate-600 hover:bg-slate-50'}`}
+                        >
+                            <SparklesIcon className="w-5 h-5" /> My Reviews
+                            {eligibilities.length > 0 && (
+                                <span className="ml-auto bg-amber-500 text-white text-xs font-extrabold w-5 h-5 rounded-full flex items-center justify-center animate-pulse">
+                                    {eligibilities.length}
                                 </span>
                             )}
                         </button>
@@ -691,8 +829,345 @@ export function ClientAccountPage() {
                             )}
                         </div>
                     )}
+
+                    {/* REVIEWS TAB */}
+                    {activeTab === 'reviews' && (
+                        <div className="space-y-8 animate-in fade-in duration-300">
+                            {/* UNREVIEWED ROOM TYPES CARD */}
+                            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                                <div className="p-6 md:p-8 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+                                    <div>
+                                        <h2 className="text-xl font-bold text-slate-800">Unreviewed Stays</h2>
+                                        <p className="text-sm text-slate-500 mt-1">Room types you have recently stayed in but haven't reviewed yet.</p>
+                                    </div>
+                                    <span className="bg-amber-500 text-white text-xs font-extrabold px-3 py-1.5 rounded-full uppercase tracking-wider">
+                                        {eligibilities.length} Pending
+                                    </span>
+                                </div>
+                                <div className="p-6 md:p-8">
+                                    {eligibilities.length === 0 ? (
+                                        <div className="text-center py-10">
+                                            <div className="text-4xl mb-3">✨</div>
+                                            <p className="font-bold text-slate-700">All caught up!</p>
+                                            <p className="text-xs text-slate-500 mt-1">You have reviewed all your recent hotel stays.</p>
+                                        </div>
+                                    ) : (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            {Object.values(
+                                                eligibilities.reduce((acc, curr) => {
+                                                    if (!acc[curr.roomTypeId]) {
+                                                        acc[curr.roomTypeId] = {
+                                                            roomTypeId: curr.roomTypeId,
+                                                            roomTypeName: curr.roomTypeName,
+                                                            count: 0,
+                                                            items: []
+                                                        };
+                                                    }
+                                                    acc[curr.roomTypeId].count += 1;
+                                                    acc[curr.roomTypeId].items.push(curr);
+                                                    return acc;
+                                                }, {} as Record<number, { roomTypeId: number; roomTypeName: string; count: number; items: any[] }>)
+                                            ).map((group: any) => (
+                                                <div key={group.roomTypeId} className="bg-slate-50 rounded-2xl p-6 border border-slate-100 flex flex-col justify-between hover:shadow-md transition-all duration-300 relative overflow-hidden group">
+                                                    <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/5 rounded-full blur-xl group-hover:bg-amber-500/10 transition-colors"></div>
+                                                    <div>
+                                                        <span className="text-[10px] font-extrabold tracking-widest text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full uppercase border border-amber-200/50">
+                                                            {group.count} stay{group.count > 1 ? 's' : ''} to review
+                                                        </span>
+                                                        <h3 className="font-bold text-lg text-slate-800 mt-3 group-hover:text-cyan-600 transition-colors">{group.roomTypeName}</h3>
+                                                        <p className="text-xs text-slate-500 mt-2">
+                                                            Bookings: {group.items.map((item: any) => `#${item.bookingCode}`).join(', ')}
+                                                        </p>
+                                                    </div>
+                                                    <div className="mt-6">
+                                                        <button
+                                                            onClick={() => handleOpenCreateReview(group.items[0])}
+                                                            className="w-full py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl font-bold uppercase tracking-wider text-xs shadow-md shadow-cyan-600/10 transition-all transform active:scale-[0.98]"
+                                                        >
+                                                            Write Review
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* MY WRITTEN REVIEWS & FILTERS */}
+                            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                                <div className="p-6 md:p-8 border-b border-slate-200 bg-slate-50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                    <div>
+                                        <h2 className="text-xl font-bold text-slate-800">My Reviews</h2>
+                                        <p className="text-sm text-slate-500 mt-1">Review history and active status.</p>
+                                    </div>
+                                    <button
+                                        onClick={fetchReviewsData}
+                                        className="inline-flex items-center justify-center gap-2 text-slate-500 hover:text-cyan-600 font-bold text-xs uppercase tracking-wider transition-colors self-start md:self-auto"
+                                    >
+                                        <ArrowPathIcon className="w-4 h-4" /> Refresh
+                                    </button>
+                                </div>
+
+                                {/* FILTERS BLOCK */}
+                                <div className="p-6 md:p-8 border-b border-slate-100 bg-slate-50/50 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                                    <div>
+                                        <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-1.5">Room Type</label>
+                                        <select
+                                            value={filterRoomTypeId || ''}
+                                            onChange={(e) => setFilterRoomTypeId(e.target.value ? Number(e.target.value) : undefined)}
+                                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                                        >
+                                            <option value="">All Room Types</option>
+                                            {roomTypes.map((rt) => (
+                                                <option key={rt.id} value={rt.id}>{rt.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-1.5">Rating</label>
+                                        <select
+                                            value={filterRating || ''}
+                                            onChange={(e) => setFilterRating(e.target.value ? Number(e.target.value) : undefined)}
+                                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                                        >
+                                            <option value="">All Stars</option>
+                                            {[5, 4, 3, 2, 1].map((stars) => (
+                                                <option key={stars} value={stars}>{stars} Star{stars > 1 ? 's' : ''}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-1.5">Status</label>
+                                        <select
+                                            value={filterStatus || ''}
+                                            onChange={(e) => setFilterStatus(e.target.value || undefined)}
+                                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                                        >
+                                            <option value="">All Statuses</option>
+                                            <option value="Pending">Pending</option>
+                                            <option value="Active">Active</option>
+                                            <option value="Inactive">Inactive</option>
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-1.5">From Date</label>
+                                        <input
+                                            type="date"
+                                            value={filterStartDate}
+                                            onChange={(e) => setFilterStartDate(e.target.value)}
+                                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-1.5">To Date</label>
+                                        <input
+                                            type="date"
+                                            value={filterEndDate}
+                                            onChange={(e) => setFilterEndDate(e.target.value)}
+                                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* WRITTEN REVIEWS LIST */}
+                                <div className="p-6 md:p-8">
+                                    {reviewsLoading ? (
+                                        <div className="flex justify-center py-12">
+                                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-600"></div>
+                                        </div>
+                                    ) : myReviews.length === 0 ? (
+                                        <div className="text-center py-16">
+                                            <div className="text-4xl mb-3">📝</div>
+                                            <p className="font-bold text-slate-700">No reviews found</p>
+                                            <p className="text-xs text-slate-500 mt-1">Try adjusting your filters or write a new review.</p>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-6">
+                                            {myReviews.map((rev) => (
+                                                <div key={rev.id} className="border border-slate-100 rounded-2xl p-6 bg-slate-50/50 hover:bg-white hover:border-slate-200 transition-all duration-300 relative group shadow-sm">
+                                                    <div className="flex flex-wrap justify-between items-start gap-4">
+                                                        <div>
+                                                            <div className="flex items-center gap-3">
+                                                                <span className="font-bold text-slate-800">{rev.roomTypeName || 'Room Type'}</span>
+                                                                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide border ${
+                                                                    rev.status === 'Active' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                                                    rev.status === 'Pending' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                                                                    'bg-rose-50 text-rose-700 border-rose-200'
+                                                                }`}>
+                                                                    {rev.status === 'Active' ? 'Active' : rev.status}
+                                                                </span>
+                                                            </div>
+                                                            
+                                                            <div className="flex items-center gap-1 mt-2">
+                                                                {[...Array(5)].map((_, i) => (
+                                                                    <svg
+                                                                        key={i}
+                                                                        className={`w-4 h-4 ${i < rev.rating ? 'text-amber-400 fill-amber-400' : 'text-slate-200 fill-slate-200'}`}
+                                                                        viewBox="0 0 20 20"
+                                                                    >
+                                                                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                                                    </svg>
+                                                                ))}
+                                                                <span className="text-xs text-slate-500 font-semibold ml-1.5">
+                                                                    {rev.createdAt ? new Date(rev.createdAt).toLocaleDateString() : 'N/A'}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+
+                                                        {rev.canEdit && (
+                                                            <button
+                                                                onClick={() => handleOpenEditReview(rev)}
+                                                                className="px-3.5 py-1.5 bg-white border border-slate-200 text-slate-700 hover:text-cyan-600 hover:border-cyan-200 rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-1 active:scale-95 animate-pulse"
+                                                            >
+                                                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                                </svg>
+                                                                Edit Review
+                                                            </button>
+                                                        )}
+                                                    </div>
+
+                                                    <p className="text-sm text-slate-600 mt-4 leading-relaxed bg-white/50 p-4 rounded-xl border border-slate-100/50">
+                                                        {rev.comment || <em className="text-slate-400">No comment provided.</em>}
+                                                    </p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* PAGINATION */}
+                                    {reviewsTotal > reviewsPageSize && (
+                                        <div className="mt-8 pt-6 border-t border-slate-100 flex items-center justify-between">
+                                            <button
+                                                disabled={reviewsPage === 1 || reviewsLoading}
+                                                onClick={() => handleReviewsPageChange(reviewsPage - 1)}
+                                                className="px-4 py-2 border border-slate-200 rounded-lg text-xs font-bold uppercase tracking-wider text-slate-600 hover:bg-slate-50 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                                            >
+                                                Previous
+                                            </button>
+                                            <span className="text-xs text-slate-500 font-bold">
+                                                Page {reviewsPage} of {Math.ceil(reviewsTotal / reviewsPageSize)}
+                                            </span>
+                                            <button
+                                                disabled={reviewsPage >= Math.ceil(reviewsTotal / reviewsPageSize) || reviewsLoading}
+                                                onClick={() => handleReviewsPageChange(reviewsPage + 1)}
+                                                className="px-4 py-2 border border-slate-200 rounded-lg text-xs font-bold uppercase tracking-wider text-slate-600 hover:bg-slate-50 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                                            >
+                                                Next
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
+
+            {/* WRITE / EDIT REVIEW MODAL */}
+            {showReviewModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+                    <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-300 border border-slate-100">
+                        <div className="p-6 md:p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                            <div>
+                                <h2 className="text-xl font-extrabold text-slate-900">
+                                    {reviewModalMode === 'create' ? 'Write Room Review' : 'Edit Room Review'}
+                                </h2>
+                                <p className="text-xs text-slate-500 mt-1">
+                                    {reviewModalMode === 'create' 
+                                        ? `Share your stay experience for ${selectedEligibility?.roomTypeName}`
+                                        : `Modify your review for ${selectedReviewToEdit?.roomTypeName}`
+                                    }
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setShowReviewModal(false)}
+                                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors"
+                            >
+                                <XMarkIcon className="w-5 h-5 text-slate-500" />
+                            </button>
+                        </div>
+                        <form onSubmit={handleSubmitReview} className="p-6 md:p-8 space-y-6">
+                            {/* Rating Stars Selection */}
+                            <div>
+                                <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-2">Your Rating</label>
+                                <div className="flex items-center gap-2">
+                                    {[1, 2, 3, 4, 5].map((stars) => (
+                                        <button
+                                            key={stars}
+                                            type="button"
+                                            onClick={() => setReviewRating(stars)}
+                                            className="focus:outline-none transition-transform active:scale-95"
+                                        >
+                                            <svg
+                                                className={`w-10 h-10 ${stars <= reviewRating ? 'text-amber-400 fill-amber-400' : 'text-slate-200 fill-slate-200'} hover:scale-110 transition-transform`}
+                                                viewBox="0 0 20 20"
+                                            >
+                                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                            </svg>
+                                        </button>
+                                    ))}
+                                    <span className="text-sm text-slate-500 font-bold ml-2">
+                                        {reviewRating === 5 ? 'Excellent! 🌟' :
+                                         reviewRating === 4 ? 'Good! 👍' :
+                                         reviewRating === 3 ? 'Okay 😐' :
+                                         reviewRating === 2 ? 'Poor 🙁' :
+                                         'Terrible 😡'}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* Comment */}
+                            <div>
+                                <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-2">Your Feedback</label>
+                                <textarea
+                                    value={reviewComment}
+                                    onChange={(e) => setReviewComment(e.target.value)}
+                                    placeholder="Tell us what you liked or disliked about your stay..."
+                                    rows={5}
+                                    maxLength={1000}
+                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500 text-sm"
+                                    required
+                                ></textarea>
+                                <div className="text-right text-[10px] text-slate-400 font-bold mt-1.5 uppercase tracking-wider">
+                                    {reviewComment.length} / 1000 characters
+                                </div>
+                            </div>
+
+                            {/* Buttons */}
+                            <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-slate-100">
+                                <button
+                                    type="submit"
+                                    disabled={submittingReview}
+                                    className="flex-1 py-3.5 bg-cyan-600 text-white rounded-xl font-bold uppercase tracking-widest text-xs hover:bg-cyan-500 transition disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-cyan-600/20"
+                                >
+                                    {submittingReview ? (
+                                        <>
+                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                            Submitting...
+                                        </>
+                                    ) : (
+                                        'Submit Review'
+                                    )}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowReviewModal(false)}
+                                    disabled={submittingReview}
+                                    className="py-3.5 px-6 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-xl font-bold uppercase tracking-widest text-xs transition disabled:opacity-50"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
 
             {/* Cancel Confirmation Modal */}
             {bookingToCancel && (

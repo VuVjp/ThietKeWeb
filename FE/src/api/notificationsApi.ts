@@ -36,9 +36,9 @@ export interface NotificationPageResult {
 }
 
 export const notificationsApi = {
-    async getMine(page = 1, pageSize = 20): Promise<NotificationPageResult> {
+    async getMine(page = 1, pageSize = 20, isClient = false): Promise<NotificationPageResult> {
         const { data } = await httpClient.get<PaginatedNotificationsResponse<NotificationDto>>('notifications/me', {
-            params: { page, pageSize },
+            params: { page, pageSize, isClient },
         });
 
         return {
@@ -49,8 +49,10 @@ export const notificationsApi = {
         };
     },
 
-    async getUnreadCount(): Promise<number> {
-        const { data } = await httpClient.get<{ count?: number; Count?: number }>('notifications/unread-count');
+    async getUnreadCount(isClient = false): Promise<number> {
+        const { data } = await httpClient.get<{ count?: number; Count?: number }>('notifications/unread-count', {
+            params: { isClient },
+        });
         return Number(data.count ?? data.Count ?? 0);
     },
 

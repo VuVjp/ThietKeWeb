@@ -97,13 +97,13 @@ public class NotificationService : INotificationService
     }
 
 
-    public async Task<PaginatedResultDto<NotificationResponseDto>> GetNotificationsByUserIdAsync(int userId, int page, int pageSize)
+    public async Task<PaginatedResultDto<NotificationResponseDto>> GetNotificationsByUserIdAsync(int userId, int page, int pageSize, bool isClient = false)
     {
         page = Math.Max(page, 1);
         pageSize = Math.Clamp(pageSize, 1, 100);
 
-        var notifications = await _repo.GetByUserIdPagedAsync(userId, page, pageSize);
-        var total = await _repo.CountByUserIdAsync(userId);
+        var notifications = await _repo.GetByUserIdPagedAsync(userId, page, pageSize, isClient);
+        var total = await _repo.CountByUserIdAsync(userId, isClient);
 
         var items = notifications.Select(n => new NotificationResponseDto
         {
@@ -125,9 +125,9 @@ public class NotificationService : INotificationService
         };
     }
 
-    public async Task<int> CountUnreadNotificationsAsync(int userId)
+    public async Task<int> CountUnreadNotificationsAsync(int userId, bool isClient = false)
     {
-        return await _repo.CountUnreadAsync(userId);
+        return await _repo.CountUnreadAsync(userId, isClient);
     }
 
     public async Task MarkAsReadAsync(int notificationId, int userId)
@@ -143,5 +143,43 @@ public class NotificationService : INotificationService
             notification.IsRead = true;
             await _repo.SaveChangesAsync();
         }
+     }
+
+    public async Task SendToUserAsync(int userId, CreateNotificationDto dto)
+    {
+        await _sendSemaphore.WaitAsync();
+        try
+        {
+            using (var context = await _contextFactory.CreateDbContextAsync())
+            {
+                var notification = new Notification
+                {
+                    UserId = userId,
+                    Title = dto.Title,
+                    Content = dto.Content,
+                    Type = dto.Type,
+                    ReferenceLink = dto.ReferenceLink,
+                    CreatedAt = DateTime.Now
+                };
+
+                await context.AddAsync(notification);
+                await context.SaveChangesAsync();
+            }
+        }
+        finally
+        {
+            _sendSemaphore.Release();
+        }
+
+        await _hub.Clients
+            .Group($"user_{userId}")
+            .SendAsync("ReceiveNotification", new
+            {
+                dto.Title,
+                dto.Content,
+                type = dto.Type.ToString(),
+                dto.ReferenceLink,
+                CreatedAt = DateTime.Now
+            });
     }
 }

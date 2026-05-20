@@ -3,6 +3,8 @@ import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { useAppAuth } from '../auth/useAppAuth';
+import { useRealtimeNotifications } from '../hooks/useRealtimeNotifications';
+import { NotificationDropdown } from '../components/NotificationDropdown';
 
 export function ClientLayout() {
     const [isScrolled, setIsScrolled] = useState(false);
@@ -14,6 +16,16 @@ export function ClientLayout() {
 
     // Use real auth state for header synchronization
     const { isAuthenticated, isAuthReady, user, logout } = useAppAuth();
+
+    const {
+        notifications,
+        unreadCount,
+        hasMore,
+        isLoadingMore,
+        markRead,
+        markAllRead,
+        loadMore
+    } = useRealtimeNotifications(isAuthReady && isAuthenticated && user != null, true);
 
     useEffect(() => {
         const handleScroll = () => {
@@ -96,7 +108,17 @@ export function ClientLayout() {
 
                         <div className="hidden lg:flex items-center gap-6">
                             {isAuthReady && isAuthenticated && user ? (
-                                <div className="relative" ref={userMenuRef}>
+                                <div className="flex items-center gap-5">
+                                    <NotificationDropdown
+                                        items={notifications}
+                                        unreadCount={unreadCount}
+                                        hasMore={hasMore}
+                                        isLoadingMore={isLoadingMore}
+                                        onMarkRead={markRead}
+                                        onMarkAllRead={markAllRead}
+                                        onLoadMore={loadMore}
+                                    />
+                                    <div className="relative" ref={userMenuRef}>
                                     <button
                                         type="button"
                                         onClick={() => setUserMenuOpen(!userMenuOpen)}
@@ -165,6 +187,7 @@ export function ClientLayout() {
                                             </div>
                                         </div>
                                     )}
+                                    </div>
                                 </div>
                             ) : (
                                 <Link to="/login" className={`text-sm font-semibold transition-colors ${isScrolled ? 'text-slate-700 hover:text-cyan-600' : 'text-white hover:text-cyan-300 drop-shadow-md'}`}>

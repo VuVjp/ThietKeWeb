@@ -13,15 +13,17 @@ public class InvoiceService : IInvoiceService
     private readonly IVoucherRepository _voucherRepository;
     private readonly Data.AppDbContext _context;
     private readonly IDashboardService _dashboardService;
+    private readonly INotificationService _notificationService;
     private readonly decimal _taxRate = 0.1m; // 10% tax
 
-    public InvoiceService(IInvoiceRepository repository, IBookingRepository bookingRepository, IVoucherRepository voucherRepository, Data.AppDbContext context, IDashboardService dashboardService)
+    public InvoiceService(IInvoiceRepository repository, IBookingRepository bookingRepository, IVoucherRepository voucherRepository, Data.AppDbContext context, IDashboardService dashboardService, INotificationService notificationService)
     {
         _repository = repository;
         _bookingRepository = bookingRepository;
         _voucherRepository = voucherRepository;
         _context = context;
         _dashboardService = dashboardService;
+        _notificationService = notificationService;
     }
 
     public async Task<Invoice> CreateInvoiceAsync(int bookingId)
@@ -136,6 +138,35 @@ public class InvoiceService : IInvoiceService
 
         _repository.Update(invoice);
         await _repository.SaveChangesAsync();
+
+        if (booking.UserId.HasValue)
+        {
+            var roomNumbers = booking.BookingDetails
+                .Where(bd => bd.InvoiceId == invoice.Id && bd.Room != null)
+                .Select(bd => bd.Room!.RoomNumber)
+                .Distinct()
+                .ToList();
+            var roomNumStr = string.Join(", ", roomNumbers);
+            if (string.IsNullOrEmpty(roomNumStr))
+            {
+                roomNumStr = "N/A";
+            }
+
+            try
+            {
+                await _notificationService.SendToUserAsync(booking.UserId.Value, new CreateNotificationDto
+                {
+                    Title = "Payment Successful",
+                    Content = $"Successfully completed payment for room {roomNumStr}",
+                    Type = NotificationAction.InvoiceCompleted,
+                    ReferenceLink = "profile"
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Notification Error] {ex.Message}");
+            }
+        }
 
         // Increment Revenue in Dashboard Snapshots
         await _dashboardService.IncrementMetricAsync("Revenue", invoice.FinalTotal ?? 0, DateTime.Now);
