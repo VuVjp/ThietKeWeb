@@ -2,6 +2,7 @@ using HotelManagement.Dtos;
 using HotelManagement.Entities;
 using HotelManagement.Repositories.Interfaces;
 using System.Security.Cryptography;
+using Microsoft.Extensions.Caching.Distributed;
 public class UserManagementService : IUserManagementService
 {
     private readonly IUserManagementRepository _userManagementRepository;
@@ -10,8 +11,9 @@ public class UserManagementService : IUserManagementService
     private readonly IEmailService _emailService;
     private readonly IMembershipRepository _membershipRepository;
     private readonly IRefreshTokenRepository _refreshTokenRepository;
+    private readonly IDistributedCache _cache;
 
-    public UserManagementService(IUserManagementRepository userManagementRepository, IRoleRepository roleRepository, IUserRepository userRepository, IEmailService emailService, IMembershipRepository membershipRepository, IRefreshTokenRepository refreshTokenRepository)
+    public UserManagementService(IUserManagementRepository userManagementRepository, IRoleRepository roleRepository, IUserRepository userRepository, IEmailService emailService, IMembershipRepository membershipRepository, IRefreshTokenRepository refreshTokenRepository, IDistributedCache cache)
     {
         _userManagementRepository = userManagementRepository;
         _roleRepository = roleRepository;
@@ -19,6 +21,7 @@ public class UserManagementService : IUserManagementService
         _emailService = emailService;
         _membershipRepository = membershipRepository;
         _refreshTokenRepository = refreshTokenRepository;
+        _cache = cache;
     }
 
     private static string GenerateRandomPassword(int length = 12)
@@ -37,6 +40,15 @@ public class UserManagementService : IUserManagementService
         }
 
         await _userManagementRepository.ChangeRoleByIdAsync(userId, roleId);
+
+        var user = await _userManagementRepository.GetByIdAsync(userId);
+        if (user != null)
+        {
+            user.TokenVersion += 1;
+            _userManagementRepository.Update(user);
+            await _userManagementRepository.SaveChangesAsync();
+            await _cache.SetStringAsync(TokenVersionCacheKeys.ForUser(user.Id), user.TokenVersion.ToString());
+        }
     }
 
     public async Task CreateUserAsync(string email, string password, int roleId)
@@ -133,6 +145,15 @@ public class UserManagementService : IUserManagementService
         {
             throw new NotFoundException("User not found.");
         }
+
+        if (!user.IsActive)
+        {
+            user.TokenVersion += 1;
+            _userManagementRepository.Update(user);
+            await _userManagementRepository.SaveChangesAsync();
+        }
+
+        await _cache.SetStringAsync(TokenVersionCacheKeys.ForUser(user.Id), user.TokenVersion.ToString());
 
         if (!user.IsActive)
         {

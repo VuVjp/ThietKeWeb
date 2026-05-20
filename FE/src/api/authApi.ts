@@ -2,6 +2,7 @@ import {
     clearAuthTokens,
     getRefreshToken,
     httpClient,
+    notifyAuthTokenChanged,
     setAccessToken,
     setRefreshToken,
 } from './httpClient';
@@ -63,6 +64,7 @@ export const authApi = {
         const result = resolveAuthTokens(data);
         setAccessToken(result.token);
         setRefreshToken(result.refreshToken);
+        notifyAuthTokenChanged(result.token);
         return result;
     },
 
@@ -76,6 +78,7 @@ export const authApi = {
         const result = resolveAuthTokens(data);
         setAccessToken(result.token);
         setRefreshToken(result.refreshToken);
+        notifyAuthTokenChanged(result.token);
         return result;
     },
 
@@ -92,6 +95,7 @@ export const authApi = {
 
         setAccessToken(result.token);
         setRefreshToken(result.refreshToken);
+        notifyAuthTokenChanged(result.token);
         return result;
     },
 

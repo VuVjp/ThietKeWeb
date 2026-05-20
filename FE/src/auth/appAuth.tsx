@@ -208,10 +208,18 @@ export function AppAuthProvider({ children }: PropsWithChildren) {
 
     useEffect(() => {
         const handlePermissionsChanged = () => {
-            void resolveCurrentUser(undefined, userRef.current, true).then((nextUser) => {
-                setUser(nextUser);
-            });
-            toast.success('Permissions updated. Please reopen the page if something looks off.');
+            void authApi.refreshToken()
+                .then(() => resolveCurrentUser(undefined, userRef.current, true))
+                .then((nextUser) => {
+                    setUser(nextUser);
+                })
+                .catch(() => {
+                    // Fallback: try to refresh permissions without token refresh.
+                    void resolveCurrentUser(undefined, userRef.current, true).then((nextUser) => {
+                        setUser(nextUser);
+                    });
+                });
+            toast.success('Permissions updated.');
         };
 
         const handleForceLogout = () => {

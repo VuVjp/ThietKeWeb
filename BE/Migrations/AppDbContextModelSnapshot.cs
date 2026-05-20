@@ -1412,6 +1412,12 @@ namespace BE.Migrations
                         .HasColumnType("int")
                         .HasColumnName("role_id");
 
+                    b.Property<int>("TokenVersion")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("token_version");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Email")

@@ -6,18 +6,21 @@ using Google.Apis.Auth;
 using Microsoft.IdentityModel.Tokens;
 using HotelManagement.Entities;
 using Services.Interfaces;
+using Microsoft.Extensions.Caching.Distributed;
 
 public class AuthService : IAuthService
 {
     private readonly IUserRepository _userRepository;
     private readonly IConfiguration _configuration;
     private readonly IRefreshTokenRepository _refreshTokenRepository;
+    private readonly IDistributedCache _cache;
 
-    public AuthService(IUserRepository userRepository, IConfiguration configuration, IRefreshTokenRepository refreshTokenRepository)
+    public AuthService(IUserRepository userRepository, IConfiguration configuration, IRefreshTokenRepository refreshTokenRepository, IDistributedCache cache)
     {
         _userRepository = userRepository;
         _configuration = configuration;
         _refreshTokenRepository = refreshTokenRepository;
+        _cache = cache;
 
     }
 
@@ -60,6 +63,8 @@ public class AuthService : IAuthService
         var jwtToken = await GenerateJwt(user);
         var refreshToken = await GenerateRefreshTokenAsync(user);
 
+        await UpdateTokenVersionCacheAsync(user);
+
 
         return (jwtToken, refreshToken);
     }
@@ -94,6 +99,8 @@ public class AuthService : IAuthService
 
         var jwtToken = await GenerateJwt(user);
         var refreshToken = await GenerateRefreshTokenAsync(user);
+
+        await UpdateTokenVersionCacheAsync(user);
 
         return (jwtToken, refreshToken);
     }
@@ -143,6 +150,8 @@ public class AuthService : IAuthService
 
         var newRefreshToken = await GenerateRefreshTokenAsync(matchedUser);
 
+        await UpdateTokenVersionCacheAsync(matchedUser);
+
         await _refreshTokenRepository.RevokeTokenAsync(refreshToken);
 
         return (newJwt, newRefreshToken);
@@ -191,7 +200,8 @@ public class AuthService : IAuthService
                 new Claim(ClaimTypes.Role, userRole ?? "Guest"),
                 new Claim("sub", user.Id.ToString()),
                 new Claim("email", user.Email),
-                new Claim("role", userRole ?? "Guest")
+                new Claim("role", userRole ?? "Guest"),
+                new Claim("tv", user.TokenVersion.ToString())
             };
 
         var token = new JwtSecurityToken(
@@ -203,5 +213,10 @@ public class AuthService : IAuthService
         );
 
         return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    private async Task UpdateTokenVersionCacheAsync(User user)
+    {
+        await _cache.SetStringAsync(TokenVersionCacheKeys.ForUser(user.Id), user.TokenVersion.ToString());
     }
 }

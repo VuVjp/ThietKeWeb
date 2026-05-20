@@ -416,6 +416,7 @@ public class AppDbContext : DbContext
             e.Property(x => x.Phone).HasColumnName("phone");
             e.Property(x => x.PasswordHash).HasColumnName("password_hash");
             e.Property(x => x.IsActive).HasColumnName("is_active");
+            e.Property(x => x.TokenVersion).HasColumnName("token_version").HasDefaultValue(0);
             e.Property(x => x.LoyaltyPoints).HasColumnName("loyalty_points");
             e.Property(x => x.GoogleId).HasColumnName("google_id");
             e.Property(x => x.AvatarUrl).HasColumnName("avatar_url");
