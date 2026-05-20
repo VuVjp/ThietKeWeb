@@ -3,6 +3,8 @@ using Microsoft.EntityFrameworkCore;
 using HotelManagement.Data;
 using Microsoft.AspNetCore.Http;
 using HotelManagement.Services.Interfaces;
+using Microsoft.Extensions.Caching.Distributed;
+using System.Text.Json;
 
 public class ArticleService : IArticleService
 {
@@ -11,19 +13,26 @@ public class ArticleService : IArticleService
     private readonly ICloudinaryService _cloudinaryService;
     private readonly AppDbContext _context;
     private readonly IDashboardService _dashboardService;
+    private readonly IDistributedCache _cache;
+    private static readonly DistributedCacheEntryOptions CacheOptions = new()
+    {
+        AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5)
+    };
 
     public ArticleService(
         IArticleRepository repo,
         IArticleCategoryRepository categoryRepo,
         ICloudinaryService cloudinaryService,
         AppDbContext context,
-        IDashboardService dashboardService)
+        IDashboardService dashboardService,
+        IDistributedCache cache)
     {
         _repo = repo;
         _categoryRepo = categoryRepo;
         _cloudinaryService = cloudinaryService;
         _context = context;
         _dashboardService = dashboardService;
+        _cache = cache;
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
@@ -160,15 +169,39 @@ public class ArticleService : IArticleService
 
     public async Task<IEnumerable<ArticleDto>> GetAllAsync()
     {
+        var cacheVersion = await GetCacheVersionAsync(CacheVersionKeys.Articles);
+        var cacheKey = $"articles:v{cacheVersion}:all";
+        var cached = await _cache.GetStringAsync(cacheKey);
+        if (!string.IsNullOrWhiteSpace(cached))
+        {
+            var cachedResult = JsonSerializer.Deserialize<List<ArticleDto>>(cached);
+            if (cachedResult != null)
+            {
+                return cachedResult;
+            }
+        }
+
         var data = await _repo.GetAllActiveAsync();
-        return data.Select(MapToDto);
+        var result = data.Select(MapToDto).ToList();
+        await _cache.SetStringAsync(cacheKey, JsonSerializer.Serialize(result), CacheOptions);
+        return result;
     }
 
     public async Task<ArticleDto?> GetByIdAsync(int id)
     {
+        var cacheVersion = await GetCacheVersionAsync(CacheVersionKeys.Articles);
+        var cacheKey = $"articles:v{cacheVersion}:id:{id}";
+        var cached = await _cache.GetStringAsync(cacheKey);
+        if (!string.IsNullOrWhiteSpace(cached))
+        {
+            return JsonSerializer.Deserialize<ArticleDto>(cached);
+        }
+
         var a = await _repo.GetByIdWithCategoriesAsync(id);
         if (a == null) throw new NotFoundException($"Article with ID {id} not found.");
-        return MapToDtoWithContent(a);
+        var result = MapToDtoWithContent(a);
+        await _cache.SetStringAsync(cacheKey, JsonSerializer.Serialize(result), CacheOptions);
+        return result;
     }
 
     public async Task<bool> CreateAsync(CreateArticleDto dto)
@@ -205,6 +238,8 @@ public class ArticleService : IArticleService
         {
             await _dashboardService.IncrementMetricAsync("Articles", 1, entity.PublishedAt.Value);
         }
+
+        await IncrementCacheVersionAsync(CacheVersionKeys.Articles);
 
         return true;
     }
@@ -257,7 +292,27 @@ public class ArticleService : IArticleService
             await _dashboardService.IncrementMetricAsync("Articles", 1, entity.PublishedAt!.Value);
         }
 
+        await IncrementCacheVersionAsync(CacheVersionKeys.Articles);
+
         return true;
+    }
+
+    private async Task<string> GetCacheVersionAsync(string key)
+    {
+        var version = await _cache.GetStringAsync(key);
+        return string.IsNullOrWhiteSpace(version) ? "0" : version;
+    }
+
+    private async Task IncrementCacheVersionAsync(string key)
+    {
+        var current = await GetCacheVersionAsync(key);
+        if (!int.TryParse(current, out var version))
+        {
+            version = 0;
+        }
+
+        version++;
+        await _cache.SetStringAsync(key, version.ToString());
     }
 
     public async Task<bool> DeleteAsync(int id)

@@ -7,6 +7,8 @@ using Microsoft.EntityFrameworkCore;
 using HotelManagement.Services.Interfaces;
 using HotelManagement.Dtos;
 using HotelManagement.Data;
+using Microsoft.Extensions.Caching.Distributed;
+using System.Text.Json;
 
 namespace HotelManagement.Services;
 
@@ -15,18 +17,36 @@ public class AttractionService : IAttractionService
 	private readonly IAttractionRepository _repository;
 	private readonly ICloudinaryService _cloudinaryService;
 	private readonly AppDbContext _context;
+	private readonly IDistributedCache _cache;
+	private static readonly DistributedCacheEntryOptions CacheOptions = new()
+	{
+		AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5)
+	};
 
-	public AttractionService(IAttractionRepository repository, ICloudinaryService cloudinaryService, AppDbContext context)
+	public AttractionService(IAttractionRepository repository, ICloudinaryService cloudinaryService, AppDbContext context, IDistributedCache cache)
 	{
 		_repository = repository;
 		_cloudinaryService = cloudinaryService;
 		_context = context;
+		_cache = cache;
 	}
 
 	public async Task<IEnumerable<AttractionDto>> GetAllAsync()
 	{
+		var cacheVersion = await GetCacheVersionAsync(CacheVersionKeys.Attractions);
+		var cacheKey = $"attractions:v{cacheVersion}:all";
+		var cached = await _cache.GetStringAsync(cacheKey);
+		if (!string.IsNullOrWhiteSpace(cached))
+		{
+			var cachedResult = JsonSerializer.Deserialize<List<AttractionDto>>(cached);
+			if (cachedResult != null)
+			{
+				return cachedResult;
+			}
+		}
+
 		var attractions = await _repository.GetAllActiveAsync();
-		return attractions.Select(a => new AttractionDto
+		var result = attractions.Select(a => new AttractionDto
 		{
 			Id = a.Id,
 			Name = a.Name,
@@ -37,15 +57,25 @@ public class AttractionService : IAttractionService
 			ImageUrl = a.ImageUrl,
 			IsActive = a.IsActive,
 			MapEmbedLink = a.MapEmbedLink
-		});
+		}).ToList();
+		await _cache.SetStringAsync(cacheKey, JsonSerializer.Serialize(result), CacheOptions);
+		return result;
 	}
 
 	public async Task<AttractionDto?> GetByIdAsync(int id)
 	{
+		var cacheVersion = await GetCacheVersionAsync(CacheVersionKeys.Attractions);
+		var cacheKey = $"attractions:v{cacheVersion}:id:{id}";
+		var cached = await _cache.GetStringAsync(cacheKey);
+		if (!string.IsNullOrWhiteSpace(cached))
+		{
+			return JsonSerializer.Deserialize<AttractionDto>(cached);
+		}
+
 		var a = await _repository.GetByIdAsync(id);
 		if (a == null) return null;
 
-		return new AttractionDto
+		var result = new AttractionDto
 		{
 			Id = a.Id,
 			Name = a.Name,
@@ -57,6 +87,8 @@ public class AttractionService : IAttractionService
 			IsActive = a.IsActive,
 			MapEmbedLink = a.MapEmbedLink
 		};
+		await _cache.SetStringAsync(cacheKey, JsonSerializer.Serialize(result), CacheOptions);
+		return result;
 	}
 
 	public async Task<bool> CreateAsync(CreateAttractionDto dto)
@@ -88,6 +120,8 @@ public class AttractionService : IAttractionService
 
 		await _repository.AddAsync(entity);
 		await _repository.SaveChangesAsync();
+		await IncrementCacheVersionAsync(CacheVersionKeys.Attractions);
+		await IncrementCacheVersionAsync(CacheVersionKeys.Articles);
 
 		return true;
 	}
@@ -121,6 +155,8 @@ public class AttractionService : IAttractionService
 
 		_repository.Update(attraction);
 		await _repository.SaveChangesAsync();
+		await IncrementCacheVersionAsync(CacheVersionKeys.Attractions);
+		await IncrementCacheVersionAsync(CacheVersionKeys.Articles);
 		return true;
 	}
 
@@ -132,6 +168,8 @@ public class AttractionService : IAttractionService
 		attraction.IsActive = false;
 		_repository.Update(attraction);
 		await _repository.SaveChangesAsync();
+		await IncrementCacheVersionAsync(CacheVersionKeys.Attractions);
+		await IncrementCacheVersionAsync(CacheVersionKeys.Articles);
 		return true;
 	}
 
@@ -205,6 +243,28 @@ public class AttractionService : IAttractionService
 			}
 		}
 		await _repository.SaveChangesAsync();
+		await IncrementCacheVersionAsync(CacheVersionKeys.Attractions);
+		await IncrementCacheVersionAsync(CacheVersionKeys.Articles);
+		await IncrementCacheVersionAsync(CacheVersionKeys.Attractions);
+		await IncrementCacheVersionAsync(CacheVersionKeys.Articles);
+	}
+
+	private async Task<string> GetCacheVersionAsync(string key)
+	{
+		var version = await _cache.GetStringAsync(key);
+		return string.IsNullOrWhiteSpace(version) ? "0" : version;
+	}
+
+	private async Task IncrementCacheVersionAsync(string key)
+	{
+		var current = await GetCacheVersionAsync(key);
+		if (!int.TryParse(current, out var version))
+		{
+			version = 0;
+		}
+
+		version++;
+		await _cache.SetStringAsync(key, version.ToString());
 	}
 
 	private double CalculateDistance(double lat1, double lon1, double lat2, double lon2)
