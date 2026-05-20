@@ -198,6 +198,19 @@ public class RoomService : IRoomService
 		}
 		if (string.Equals(targetStatus.ToLower(), "InsClean", StringComparison.OrdinalIgnoreCase))
 		{
+			foreach (var inventory in room.RoomInventories.Where(item => item.IsActive))
+			{
+				if (inventory.EquipmentId.HasValue)
+				{
+					var equipment = await _context.Equipments.FindAsync(inventory.EquipmentId.Value);
+					if (equipment != null)
+					{
+						equipment.InUseQuantity = Math.Max(equipment.InUseQuantity - (inventory.Quantity ?? 0), 0);
+						_context.Equipments.Update(equipment);
+					}
+				}
+			}
+			room.NeedToRefill = true;
 			room.CleaningStatus = "Inspecting";
 		}
 		if (room.CleaningStatus != null && room.CleaningStatus.Equals("Inspecting", StringComparison.OrdinalIgnoreCase) || string.Equals(targetStatus.ToLower(), "Cleaning", StringComparison.OrdinalIgnoreCase))
@@ -236,6 +249,24 @@ public class RoomService : IRoomService
 		if (newCleaningStatus.Equals("Cleaning", StringComparison.OrdinalIgnoreCase) ||
 			newCleaningStatus.Equals("Clean", StringComparison.OrdinalIgnoreCase))
 		{
+			if (room.NeedToRefill)
+			{
+				room.NeedToRefill = false;
+				foreach (var inventory in room.RoomInventories.Where(item => item.IsActive))
+				{
+					if (inventory.EquipmentId.HasValue)
+					{
+						var equipment = await _context.Equipments.FindAsync(inventory.EquipmentId.Value);
+						if (equipment != null)
+						{
+							equipment.InUseQuantity = Math.Max(equipment.InUseQuantity + (inventory.Quantity ?? 0), 0);
+							_context.Equipments.Update(equipment);
+						}
+					}
+				}
+				_repository.Update(room);
+				await _repository.SaveChangesAsync();
+			}
 			// Find the most recent CheckedOut booking for this room
 			var booking = await _context.Bookings
 				.Include(b => b.BookingDetails)

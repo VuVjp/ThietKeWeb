@@ -1044,6 +1044,12 @@ namespace BE.Migrations
                         .HasColumnType("int")
                         .HasColumnName("floor");
 
+                    b.Property<bool>("NeedToRefill")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false)
+                        .HasColumnName("need_refill");
+
                     b.Property<string>("RoomNumber")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)")

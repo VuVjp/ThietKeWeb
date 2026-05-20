@@ -464,6 +464,7 @@ public class BookingService : IBookingService
                     detail.Room.Status = "InsClean";
                     detail.Room.CleaningStatus = "Inspecting";
                     detail.ActualCheckOutDate = DateTime.Now;
+                    detail.Room.NeedToRefill = true;
                 }
 
                 if (booking.UserId.HasValue)

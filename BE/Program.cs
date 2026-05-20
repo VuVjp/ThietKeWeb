@@ -16,6 +16,7 @@ using Microsoft.AspNetCore.SignalR;
 using HotelManagement.Services;
 using HotelManagement.Repositories;
 using Microsoft.Extensions.Caching.Distributed;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -38,37 +39,63 @@ builder.Services.AddDbContextFactory<AppDbContext>(options =>
         builder.Configuration.GetConnectionString("DefaultConnection"),
         x => x.MigrationsAssembly("BE")));
 
-builder.Services.AddStackExchangeRedisCache(options =>
+var redisConnection =
+    builder.Configuration["Redis:ConnectionString"]
+    ?? builder.Configuration.GetConnectionString("Redis")
+    ?? "localhost:6379";
+
+var redisOptions = new ConfigurationOptions
 {
-    var redisUri = new Uri(
-        builder.Configuration["Redis:ConnectionString"]! ?? "localhost:6379"
+    AbortOnConnectFail = false,
+
+    ConnectTimeout = 10000,
+
+    SyncTimeout = 10000,
+
+    AsyncTimeout = 10000,
+
+    ConnectRetry = 5,
+
+    KeepAlive = 60
+};
+
+// Production URI format
+// Example:
+// redis://default:password@host:6379
+if (Uri.TryCreate(redisConnection, UriKind.Absolute, out var redisUri)
+    && redisUri.Scheme == "redis")
+{
+    redisOptions.EndPoints.Add(
+        redisUri.Host,
+        redisUri.Port
     );
 
-    var userInfo = redisUri.UserInfo.Split(':');
+    // default:password
+    var userInfo = redisUri.UserInfo.Split(':', 2);
 
-    var config = new StackExchange.Redis.ConfigurationOptions
+    if (userInfo.Length > 0)
     {
-        EndPoints =
-        {
-            { redisUri.Host, redisUri.Port }
-        },
+        redisOptions.User = userInfo[0];
+    }
 
-        User = userInfo[0],
+    if (userInfo.Length > 1)
+    {
+        redisOptions.Password = userInfo[1];
+    }
 
-        Password = userInfo[1],
+    // Upstash / cloud redis usually require TLS
+    redisOptions.Ssl = true;
+}
+else
+{
+    // Local Redis
+    // localhost:6379
+    redisOptions.EndPoints.Add(redisConnection);
+}
 
-        Ssl = true,
-
-        AbortOnConnectFail = false,
-
-        ConnectTimeout = 10000,
-
-        SyncTimeout = 10000,
-
-        AsyncTimeout = 10000
-    };
-
-    options.ConfigurationOptions = config;
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.ConfigurationOptions = redisOptions;
 
     options.InstanceName = "HotelManagement:";
 });
