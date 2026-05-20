@@ -38,8 +38,8 @@ builder.Services.AddDbContextFactory<AppDbContext>(options =>
         builder.Configuration.GetConnectionString("DefaultConnection"),
         x => x.MigrationsAssembly("BE")));
 
-var redisConnection = builder.Configuration.GetConnectionString("Redis")
-    ?? builder.Configuration["Redis:ConnectionString"]
+var redisConnection = builder.Configuration["Redis:ConnectionString"]
+    ?? builder.Configuration.GetConnectionString("Redis")
     ?? "localhost:6379";
 
 builder.Services.AddStackExchangeRedisCache(options =>
