@@ -47,7 +47,8 @@ public class NotificationRepository : INotificationRepository
 
         if (isClient)
         {
-            query = query.Where(x => _clientNotificationTypes.Contains(x.Type));
+            // Tahngwf cầy tình
+            //query = query.Where(x => _clientNotificationTypes.Contains(x.Type));
         }
 
         return await query
@@ -69,7 +70,7 @@ public class NotificationRepository : INotificationRepository
 
         if (isClient)
         {
-            query = query.Where(x => _clientNotificationTypes.Contains(x.Type));
+            //query = query.Where(x => _clientNotificationTypes.Contains(x.Type));
         }
 
         return await query.CountAsync();
@@ -81,7 +82,8 @@ public class NotificationRepository : INotificationRepository
 
         if (isClient)
         {
-            query = query.Where(x => _clientNotificationTypes.Contains(x.Type));
+            // Filter for client notifications
+            //query = query.Where(x => _clientNotificationTypes.Contains(x.Type));
         }
 
         return await query.CountAsync();
