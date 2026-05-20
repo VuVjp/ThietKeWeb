@@ -1,5 +1,7 @@
 namespace HotelManagement.Entities;
 
+using System.ComponentModel.DataAnnotations;
+
 public class Room
 {
     public int Id { get; set; }
@@ -14,4 +16,7 @@ public class Room
     public RoomType? RoomType { get; set; }
     public ICollection<RoomInventory> RoomInventories { get; set; } = new List<RoomInventory>();
     public ICollection<BookingDetail> BookingDetails { get; set; } = new List<BookingDetail>();
+
+    [Timestamp]
+    public byte[]? RowVersion { get; set; }
 }

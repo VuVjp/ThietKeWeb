@@ -10,4 +10,5 @@ public class RoomDto
     public string? Status { get; set; }
     public string? CleaningStatus { get; set; }
     public bool CleaningRequested { get; set; }
+    public byte[]? RowVersion { get; set; }
 }

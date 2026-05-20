@@ -191,6 +191,15 @@ export function CleaningPage() {
         [pendingLossReports],
     );
 
+    const handleConcurrencyError = (apiError: { status?: number; message?: string }) => {
+        if (apiError.status === 409) {
+            toast.error('Room was updated by another user. Please refresh and try again.');
+            return true;
+        }
+
+        return false;
+    };
+
     const selectedPendingInventoryIds = useMemo(
         () => new Set(pendingLossReports.filter((item) => !item.noIssue && item.roomInventoryId).map((item) => Number(item.roomInventoryId))),
         [pendingLossReports],
@@ -303,8 +312,8 @@ export function CleaningPage() {
                     await sendPendingReports(selectedInspectingRoom.id);
                 }
 
-                await roomsApi.requestCleaning(selectedInspectingRoom.id, true);
-                await roomsApi.changeCleaningStatus(selectedInspectingRoom.id, 'Cleaning');
+                const requestedRoom = await roomsApi.requestCleaning(selectedInspectingRoom.id, true, selectedInspectingRoom.rowVersion);
+                await roomsApi.changeCleaningStatus(selectedInspectingRoom.id, 'Cleaning', requestedRoom.rowVersion);
 
                 if (pendingRows.length > 0) {
                     setPendingLossReportsByRoom((prev) => {
@@ -318,6 +327,10 @@ export function CleaningPage() {
                 await loadBoards();
             } catch (error) {
                 const apiError = toApiError(error);
+                if (handleConcurrencyError(apiError)) {
+                    void loadBoards();
+                    return;
+                }
                 toast.error(apiError.message || 'Failed to move room to Cleaning');
             } finally {
                 setIsUpdatingStatus(false);
@@ -331,6 +344,12 @@ export function CleaningPage() {
             return;
         }
 
+        if (!cleaningRooms.some((room) => room.id === selectedCleaningRoom.id)) {
+            toast.error('This room is no longer in Cleaning. Please refresh the board.');
+            void loadBoards();
+            return;
+        }
+
         if (!ensure('UPDATE_CLEANING', 'finish room cleaning')) {
             return;
         }
@@ -338,9 +357,9 @@ export function CleaningPage() {
         void (async () => {
             setIsUpdatingStatus(true);
             try {
-                await roomsApi.changeCleaningStatus(selectedCleaningRoom.id, 'Clean');
+                const updatedRoom = await roomsApi.changeCleaningStatus(selectedCleaningRoom.id, 'Clean', selectedCleaningRoom.rowVersion);
                 //await roomsApi.requestCleaning(selectedCleaningRoom.id, false);
-                await roomsApi.completeCleaning(selectedCleaningRoom.id);
+                await roomsApi.completeCleaning(selectedCleaningRoom.id, updatedRoom.rowVersion);
                 // const updatedRoom = await roomsApi.getById(selectedCleaningRoom.id);
                 // if (updatedRoom.status === 'Maintenance') {
                 //     toast.error(`Room ${selectedCleaningRoom.roomNumber} was moved to Maintenance. Admin has been notified.`);
@@ -349,6 +368,10 @@ export function CleaningPage() {
                 // }
             } catch (error) {
                 const apiError = toApiError(error);
+                if (handleConcurrencyError(apiError)) {
+                    void loadBoards();
+                    return;
+                }
                 if (apiError.status === 400 && apiError.message?.toLowerCase().includes('room cannot be set to available')) {
                     toast.error(`Room ${selectedCleaningRoom.roomNumber} cannot be marked Available due to pending issues. It has been moved to Maintenance. Admin has been notified.`, { icon: '⚠️' });
                     return;
@@ -451,6 +474,12 @@ export function CleaningPage() {
             return;
         }
 
+        if (!inspectingRooms.some((room) => room.id === selectedInspectingRoom.id)) {
+            toast.error('This room is no longer in Inspecting. Please refresh the board.');
+            void loadBoards();
+            return;
+        }
+
         const rows = pendingLossReportsByRoom[selectedInspectingRoom.id] ?? [];
         if (rows.length === 0) {
             toast.error('No pending reports to send');
@@ -461,8 +490,8 @@ export function CleaningPage() {
             setIsSendingPendingReports(true);
             try {
                 await sendPendingReports(selectedInspectingRoom.id);
-                await roomsApi.changeCleaningStatus(selectedInspectingRoom.id, 'Cleaning');
-                await roomsApi.requestCleaning(selectedInspectingRoom.id, true);
+                const updatedRoom = await roomsApi.changeCleaningStatus(selectedInspectingRoom.id, 'Cleaning', selectedInspectingRoom.rowVersion);
+                await roomsApi.requestCleaning(selectedInspectingRoom.id, true, updatedRoom.rowVersion);
 
                 setPendingLossReportsByRoom((prev) => {
                     const next = { ...prev };
@@ -474,6 +503,10 @@ export function CleaningPage() {
                 toast.success(`Pending reports sent. Room ${selectedInspectingRoom.roomNumber} moved to Cleaning.`);
             } catch (error) {
                 const apiError = toApiError(error);
+                if (handleConcurrencyError(apiError)) {
+                    void loadBoards();
+                    return;
+                }
                 toast.error(apiError.message || 'Failed to send reports and move room to Cleaning');
             } finally {
                 setIsSendingPendingReports(false);

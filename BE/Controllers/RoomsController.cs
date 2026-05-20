@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
 using System;
 using HotelManagement.Dtos;
+using Microsoft.EntityFrameworkCore;
 
 namespace HotelManagement.Controllers;
 
@@ -57,41 +58,53 @@ public class RoomsController : ControllerBase
 
 	[Permission(PermissionNames.UpdateCleaning)]
 	[HttpPatch("{id}/request-cleaning")]
-	public async Task<IActionResult> ToggleCleaningRequest(int id, [FromBody] bool requested)
+	public async Task<IActionResult> ToggleCleaningRequest(int id, [FromBody] RoomCleaningRequestDto request)
 	{
-		await _service.ChangeCleaningRequestedAsync(id, requested);
-		if (requested)
+		try
 		{
+			if (request == null)
+			{
+				return BadRequest("Request body is required.");
+			}
+			await _service.ChangeCleaningRequestedAsync(id, request.Requested, request.RowVersion);
+			if (request.Requested)
+			{
+				await TryNotifyRolesAsync(
+					new[] { RoleName.Housekeeping },
+					new CreateNotificationDto
+					{
+						Title = "Cleaning requested",
+						Content = $"Room #{id} has a new cleaning request.",
+						Type = NotificationAction.RoomCleaningStatusChanged,
+						ReferenceLink = $"admin/rooms/{id}"
+					});
+			}
 			await TryNotifyRolesAsync(
-				new[] { RoleName.Housekeeping },
+				new[] { RoleName.Manager, RoleName.Housekeeping },
 				new CreateNotificationDto
 				{
-					Title = "Cleaning requested",
-					Content = $"Room #{id} has a new cleaning request.",
+					Title = request.Requested ? "Cleaning requested" : "Cleaning request canceled",
+					Content = $"Room #{id} cleaning request is now {(request.Requested ? "enabled" : "disabled")}.",
 					Type = NotificationAction.RoomCleaningStatusChanged,
 					ReferenceLink = $"admin/rooms/{id}"
 				});
-		}
-		await TryNotifyRolesAsync(
-			new[] { RoleName.Manager, RoleName.Housekeeping },
-			new CreateNotificationDto
-			{
-				Title = requested ? "Cleaning requested" : "Cleaning request canceled",
-				Content = $"Room #{id} cleaning request is now {(requested ? "enabled" : "disabled")}.",
-				Type = NotificationAction.RoomCleaningStatusChanged,
-				ReferenceLink = $"admin/rooms/{id}"
-			});
 
-		return Ok("Cleaning request updated successfully.");
+			var updatedRoom = await _service.GetDetailAsync(id);
+			return Ok(updatedRoom);
+		}
+		catch (DbUpdateConcurrencyException)
+		{
+			return Conflict("Room was updated by another user. Please refresh and try again.");
+		}
 	}
 
 	[Permission(PermissionNames.UpdateCleaning)]
 	[HttpPatch("{id}/complete-cleaning")]
-	public async Task<IActionResult> CompleteCleaningRequest(int id)
+	public async Task<IActionResult> CompleteCleaningRequest(int id, [FromBody] RoomRowVersionDto? payload)
 	{
 		try
 		{
-			await _service.ChangeCleaningRequestedAsync(id, false);
+			await _service.ChangeCleaningRequestedAsync(id, false, payload?.RowVersion);
 			var rolesToNotify = new[] { RoleName.Manager, RoleName.Housekeeping };
 			await TryNotifyRolesAsync(
 				rolesToNotify,
@@ -103,7 +116,12 @@ public class RoomsController : ControllerBase
 					ReferenceLink = $"admin/rooms/{id}"
 				});
 
-			return Ok("Room status updated to Available.");
+			var updatedRoom = await _service.GetDetailAsync(id);
+			return Ok(updatedRoom);
+		}
+		catch (DbUpdateConcurrencyException)
+		{
+			return Conflict("Room was updated by another user. Please refresh and try again.");
 		}
 		catch (NotFoundException ex)
 		{
@@ -237,14 +255,18 @@ public class RoomsController : ControllerBase
 
 	[Permission(PermissionNames.UpdateCleaning)]
 	[HttpPatch("{id}/cleaning-status")]
-	public async Task<IActionResult> ChangeCleaningStatus(int id, [FromBody] string newCleaningStatus)
+	public async Task<IActionResult> ChangeCleaningStatus(int id, [FromBody] RoomCleaningStatusDto payload)
 	{
 		try
 		{
-			await _service.ChangeRoomCleaningStatusAsync(id, newCleaningStatus);
+			if (payload == null || string.IsNullOrWhiteSpace(payload.CleaningStatus))
+			{
+				return BadRequest("Cleaning status is required.");
+			}
+			await _service.ChangeRoomCleaningStatusAsync(id, payload.CleaningStatus ?? string.Empty, payload.RowVersion);
 
 			var rolesToNotify = new List<RoleName> { RoleName.Manager };
-			if (string.Equals(newCleaningStatus?.Trim(), "Inspecting", StringComparison.OrdinalIgnoreCase))
+			if (string.Equals(payload.CleaningStatus?.Trim(), "Inspecting", StringComparison.OrdinalIgnoreCase))
 			{
 				rolesToNotify.Add(RoleName.Housekeeping);
 			}
@@ -254,12 +276,17 @@ public class RoomsController : ControllerBase
 				new CreateNotificationDto
 				{
 					Title = "Room cleaning status changed",
-					Content = $"Room #{id} cleaning status changed to {newCleaningStatus}.",
+					Content = $"Room #{id} cleaning status changed to {payload.CleaningStatus}.",
 					Type = NotificationAction.RoomCleaningStatusChanged,
 					ReferenceLink = $"admin/rooms/{id}"
 				});
 
-			return Ok("Room cleaning status updated successfully.");
+			var updatedRoom = await _service.GetDetailAsync(id);
+			return Ok(updatedRoom);
+		}
+		catch (DbUpdateConcurrencyException)
+		{
+			return Conflict("Room was updated by another user. Please refresh and try again.");
 		}
 		catch (NotFoundException ex)
 		{

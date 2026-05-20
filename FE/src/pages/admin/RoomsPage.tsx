@@ -250,8 +250,8 @@ export function RoomsPage() {
                         const value = event.target.value as Room['cleaningStatus'];
                         void (async () => {
                             try {
-                                await roomsApi.changeCleaningStatus(row.id, value);
-                                setRooms((prev) => prev.map((item) => (item.id === row.id ? { ...item, cleaningStatus: value } : item)));
+                                const updatedRoom = await roomsApi.changeCleaningStatus(row.id, value, row.rowVersion);
+                                setRooms((prev) => prev.map((item) => (item.id === row.id ? { ...item, cleaningStatus: value, rowVersion: updatedRoom.rowVersion } : item)));
                                 toast.success(`Room ${row.roomNumber} condition updated`);
                             } catch (error) {
                                 const apiError = toApiError(error);
@@ -282,8 +282,8 @@ export function RoomsPage() {
                             }
                             void (async () => {
                                 try {
-                                    await roomsApi.requestCleaning(row.id, !row.cleaningRequested);
-                                    setRooms((prev) => prev.map((item) => (item.id === row.id ? { ...item, cleaningRequested: !item.cleaningRequested } : item)));
+                                    const updatedRoom = await roomsApi.requestCleaning(row.id, !row.cleaningRequested, row.rowVersion);
+                                    setRooms((prev) => prev.map((item) => (item.id === row.id ? { ...item, cleaningRequested: !item.cleaningRequested, rowVersion: updatedRoom.rowVersion } : item)));
                                 } catch (error) {
                                     const apiError = toApiError(error);
                                     toast.error(apiError.message || 'Failed to update cleaning request');

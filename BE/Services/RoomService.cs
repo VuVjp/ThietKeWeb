@@ -60,10 +60,15 @@ public class RoomService : IRoomService
 		return result;
 	}
 
-	public async Task ChangeCleaningRequestedAsync(int id, bool requested)
+	public async Task ChangeCleaningRequestedAsync(int id, bool requested, byte[]? rowVersion = null)
 	{
 		var room = await _repository.GetByIdAsync(id);
 		if (room == null) throw new NotFoundException("Room not found.");
+		if (rowVersion != null)
+		{
+			EnsureRowVersionMatches(room.RowVersion, rowVersion);
+			_context.Entry(room).Property(item => item.RowVersion).OriginalValue = rowVersion;
+		}
 
 		if (room.CleaningRequested == requested) return;
 		else if (!requested && room.Status!.Equals("InsClean", StringComparison.OrdinalIgnoreCase))
@@ -154,7 +159,8 @@ public class RoomService : IRoomService
 			Status = room.Status,
 			CleaningStatus = room.CleaningStatus,
 			RoomTypeId = room.RoomTypeId,
-			RoomTypeName = room.RoomType?.Name
+			RoomTypeName = room.RoomType?.Name,
+			RowVersion = room.RowVersion
 		};
 		await _cache.SetStringAsync(cacheKey, JsonSerializer.Serialize(result), CacheOptions);
 		return result;
@@ -311,10 +317,15 @@ public class RoomService : IRoomService
 		await IncrementCacheVersionAsync(CacheVersionKeys.Rooms);
 	}
 
-	public async Task ChangeRoomCleaningStatusAsync(int id, string newCleaningStatus)
+	public async Task ChangeRoomCleaningStatusAsync(int id, string newCleaningStatus, byte[]? rowVersion = null)
 	{
 		var room = await _repository.GetByIdAsync(id);
 		if (room == null) throw new NotFoundException("Room not found.");
+		if (rowVersion != null)
+		{
+			EnsureRowVersionMatches(room.RowVersion, rowVersion);
+			_context.Entry(room).Property(item => item.RowVersion).OriginalValue = rowVersion;
+		}
 		if (newCleaningStatus.Equals(room.CleaningStatus, StringComparison.OrdinalIgnoreCase)) return;
 		room.CleaningStatus = newCleaningStatus;
 		_repository.Update(room);
@@ -421,7 +432,8 @@ public class RoomService : IRoomService
 			CleaningStatus = room.CleaningStatus,
 			RoomTypeId = room.RoomTypeId,
 			RoomTypeName = room.RoomType?.Name,
-			CleaningRequested = room.CleaningRequested
+			CleaningRequested = room.CleaningRequested,
+			RowVersion = room.RowVersion
 		};
 	}
 
@@ -567,5 +579,18 @@ public class RoomService : IRoomService
 		}
 
 		return null;
+	}
+
+	private static void EnsureRowVersionMatches(byte[]? current, byte[]? incoming)
+	{
+		if (incoming == null)
+		{
+			return;
+		}
+
+		if (current == null || !current.SequenceEqual(incoming))
+		{
+			throw new DbUpdateConcurrencyException("Room row version mismatch.");
+		}
 	}
 }

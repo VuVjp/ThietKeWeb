@@ -18,6 +18,7 @@ export interface Room {
   status: RoomStatus;
   cleaningStatus: 'Clean' | 'Dirty' | 'Inspecting' | 'Cleaning';
   cleaningRequested: boolean;
+  rowVersion?: string;
 }
 
 export interface InventoryItem {

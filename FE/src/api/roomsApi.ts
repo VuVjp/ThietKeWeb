@@ -20,6 +20,8 @@ interface RoomDto {
     CleaningStatus?: string;
     cleaningRequested?: boolean;
     CleaningRequested?: boolean;
+    rowVersion?: string;
+    RowVersion?: string;
 }
 
 export interface RoomPayload {
@@ -44,6 +46,7 @@ function normalizeRoom(dto: RoomDto): Room {
         status: String(dto.status ?? dto.Status ?? 'Available') as Room['status'],
         cleaningStatus: String(dto.cleaningStatus ?? dto.CleaningStatus ?? 'Clean') as Room['cleaningStatus'],
         cleaningRequested: Boolean(dto.cleaningRequested ?? dto.CleaningRequested ?? false),
+        rowVersion: String(dto.rowVersion ?? dto.RowVersion ?? ''),
     };
 }
 
@@ -53,10 +56,12 @@ export const roomsApi = {
         return data.map(normalizeRoom);
     },
 
-    async requestCleaning(id: number, request: boolean) {
-        await httpClient.patch(`rooms/${id}/request-cleaning`, request, {
+    async requestCleaning(id: number, request: boolean, rowVersion?: string) {
+        const payload = { requested: request, rowVersion };
+        const { data } = await httpClient.patch<RoomDto>(`rooms/${id}/request-cleaning`, payload, {
             headers: { 'Content-Type': 'application/json' },
         });
+        return normalizeRoom(data);
     },
 
     async getByStatus(status: Room['status']) {
@@ -94,18 +99,24 @@ export const roomsApi = {
         });
     },
 
-    async changeCleaningStatus(id: number, cleaningStatus: string) {
-        await httpClient.patch(`rooms/${id}/cleaning-status`, cleaningStatus, {
+    async changeCleaningStatus(id: number, cleaningStatus: string, rowVersion?: string) {
+        const payload = { cleaningStatus, rowVersion };
+        const { data } = await httpClient.patch<RoomDto>(`rooms/${id}/cleaning-status`, payload, {
             headers: { 'Content-Type': 'application/json' },
         });
+        return normalizeRoom(data);
     },
 
     async getByCleaningStatus(cleaningStatus: Room['cleaningStatus']) {
         const { data } = await httpClient.get<RoomDto[]>(`rooms/cleaning-status/${cleaningStatus}`);
         return data.map(normalizeRoom);
     },
-    async completeCleaning(id: number) {
-        await httpClient.patch(`rooms/${id}/complete-cleaning`);
+    async completeCleaning(id: number, rowVersion?: string) {
+        const payload = { rowVersion };
+        const { data } = await httpClient.patch<RoomDto>(`rooms/${id}/complete-cleaning`, payload, {
+            headers: { 'Content-Type': 'application/json' },
+        });
+        return normalizeRoom(data);
     },
 
     async remove(id: number) {

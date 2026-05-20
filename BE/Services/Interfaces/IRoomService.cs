@@ -16,7 +16,7 @@ public interface IRoomService
 	Task<bool> UpdateRoomAsync(int id, RoomDto room);
 	Task<bool> DeleteRoomAsync(int id);
 	Task<bool> RequestCleaningAsync(int id);
-	Task ChangeCleaningRequestedAsync(int id, bool requested);
+	Task ChangeCleaningRequestedAsync(int id, bool requested, byte[]? rowVersion = null);
 	Task ChangeRoomStatusAsync(int id, string newStatus);
-	Task ChangeRoomCleaningStatusAsync(int id, string newCleaningStatus);
+	Task ChangeRoomCleaningStatusAsync(int id, string newCleaningStatus, byte[]? rowVersion = null);
 }
