@@ -84,9 +84,9 @@ export function Sidebar({ collapsed, mobileOpen, onCloseMobile }: SidebarProps) 
 
   return (
     <>
-      <div className={`fixed inset-0 z-30 bg-slate-900/40 lg:hidden ${mobileOpen ? 'block' : 'hidden'}`} onClick={onCloseMobile} />
+      <div className={`fixed inset-0 z-30 bg-slate-900/40 min-[1444px]:hidden ${mobileOpen ? 'block' : 'hidden'}`} onClick={onCloseMobile} />
       <aside
-        className={`fixed left-0 top-0 z-40 h-screen border-r border-slate-200 bg-white shadow-sm transition-all lg:sticky lg:top-0 lg:block ${collapsed ? 'w-20' : 'w-72'} ${mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}
+        className={`fixed left-0 top-0 z-40 h-screen border-r border-slate-200 bg-white shadow-sm transition-all min-[1444px]:sticky min-[1444px]:top-0 min-[1444px]:block ${collapsed ? 'w-20' : 'w-72'} ${mobileOpen ? 'translate-x-0' : '-translate-x-full min-[1444px]:translate-x-0'}`}
       >
         <div className="flex h-16 items-center border-b border-slate-200 px-4">
           <div className="rounded-lg bg-cyan-600/10 px-2 py-1 text-xs font-bold text-cyan-700">CG</div>

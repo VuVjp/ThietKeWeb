@@ -2,6 +2,43 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
+@theme {
+  --animate-bell-ring: bell-ring 2s ease-in-out infinite;
+
+  @keyframes bell-ring {
+
+    0%,
+    100%,
+    50% {
+      transform: rotate(0deg);
+    }
+
+    5%,
+    15%,
+    25% {
+      transform: rotate(10deg);
+    }
+
+    10%,
+    20%,
+    30% {
+      transform: rotate(-10deg);
+    }
+
+    35% {
+      transform: rotate(4deg);
+    }
+
+    40% {
+      transform: rotate(-4deg);
+    }
+
+    45% {
+      transform: rotate(0deg);
+    }
+  }
+}
+
 * {
   box-sizing: border-box;
 }
@@ -70,9 +107,17 @@ body {
   margin-bottom: 0.5rem;
 }
 
-.ProseMirror strong { font-weight: 700; }
-.ProseMirror em { font-style: italic; }
-.ProseMirror u { text-decoration: underline; }
+.ProseMirror strong {
+  font-weight: 700;
+}
+
+.ProseMirror em {
+  font-style: italic;
+}
+
+.ProseMirror u {
+  text-decoration: underline;
+}
 
 .ProseMirror ul {
   list-style-type: disc;
@@ -86,7 +131,9 @@ body {
   margin: 0.5rem 0;
 }
 
-.ProseMirror li { margin: 0.25rem 0; }
+.ProseMirror li {
+  margin: 0.25rem 0;
+}
 
 .ProseMirror img {
   max-width: 100%;
@@ -103,17 +150,46 @@ body {
 }
 
 /* ── Prose preview ──────────────────────────────────────────────────────── */
-.prose h1, .prose h2, .prose h3, .prose h4 { font-weight: 700; color: #0f172a; }
-.prose p { color: #334155; line-height: 1.75; }
-.prose a { color: #0e7490; text-decoration: underline; }
-.prose img { border-radius: 0.75rem; margin: 1rem 0; }
-.prose ul, .prose ol { padding-left: 1.5rem; }
-.prose blockquote { border-left: 4px solid #e2e8f0; padding-left: 1rem; color: #64748b; font-style: italic; }
+.prose h1,
+.prose h2,
+.prose h3,
+.prose h4 {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.prose p {
+  color: #334155;
+  line-height: 1.75;
+}
+
+.prose a {
+  color: #0e7490;
+  text-decoration: underline;
+}
+
+.prose img {
+  border-radius: 0.75rem;
+  margin: 1rem 0;
+}
+
+.prose ul,
+.prose ol {
+  padding-left: 1.5rem;
+}
+
+.prose blockquote {
+  border-left: 4px solid #e2e8f0;
+  padding-left: 1rem;
+  color: #64748b;
+  font-style: italic;
+}
 
 @media print {
+
   /* Hide navigation elements */
-  header, 
-  aside, 
+  header,
+  aside,
   nav,
   [role="navigation"],
   .print\:hidden {
@@ -155,4 +231,3 @@ body {
     padding: 0 !important;
   }
 }
-

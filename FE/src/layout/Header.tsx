@@ -30,10 +30,10 @@ export function Header({ onSidebarToggle, onMobileToggle, onSearchChange, notifi
     <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
       <div className="flex h-16 items-center justify-between gap-4 px-4 lg:px-6">
         <div className="flex items-center gap-2">
-          <button type="button" className="rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-slate-50 lg:hidden" onClick={onMobileToggle}>
+          <button type="button" className="rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-slate-50 min-[1444px]:hidden" onClick={onMobileToggle}>
             <Bars3Icon className="h-5 w-5" />
           </button>
-          <button type="button" className="hidden rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-slate-50 lg:block" onClick={onSidebarToggle}>
+          <button type="button" className="hidden rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-slate-50 min-[1444px]:block" onClick={onSidebarToggle}>
             <Bars3Icon className="h-5 w-5" />
           </button>
           <div className="relative hidden w-72 md:block">

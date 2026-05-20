@@ -89,7 +89,7 @@ export function ClientLayout() {
                             </Link>
                         </div>
 
-                        <nav className={`hidden lg:flex gap-8 items-center px-8 py-3 rounded-full border transition-all duration-500 ${isScrolled ? 'bg-slate-50/50 backdrop-blur-lg border-slate-200' : 'bg-white/10 backdrop-blur-md border-white/20 text-white'}`}>
+                        <nav className={`hidden min-[1444px]:flex gap-8 items-center px-8 py-3 rounded-full border transition-all duration-500 ${isScrolled ? 'bg-slate-50/50 backdrop-blur-lg border-slate-200' : 'bg-white/10 backdrop-blur-md border-white/20 text-white'}`}>
                             {navLinks.map((link) => {
                                 const isActive = location.pathname === link.href || (link.href !== '/' && location.pathname.startsWith(link.href));
                                 return (
@@ -107,7 +107,7 @@ export function ClientLayout() {
                             })}
                         </nav>
 
-                        <div className="hidden lg:flex items-center gap-6">
+                        <div className="hidden min-[1444px]:flex items-center gap-6">
                             {isAuthReady && isAuthenticated && user ? (
                                 <div className="flex items-center gap-5">
                                     <NotificationDropdown
@@ -120,74 +120,74 @@ export function ClientLayout() {
                                         onLoadMore={loadMore}
                                     />
                                     <div className="relative" ref={userMenuRef}>
-                                    <button
-                                        type="button"
-                                        onClick={() => setUserMenuOpen(!userMenuOpen)}
-                                        className={`flex items-center gap-1.5 text-sm font-semibold transition-colors ${isScrolled ? 'text-slate-700 hover:text-cyan-600' : 'text-white hover:text-cyan-300 drop-shadow-md'}`}
-                                    >
-                                        {/* Avatar */}
-                                        <div className={`w-8 h-8 rounded-full overflow-hidden flex items-center justify-center text-xs font-bold ${isScrolled ? 'bg-cyan-100 text-cyan-700' : 'bg-white/20 text-white backdrop-blur-sm'}`}>
-                                            {user.avatarUrl ? (
-                                                <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
-                                            ) : (
-                                                user.name?.charAt(0)?.toUpperCase() || user.email?.charAt(0)?.toUpperCase() || 'U'
-                                            )}
-                                        </div>
-                                        <svg className={`w-3.5 h-3.5 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                                        </svg>
-                                    </button>
-
-                                    {/* Dropdown */}
-                                    {userMenuOpen && (
-                                        <div className="absolute right-0 top-full mt-3 w-56 bg-white rounded-xl shadow-2xl border border-slate-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
-                                            <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/50">
-                                                <p className="text-sm font-semibold text-slate-800 truncate">{user.name}</p>
-                                                <p className="text-xs text-slate-500 truncate">{user.email}</p>
-                                                {user.role && (
-                                                    <span className="mt-1 inline-block text-[10px] font-bold uppercase tracking-wider text-cyan-600 bg-cyan-50 px-2 py-0.5 rounded-full">
-                                                        {user.role}
-                                                    </span>
+                                        <button
+                                            type="button"
+                                            onClick={() => setUserMenuOpen(!userMenuOpen)}
+                                            className={`flex items-center gap-1.5 text-sm font-semibold transition-colors ${isScrolled ? 'text-slate-700 hover:text-cyan-600' : 'text-white hover:text-cyan-300 drop-shadow-md'}`}
+                                        >
+                                            {/* Avatar */}
+                                            <div className={`w-8 h-8 rounded-full overflow-hidden flex items-center justify-center text-xs font-bold ${isScrolled ? 'bg-cyan-100 text-cyan-700' : 'bg-white/20 text-white backdrop-blur-sm'}`}>
+                                                {user.avatarUrl ? (
+                                                    <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    user.name?.charAt(0)?.toUpperCase() || user.email?.charAt(0)?.toUpperCase() || 'U'
                                                 )}
                                             </div>
-                                            <div className="py-1.5">
-                                                <Link
-                                                    to="/account"
-                                                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
-                                                    onClick={() => setUserMenuOpen(false)}
-                                                >
-                                                    <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-                                                    </svg>
-                                                    My Account
-                                                </Link>
-                                                {isStaffUser && (
+                                            <svg className={`w-3.5 h-3.5 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                                            </svg>
+                                        </button>
+
+                                        {/* Dropdown */}
+                                        {userMenuOpen && (
+                                            <div className="absolute right-0 top-full mt-3 w-56 bg-white rounded-xl shadow-2xl border border-slate-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
+                                                <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/50">
+                                                    <p className="text-sm font-semibold text-slate-800 truncate">{user.name}</p>
+                                                    <p className="text-xs text-slate-500 truncate">{user.email}</p>
+                                                    {user.role && (
+                                                        <span className="mt-1 inline-block text-[10px] font-bold uppercase tracking-wider text-cyan-600 bg-cyan-50 px-2 py-0.5 rounded-full">
+                                                            {user.role}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className="py-1.5">
                                                     <Link
-                                                        to="/admin"
+                                                        to="/account"
                                                         className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
                                                         onClick={() => setUserMenuOpen(false)}
                                                     >
                                                         <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
                                                         </svg>
-                                                        Staff Portal
+                                                        My Account
                                                     </Link>
-                                                )}
+                                                    {isStaffUser && (
+                                                        <Link
+                                                            to="/admin"
+                                                            className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                                                            onClick={() => setUserMenuOpen(false)}
+                                                        >
+                                                            <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
+                                                            </svg>
+                                                            Staff Portal
+                                                        </Link>
+                                                    )}
+                                                </div>
+                                                <div className="border-t border-slate-100 py-1.5">
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleLogout}
+                                                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors w-full"
+                                                    >
+                                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+                                                        </svg>
+                                                        Sign Out
+                                                    </button>
+                                                </div>
                                             </div>
-                                            <div className="border-t border-slate-100 py-1.5">
-                                                <button
-                                                    type="button"
-                                                    onClick={handleLogout}
-                                                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors w-full"
-                                                >
-                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
-                                                    </svg>
-                                                    Sign Out
-                                                </button>
-                                            </div>
-                                        </div>
-                                    )}
+                                        )}
                                     </div>
                                 </div>
                             ) : (
@@ -204,7 +204,18 @@ export function ClientLayout() {
                             </Link>
                         </div>
 
-                        <div className="lg:hidden flex items-center">
+                        <div className="min-[1444px]:hidden flex items-center gap-3">
+                            {isAuthReady && isAuthenticated && user && (
+                                <NotificationDropdown
+                                    items={notifications}
+                                    unreadCount={unreadCount}
+                                    hasMore={hasMore}
+                                    isLoadingMore={isLoadingMore}
+                                    onMarkRead={markRead}
+                                    onMarkAllRead={markAllRead}
+                                    onLoadMore={loadMore}
+                                />
+                            )}
                             <button
                                 type="button"
                                 className={`p-2 rounded-none border transition-colors ${isScrolled ? 'text-slate-800 border-slate-300 hover:bg-slate-100' : 'text-white border-white/40 bg-white/10 backdrop-blur hover:bg-white/20'}`}
@@ -217,7 +228,7 @@ export function ClientLayout() {
                 </div>
 
                 {mobileMenuOpen && (
-                    <div className="lg:hidden absolute top-full left-0 w-full h-[100vh] bg-white border-t border-slate-100 shadow-2xl py-6 px-6 flex flex-col gap-4 z-40 overflow-y-auto">
+                    <div className="min-[1444px]:hidden absolute top-full left-0 w-full h-[100vh] bg-white border-t border-slate-100 shadow-2xl py-6 px-6 flex flex-col gap-4 z-40 overflow-y-auto">
                         {navLinks.map((link) => (
                             <Link
                                 key={link.name}

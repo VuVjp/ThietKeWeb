@@ -14,18 +14,33 @@ interface NotificationDropdownProps {
 
 export function NotificationDropdown({ items, unreadCount, hasMore, isLoadingMore, onMarkRead, onMarkAllRead, onLoadMore }: NotificationDropdownProps) {
 
+  const hasUnread = unreadCount > 0;
+
   return (
     <Popover className="relative">
-      <PopoverButton className="relative rounded-lg border border-slate-200 p-2 hover:bg-slate-50">
-        <BellIcon className="h-5 w-5 text-slate-700" />
-        {unreadCount > 0 ? (
-          <span className="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-semibold text-white">
-            {unreadCount}
+      <PopoverButton 
+        className={`relative rounded-full border p-2 transition-all duration-300 shadow-sm outline-none focus:ring-2 focus:ring-cyan-100 ${
+          hasUnread 
+            ? 'border-cyan-300 bg-cyan-50/50 text-cyan-600 shadow-[0_0_12px_rgba(6,182,212,0.15)] hover:bg-cyan-100/60' 
+            : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-800'
+        }`}
+      >
+        <BellIcon 
+          className={`h-5 w-5 transition-transform duration-300 origin-top ${
+            hasUnread ? 'text-cyan-600 animate-bell-ring' : 'text-slate-600'
+          }`} 
+        />
+        {hasUnread ? (
+          <span className="absolute -right-0.5 -top-0.5 flex h-5 w-5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-5 w-5 bg-rose-500 items-center justify-center text-[10px] font-extrabold text-white shadow-sm border border-white">
+              {unreadCount}
+            </span>
           </span>
         ) : null}
       </PopoverButton>
 
-      <PopoverPanel anchor="bottom end" className="z-30 mt-2 w-96 rounded-xl border border-slate-200 bg-white p-4 shadow-xl">
+      <PopoverPanel anchor="bottom end" className="z-30 mt-2 w-[calc(100vw-2rem)] sm:w-96 rounded-xl border border-slate-200 bg-white p-4 shadow-xl">
         <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
           <h4 className="text-base font-bold text-slate-800">Notifications</h4>
           <button 
