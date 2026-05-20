@@ -53,7 +53,7 @@ export function HomePage() {
                 {/* Real Background Image */}
                 <div className="absolute inset-0 z-0">
                     <img
-                        src="https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?q=80&w=1740&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+                        src="https://images.unsplash.com/photo-1605537964076-3cb0ea2ff329?q=80&w=1664&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
                         alt="Luxury Hotel Facade"
                         className="w-full h-full object-cover"
                     />
@@ -172,7 +172,11 @@ export function HomePage() {
                                 const displayImage = primaryImage?.url || "https://images.unsplash.com/photo-1618773928112-859e548dbce9?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80";
 
                                 return (
-                                    <div key={rt.id} className="bg-white rounded-none border border-slate-100 group overflow-hidden hover:shadow-2xl transition-all duration-500 flex flex-col text-left">
+                                    <Link
+                                        key={rt.id}
+                                        to={`/rooms/${rt.id}`}
+                                        className="bg-white rounded-none border border-slate-100 group overflow-hidden hover:shadow-2xl transition-all duration-500 flex flex-col text-left cursor-pointer"
+                                    >
                                         <div className="relative h-72 overflow-hidden">
                                             <div className="absolute inset-0 bg-slate-900/20 group-hover:bg-transparent transition-colors z-10" />
                                             <div className="absolute bottom-4 right-4 z-20 bg-white/90 backdrop-blur text-slate-900 px-4 py-2 font-bold text-lg shadow-lg">
@@ -194,11 +198,11 @@ export function HomePage() {
                                                 <span>•</span>
                                                 <span>{rt.view || 'STANDARD VIEW'}</span>
                                             </div>
-                                            <Link to={`/rooms/${rt.id}`} className="w-full text-center border-2 border-slate-900 text-slate-900 hover:bg-slate-900 hover:text-white py-3 font-bold uppercase tracking-widest text-xs transition-colors">
-                                                Book Now
-                                            </Link>
+                                            <div className="w-full text-center border-2 border-slate-900 text-slate-900 group-hover:bg-slate-900 group-hover:text-white py-3 font-bold uppercase tracking-widest text-xs transition-colors">
+                                                View Details
+                                            </div>
                                         </div>
-                                    </div>
+                                    </Link>
                                 );
                             })}
                         </div>

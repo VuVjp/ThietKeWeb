@@ -39,76 +39,76 @@ public class ArticleService : IArticleService
 
     private static ArticleDto MapToDto(Article a) => new()
     {
-        Id           = a.Id,
-        AuthorId     = a.AuthorId,
-        Title        = a.Title,
-        Subtitle     = a.Subtitle,
-        Slug         = a.Slug,
-        Content      = null, // Omitted in list — use GetByIdAsync for full content
+        Id = a.Id,
+        AuthorId = a.AuthorId,
+        Title = a.Title,
+        Subtitle = a.Subtitle,
+        Slug = a.Slug,
+        Content = null, // Omitted in list — use GetByIdAsync for full content
         ThumbnailUrl = a.ThumbnailUrl,
-        PublishedAt  = a.PublishedAt,
-        AuthorName   = a.Author?.FullName,
-        IsActive     = a.IsActive,
-        Categories   = a.ArticleCategoryMaps
+        PublishedAt = a.PublishedAt,
+        AuthorName = a.Author?.FullName,
+        IsActive = a.IsActive,
+        Categories = a.ArticleCategoryMaps
             .Where(m => m.Category != null)
             .Select(m => new ArticleCategoryDto
             {
-                Id       = m.Category!.Id,
-                Name     = m.Category.Name,
+                Id = m.Category!.Id,
+                Name = m.Category.Name,
                 IsActive = m.Category.IsActive,
             })
             .ToList(),
-        Attractions  = a.ArticleAttractionMaps
+        Attractions = a.ArticleAttractionMaps
             .Where(m => m.Attraction != null)
             .Select(m => new AttractionDto
             {
-                Id           = m.Attraction!.Id,
-                Name         = m.Attraction.Name,
-                Description  = m.Attraction.Description,
-                DistanceKm   = m.Attraction.DistanceKm,
-                IsActive     = m.Attraction.IsActive,
+                Id = m.Attraction!.Id,
+                Name = m.Attraction.Name,
+                Description = m.Attraction.Description,
+                DistanceKm = m.Attraction.DistanceKm,
+                IsActive = m.Attraction.IsActive,
                 MapEmbedLink = m.Attraction.MapEmbedLink,
-                Latitude     = m.Attraction.Latitude,
-                Longitude    = m.Attraction.Longitude,
-                ImageUrl     = m.Attraction.ImageUrl,
+                Latitude = m.Attraction.Latitude,
+                Longitude = m.Attraction.Longitude,
+                ImageUrl = m.Attraction.ImageUrl,
             })
             .ToList(),
     };
 
     private static ArticleDto MapToDtoWithContent(Article a) => new()
     {
-        Id           = a.Id,
-        AuthorId     = a.AuthorId,
-        Title        = a.Title,
-        Subtitle     = a.Subtitle,
-        Slug         = a.Slug,
-        Content      = a.Content,
+        Id = a.Id,
+        AuthorId = a.AuthorId,
+        Title = a.Title,
+        Subtitle = a.Subtitle,
+        Slug = a.Slug,
+        Content = a.Content,
         ThumbnailUrl = a.ThumbnailUrl,
-        PublishedAt  = a.PublishedAt,
-        AuthorName   = a.Author?.FullName,
-        IsActive     = a.IsActive,
-        Categories   = a.ArticleCategoryMaps
+        PublishedAt = a.PublishedAt,
+        AuthorName = a.Author?.FullName,
+        IsActive = a.IsActive,
+        Categories = a.ArticleCategoryMaps
             .Where(m => m.Category != null)
             .Select(m => new ArticleCategoryDto
             {
-                Id       = m.Category!.Id,
-                Name     = m.Category.Name,
+                Id = m.Category!.Id,
+                Name = m.Category.Name,
                 IsActive = m.Category.IsActive,
             })
             .ToList(),
-        Attractions  = a.ArticleAttractionMaps
+        Attractions = a.ArticleAttractionMaps
             .Where(m => m.Attraction != null)
             .Select(m => new AttractionDto
             {
-                Id           = m.Attraction!.Id,
-                Name         = m.Attraction.Name,
-                Description  = m.Attraction.Description,
-                DistanceKm   = m.Attraction.DistanceKm,
-                IsActive     = m.Attraction.IsActive,
+                Id = m.Attraction!.Id,
+                Name = m.Attraction.Name,
+                Description = m.Attraction.Description,
+                DistanceKm = m.Attraction.DistanceKm,
+                IsActive = m.Attraction.IsActive,
                 MapEmbedLink = m.Attraction.MapEmbedLink,
-                Latitude     = m.Attraction.Latitude,
-                Longitude    = m.Attraction.Longitude,
-                ImageUrl     = m.Attraction.ImageUrl,
+                Latitude = m.Attraction.Latitude,
+                Longitude = m.Attraction.Longitude,
+                ImageUrl = m.Attraction.ImageUrl,
             })
             .ToList(),
     };
@@ -141,7 +141,7 @@ public class ArticleService : IArticleService
         {
             await _context.Set<ArticleCategoryMap>().AddAsync(new ArticleCategoryMap
             {
-                ArticleId  = articleId,
+                ArticleId = articleId,
                 CategoryId = catId,
             });
         }
@@ -159,7 +159,7 @@ public class ArticleService : IArticleService
         {
             await _context.Set<ArticleAttractionMap>().AddAsync(new ArticleAttractionMap
             {
-                ArticleId    = articleId,
+                ArticleId = articleId,
                 AttractionId = attrId,
             });
         }
@@ -216,13 +216,13 @@ public class ArticleService : IArticleService
 
         var entity = new Article
         {
-            AuthorId     = dto.AuthorId,
-            Title        = dto.Title,
-            Subtitle     = dto.Subtitle,
-            Content      = dto.Content,
+            AuthorId = dto.AuthorId,
+            Title = dto.Title,
+            Subtitle = dto.Subtitle,
+            Content = dto.Content,
             ThumbnailUrl = thumbnailUrl,
-            IsActive     = dto.IsActive ?? true,
-            PublishedAt  = (dto.IsActive ?? true) ? DateTime.Now : null
+            IsActive = dto.IsActive ?? true,
+            PublishedAt = (dto.IsActive ?? true) ? DateTime.Now : null
         };
 
         await _repo.AddAsync(entity);
@@ -261,16 +261,18 @@ public class ArticleService : IArticleService
 
         if (dto.AuthorId.HasValue)
             entity.AuthorId = dto.AuthorId.Value;
-        entity.Title        = dto.Title;
-        entity.Subtitle     = dto.Subtitle;
-        entity.Content      = dto.Content;
+        entity.Title = dto.Title;
+        entity.Subtitle = dto.Subtitle;
+        entity.Content = dto.Content;
         entity.ThumbnailUrl = thumbnailUrl;
 
         bool originallyPublished = entity.IsActive && entity.PublishedAt != null;
 
-        if (dto.IsActive.HasValue) {
+        if (dto.IsActive.HasValue)
+        {
             entity.IsActive = dto.IsActive.Value;
-            if (entity.IsActive && entity.PublishedAt == null) {
+            if (entity.IsActive && entity.PublishedAt == null)
+            {
                 entity.PublishedAt = DateTime.Now;
             }
         }
@@ -281,10 +283,10 @@ public class ArticleService : IArticleService
         await SyncCategoryMapsAsync(entity.Id, dto.CategoryIds);
         // Replace attraction junction rows
         await SyncAttractionMapsAsync(entity.Id, dto.AttractionIds);
-        
+
         bool isNowPublished = entity.IsActive && entity.PublishedAt != null;
         bool wasJustPublished = !originallyPublished && isNowPublished;
-        
+
         await _context.SaveChangesAsync();
 
         if (wasJustPublished)
