@@ -4,6 +4,7 @@ using HotelManagement.Services.Interfaces;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using System;
+using Microsoft.Extensions.Caching.Distributed;
 
 namespace HotelManagement.Services.Implementations;
 
@@ -12,15 +13,18 @@ public class RoomInventoryService : IRoomInventoryService
 	private readonly IRoomInventoryRepository _repository;
 	private readonly IEquipmentRepository _equipmentRepository;
 	private readonly IAmenityRepository _amenityRepository;
+	private readonly IDistributedCache _cache;
 
 	public RoomInventoryService(
 		IRoomInventoryRepository repository,
 		IEquipmentRepository equipmentRepository,
-		IAmenityRepository amenityRepository)
+		IAmenityRepository amenityRepository,
+		IDistributedCache cache)
 	{
 		_repository = repository;
 		_equipmentRepository = equipmentRepository;
 		_amenityRepository = amenityRepository;
+		_cache = cache;
 	}
 
 	public async Task<IEnumerable<RoomInventoryDto>> GetInventoriesAsync()
@@ -133,6 +137,9 @@ public class RoomInventoryService : IRoomInventoryService
 			await _equipmentRepository.SaveChangesAsync();
 		}
 
+		await IncrementCacheVersionAsync(CacheVersionKeys.Rooms);
+		await IncrementCacheVersionAsync(CacheVersionKeys.RoomTypes);
+
 		return true;
 	}
 
@@ -242,7 +249,13 @@ public class RoomInventoryService : IRoomInventoryService
 		existing.EquipmentId = dto.EquipmentId;
 
 		_repository.Update(existing);
-		return await _repository.SaveChangesAsync();
+		var saved = await _repository.SaveChangesAsync();
+		if (saved)
+		{
+			await IncrementCacheVersionAsync(CacheVersionKeys.Rooms);
+			await IncrementCacheVersionAsync(CacheVersionKeys.RoomTypes);
+		}
+		return saved;
 	}
 
 	public async Task CloneItemAsync(int idClone, int newRoomId)
@@ -294,6 +307,8 @@ public class RoomInventoryService : IRoomInventoryService
 			await _repository.AddAsync(newClone);
 		}
 		await _repository.SaveChangesAsync();
+		await IncrementCacheVersionAsync(CacheVersionKeys.Rooms);
+		await IncrementCacheVersionAsync(CacheVersionKeys.RoomTypes);
 	}
 
 	public async Task<bool> ToggleActiveAsync(int id)
@@ -333,8 +348,28 @@ public class RoomInventoryService : IRoomInventoryService
 		entity.IsActive = !entity.IsActive;
 		_repository.Update(entity);
 		await _repository.SaveChangesAsync();
+		await IncrementCacheVersionAsync(CacheVersionKeys.Rooms);
+		await IncrementCacheVersionAsync(CacheVersionKeys.RoomTypes);
 
 		return true;
+	}
+
+	private async Task<string> GetCacheVersionAsync(string key)
+	{
+		var version = await _cache.GetStringAsync(key);
+		return string.IsNullOrWhiteSpace(version) ? "0" : version;
+	}
+
+	private async Task IncrementCacheVersionAsync(string key)
+	{
+		var current = await GetCacheVersionAsync(key);
+		if (!int.TryParse(current, out var version))
+		{
+			version = 0;
+		}
+
+		version++;
+		await _cache.SetStringAsync(key, version.ToString());
 	}
 
 	private static bool IsAmenityInventoryName(string itemName)

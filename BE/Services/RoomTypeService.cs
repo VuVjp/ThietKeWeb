@@ -1,6 +1,9 @@
 using HotelManagement.Dtos;
 using HotelManagement.Entities;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Caching.Distributed;
+using System;
+using System.Text.Json;
 using System.Transactions;
 
 public class RoomTypeService : IRoomTypeService
@@ -9,30 +12,61 @@ public class RoomTypeService : IRoomTypeService
     private readonly IRoomImageRepository _roomImageRepository;
     private readonly IAmenityRepository _amenityRepository;
     private readonly ICloudinaryService _cloudinaryService;
+    private readonly IDistributedCache _cache;
+    private static readonly DistributedCacheEntryOptions CacheOptions = new()
+    {
+        AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5)
+    };
 
     public RoomTypeService(
         IRoomTypeRepository roomTypeRepository,
         IRoomImageRepository roomImageRepository,
         IAmenityRepository amenityRepository,
-        ICloudinaryService cloudinaryService)
+        ICloudinaryService cloudinaryService,
+        IDistributedCache cache)
     {
         _roomTypeRepository = roomTypeRepository;
         _roomImageRepository = roomImageRepository;
         _amenityRepository = amenityRepository;
         _cloudinaryService = cloudinaryService;
+        _cache = cache;
     }
 
     public async Task<IEnumerable<RoomTypeDto>> GetAllRoomTypesAsync()
     {
+        var cacheVersion = await GetCacheVersionAsync(CacheVersionKeys.RoomTypes);
+        var cacheKey = $"roomtypes:v{cacheVersion}:all";
+        var cached = await _cache.GetStringAsync(cacheKey);
+        if (!string.IsNullOrWhiteSpace(cached))
+        {
+            var cachedResult = JsonSerializer.Deserialize<List<RoomTypeDto>>(cached);
+            if (cachedResult != null)
+            {
+                return cachedResult;
+            }
+        }
+
         var roomTypes = await _roomTypeRepository.GetAllWithImagesAndAmenitiesAsync();
-        return roomTypes.Select(ToDto);
+        var result = roomTypes.Select(ToDto).ToList();
+        await _cache.SetStringAsync(cacheKey, JsonSerializer.Serialize(result), CacheOptions);
+        return result;
     }
     public async Task<RoomTypeDto?> GetRoomTypeByIdAsync(int id)
     {
+        var cacheVersion = await GetCacheVersionAsync(CacheVersionKeys.RoomTypes);
+        var cacheKey = $"roomtypes:v{cacheVersion}:id:{id}";
+        var cached = await _cache.GetStringAsync(cacheKey);
+        if (!string.IsNullOrWhiteSpace(cached))
+        {
+            return JsonSerializer.Deserialize<RoomTypeDto>(cached);
+        }
+
         var roomType = await _roomTypeRepository.GetByIdWithImagesAndAmenitiesAsync(id);
         if (roomType == null) return null;
 
-        return ToDto(roomType);
+        var result = ToDto(roomType);
+        await _cache.SetStringAsync(cacheKey, JsonSerializer.Serialize(result), CacheOptions);
+        return result;
     }
     public async Task<bool> CreateRoomTypeAsync(CreateRoomTypeDto dto)
     {
@@ -70,6 +104,9 @@ public class RoomTypeService : IRoomTypeService
         await _roomTypeRepository.AddAsync(roomType);
         await _roomTypeRepository.SaveChangesAsync();
 
+        await IncrementCacheVersionAsync(CacheVersionKeys.RoomTypes);
+        await IncrementCacheVersionAsync(CacheVersionKeys.Rooms);
+
         return true;
     }
 
@@ -105,6 +142,9 @@ public class RoomTypeService : IRoomTypeService
         _roomTypeRepository.Update(roomType);
         await _roomTypeRepository.SaveChangesAsync();
 
+        await IncrementCacheVersionAsync(CacheVersionKeys.RoomTypes);
+        await IncrementCacheVersionAsync(CacheVersionKeys.Rooms);
+
         return true;
     }
 
@@ -117,6 +157,9 @@ public class RoomTypeService : IRoomTypeService
 
         _roomTypeRepository.Update(roomType);
         await _roomTypeRepository.SaveChangesAsync();
+
+        await IncrementCacheVersionAsync(CacheVersionKeys.RoomTypes);
+        await IncrementCacheVersionAsync(CacheVersionKeys.Rooms);
 
         return true;
     }
@@ -150,6 +193,9 @@ public class RoomTypeService : IRoomTypeService
         await _roomImageRepository.AddAsync(roomImage);
         await _roomImageRepository.SaveChangesAsync();
 
+        await IncrementCacheVersionAsync(CacheVersionKeys.RoomTypes);
+        await IncrementCacheVersionAsync(CacheVersionKeys.Rooms);
+
         return true;
     }
     public async Task<bool> DeleteImageAsync(int imageId)
@@ -175,6 +221,9 @@ public class RoomTypeService : IRoomTypeService
         _roomImageRepository.Delete(image);
         await _roomImageRepository.SaveChangesAsync();
 
+        await IncrementCacheVersionAsync(CacheVersionKeys.RoomTypes);
+        await IncrementCacheVersionAsync(CacheVersionKeys.Rooms);
+
         return true;
     }
 
@@ -196,6 +245,8 @@ public class RoomTypeService : IRoomTypeService
         }
 
         await _roomImageRepository.SaveChangesAsync();
+        await IncrementCacheVersionAsync(CacheVersionKeys.RoomTypes);
+        await IncrementCacheVersionAsync(CacheVersionKeys.Rooms);
         return true;
     }
 
@@ -237,6 +288,9 @@ public class RoomTypeService : IRoomTypeService
             throw new NotFoundException($"Room type with ID {roomTypeId} not found.");
         }
 
+        await IncrementCacheVersionAsync(CacheVersionKeys.RoomTypes);
+        await IncrementCacheVersionAsync(CacheVersionKeys.Rooms);
+
         return true;
     }
 
@@ -253,6 +307,9 @@ public class RoomTypeService : IRoomTypeService
             throw new NotFoundException("Room type or one of the amenities was not found.");
         }
 
+        await IncrementCacheVersionAsync(CacheVersionKeys.RoomTypes);
+        await IncrementCacheVersionAsync(CacheVersionKeys.Rooms);
+
         return true;
     }
 
@@ -264,7 +321,28 @@ public class RoomTypeService : IRoomTypeService
             throw new NotFoundException("Room type amenity relation not found.");
         }
 
+        await IncrementCacheVersionAsync(CacheVersionKeys.RoomTypes);
+        await IncrementCacheVersionAsync(CacheVersionKeys.Rooms);
+
         return true;
+    }
+
+    private async Task<string> GetCacheVersionAsync(string key)
+    {
+        var version = await _cache.GetStringAsync(key);
+        return string.IsNullOrWhiteSpace(version) ? "0" : version;
+    }
+
+    private async Task IncrementCacheVersionAsync(string key)
+    {
+        var current = await GetCacheVersionAsync(key);
+        if (!int.TryParse(current, out var version))
+        {
+            version = 0;
+        }
+
+        version++;
+        await _cache.SetStringAsync(key, version.ToString());
     }
 
     private static RoomTypeDto ToDto(RoomType roomType)

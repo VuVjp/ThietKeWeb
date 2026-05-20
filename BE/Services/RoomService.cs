@@ -7,6 +7,8 @@ using System;
 using HotelManagement.Dtos;
 using HotelManagement.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
+using System.Text.Json;
 
 namespace HotelManagement.Services.Implementations;
 
@@ -23,19 +25,39 @@ public class RoomService : IRoomService
 	private readonly AppDbContext _context;
 	private readonly INotificationService _notificationService;
 	private readonly IInvoiceService _invoiceService;
+	private readonly IDistributedCache _cache;
+	private static readonly DistributedCacheEntryOptions CacheOptions = new()
+	{
+		AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5)
+	};
 
-	public RoomService(IRoomRepository repository, AppDbContext context, INotificationService notificationService, IInvoiceService invoiceService)
+	public RoomService(IRoomRepository repository, AppDbContext context, INotificationService notificationService, IInvoiceService invoiceService, IDistributedCache cache)
 	{
 		_repository = repository;
 		_context = context;
 		_notificationService = notificationService;
 		_invoiceService = invoiceService;
+		_cache = cache;
 	}
 
 	public async Task<IEnumerable<RoomDto>> GetListAsync()
 	{
+		var cacheVersion = await GetCacheVersionAsync(CacheVersionKeys.Rooms);
+		var cacheKey = $"rooms:v{cacheVersion}:all";
+		var cached = await _cache.GetStringAsync(cacheKey);
+		if (!string.IsNullOrWhiteSpace(cached))
+		{
+			var cachedResult = JsonSerializer.Deserialize<List<RoomDto>>(cached);
+			if (cachedResult != null)
+			{
+				return cachedResult;
+			}
+		}
+
 		var rooms = await _repository.GetAllAsync();
-		return rooms.Select(MapToDto);
+		var result = rooms.Select(MapToDto).ToList();
+		await _cache.SetStringAsync(cacheKey, JsonSerializer.Serialize(result), CacheOptions);
+		return result;
 	}
 
 	public async Task ChangeCleaningRequestedAsync(int id, bool requested)
@@ -51,19 +73,49 @@ public class RoomService : IRoomService
 		room.CleaningRequested = requested;
 		_repository.Update(room);
 		await _repository.SaveChangesAsync();
+		await IncrementCacheVersionAsync(CacheVersionKeys.Rooms);
 	}
 
 	public async Task<IEnumerable<RoomDto>> GetByStatusAsync(string status, bool includeCleaningRequested = false)
 	{
-		var rooms = await _repository.GetByStatusAsync(status, includeCleaningRequested: includeCleaningRequested);
+		var cacheVersion = await GetCacheVersionAsync(CacheVersionKeys.Rooms);
+		var normalized = (status ?? string.Empty).Trim().ToLowerInvariant();
+		var cacheKey = $"rooms:v{cacheVersion}:status:{normalized}:{includeCleaningRequested}";
+		var cached = await _cache.GetStringAsync(cacheKey);
+		if (!string.IsNullOrWhiteSpace(cached))
+		{
+			var cachedResult = JsonSerializer.Deserialize<List<RoomDto>>(cached);
+			if (cachedResult != null)
+			{
+				return cachedResult;
+			}
+		}
 
-		return rooms.Select(MapToDto);
+		var rooms = await _repository.GetByStatusAsync(status, includeCleaningRequested: includeCleaningRequested);
+		var result = rooms.Select(MapToDto).ToList();
+		await _cache.SetStringAsync(cacheKey, JsonSerializer.Serialize(result), CacheOptions);
+		return result;
 	}
 
 	public async Task<IEnumerable<RoomDto>> GetByCleaningStatusAsync(string cleaningStatus)
 	{
+		var cacheVersion = await GetCacheVersionAsync(CacheVersionKeys.Rooms);
+		var normalized = (cleaningStatus ?? string.Empty).Trim().ToLowerInvariant();
+		var cacheKey = $"rooms:v{cacheVersion}:cleaning:{normalized}";
+		var cached = await _cache.GetStringAsync(cacheKey);
+		if (!string.IsNullOrWhiteSpace(cached))
+		{
+			var cachedResult = JsonSerializer.Deserialize<List<RoomDto>>(cached);
+			if (cachedResult != null)
+			{
+				return cachedResult;
+			}
+		}
+
 		var rooms = await _repository.GetByCleaningStatusAsync(cleaningStatus);
-		return rooms.Select(MapToDto);
+		var result = rooms.Select(MapToDto).ToList();
+		await _cache.SetStringAsync(cacheKey, JsonSerializer.Serialize(result), CacheOptions);
+		return result;
 	}
 
 	public async Task<bool> RequestCleaningAsync(int id)
@@ -73,15 +125,28 @@ public class RoomService : IRoomService
 
 		room.CleaningRequested = true;
 		_repository.Update(room);
-		return await _repository.SaveChangesAsync();
+		var saved = await _repository.SaveChangesAsync();
+		if (saved)
+		{
+			await IncrementCacheVersionAsync(CacheVersionKeys.Rooms);
+		}
+		return saved;
 	}
 
 	public async Task<RoomDto?> GetDetailAsync(int id)
 	{
+		var cacheVersion = await GetCacheVersionAsync(CacheVersionKeys.Rooms);
+		var cacheKey = $"rooms:v{cacheVersion}:id:{id}";
+		var cached = await _cache.GetStringAsync(cacheKey);
+		if (!string.IsNullOrWhiteSpace(cached))
+		{
+			return JsonSerializer.Deserialize<RoomDto>(cached);
+		}
+
 		var room = await _repository.GetByIdAsync(id);
 		if (room == null) return null;
 
-		return new RoomDto
+		var result = new RoomDto
 		{
 			Id = room.Id,
 			RoomNumber = room.RoomNumber,
@@ -91,6 +156,8 @@ public class RoomService : IRoomService
 			RoomTypeId = room.RoomTypeId,
 			RoomTypeName = room.RoomType?.Name
 		};
+		await _cache.SetStringAsync(cacheKey, JsonSerializer.Serialize(result), CacheOptions);
+		return result;
 	}
 
 	public async Task<bool> CreateRoomAsync(RoomDto room)
@@ -107,7 +174,12 @@ public class RoomService : IRoomService
 		};
 
 		await _repository.AddAsync(newRoom);
-		return await _repository.SaveChangesAsync();
+		var saved = await _repository.SaveChangesAsync();
+		if (saved)
+		{
+			await IncrementCacheVersionAsync(CacheVersionKeys.Rooms);
+		}
+		return saved;
 	}
 
 	public async Task<int> CreateRoomsBulkAsync(IEnumerable<RoomDto> rooms)
@@ -139,6 +211,10 @@ public class RoomService : IRoomService
 		}
 
 		var saved = await _repository.SaveChangesAsync();
+		if (saved)
+		{
+			await IncrementCacheVersionAsync(CacheVersionKeys.Rooms);
+		}
 		return saved ? roomList.Count : 0;
 	}
 
@@ -160,7 +236,12 @@ public class RoomService : IRoomService
 		existing.RoomTypeId = room.RoomTypeId;
 
 		_repository.Update(existing);
-		return await _repository.SaveChangesAsync();
+		var saved = await _repository.SaveChangesAsync();
+		if (saved)
+		{
+			await IncrementCacheVersionAsync(CacheVersionKeys.Rooms);
+		}
+		return saved;
 	}
 
 	public async Task ChangeRoomStatusAsync(int id, string newStatus)
@@ -179,6 +260,7 @@ public class RoomService : IRoomService
 				room.CleaningStatus = "Inspecting";
 				_repository.Update(room);
 				await _repository.SaveChangesAsync();
+				await IncrementCacheVersionAsync(CacheVersionKeys.Rooms);
 
 				await _notificationService.SendByRoleAsync(RoleName.Admin, new CreateNotificationDto
 				{
@@ -226,6 +308,7 @@ public class RoomService : IRoomService
 		room.Status = targetStatus;
 		_repository.Update(room);
 		await _repository.SaveChangesAsync();
+		await IncrementCacheVersionAsync(CacheVersionKeys.Rooms);
 	}
 
 	public async Task ChangeRoomCleaningStatusAsync(int id, string newCleaningStatus)
@@ -236,6 +319,7 @@ public class RoomService : IRoomService
 		room.CleaningStatus = newCleaningStatus;
 		_repository.Update(room);
 		await _repository.SaveChangesAsync();
+		await IncrementCacheVersionAsync(CacheVersionKeys.Rooms);
 		if (newCleaningStatus != null && (newCleaningStatus.Equals("Inspecting", StringComparison.OrdinalIgnoreCase) || newCleaningStatus.Equals("Cleaning", StringComparison.OrdinalIgnoreCase)))
 		{
 			await _notificationService.SendByRoleAsync(RoleName.Housekeeping, new CreateNotificationDto
@@ -266,6 +350,7 @@ public class RoomService : IRoomService
 				}
 				_repository.Update(room);
 				await _repository.SaveChangesAsync();
+				await IncrementCacheVersionAsync(CacheVersionKeys.Rooms);
 			}
 			// Find the most recent CheckedOut booking for this room
 			var booking = await _context.Bookings
@@ -299,7 +384,30 @@ public class RoomService : IRoomService
 		if (room == null) return false;
 
 		_repository.Delete(room);
-		return await _repository.SaveChangesAsync();
+		var saved = await _repository.SaveChangesAsync();
+		if (saved)
+		{
+			await IncrementCacheVersionAsync(CacheVersionKeys.Rooms);
+		}
+		return saved;
+	}
+
+	private async Task<string> GetCacheVersionAsync(string key)
+	{
+		var version = await _cache.GetStringAsync(key);
+		return string.IsNullOrWhiteSpace(version) ? "0" : version;
+	}
+
+	private async Task IncrementCacheVersionAsync(string key)
+	{
+		var current = await GetCacheVersionAsync(key);
+		if (!int.TryParse(current, out var version))
+		{
+			version = 0;
+		}
+
+		version++;
+		await _cache.SetStringAsync(key, version.ToString());
 	}
 
 	private static RoomDto MapToDto(Room room)

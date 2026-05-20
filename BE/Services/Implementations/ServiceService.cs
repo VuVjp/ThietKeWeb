@@ -2,6 +2,9 @@ using HotelManagement.Dtos;
 using HotelManagement.Entities;
 using HotelManagement.Repositories.Interfaces;
 using HotelManagement.Services.Interfaces;
+using Microsoft.Extensions.Caching.Distributed;
+using System;
+using System.Text.Json;
 
 namespace HotelManagement.Services.Implementations;
 
@@ -9,19 +12,37 @@ public class ServiceService : IServiceService
 {
     private readonly IServiceRepository _repository;
     private readonly ICloudinaryService _cloudinaryService;
+    private readonly IDistributedCache _cache;
+    private static readonly DistributedCacheEntryOptions CacheOptions = new()
+    {
+        AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5)
+    };
 
-    public ServiceService(IServiceRepository repository, ICloudinaryService cloudinaryService)
+    public ServiceService(IServiceRepository repository, ICloudinaryService cloudinaryService, IDistributedCache cache)
     {
         _repository = repository;
         _cloudinaryService = cloudinaryService;
+        _cache = cache;
     }
 
     public async Task<PaginatedResultDto<ServiceDto>> GetPagedAsync(ServiceQueryDto query)
     {
+        var cacheVersion = await GetCacheVersionAsync(CacheVersionKeys.Services);
+        var cacheKey = BuildPagedCacheKey(cacheVersion, query);
+        var cached = await _cache.GetStringAsync(cacheKey);
+        if (!string.IsNullOrWhiteSpace(cached))
+        {
+            var cachedResult = JsonSerializer.Deserialize<PaginatedResultDto<ServiceDto>>(cached);
+            if (cachedResult != null)
+            {
+                return cachedResult;
+            }
+        }
+
         var (items, total) = await _repository.GetPagedAsync(
             query.Search, query.CategoryId, query.SortBy, query.SortOrder, query.Page, query.PageSize, query.IsActive);
 
-        return new PaginatedResultDto<ServiceDto>
+        var result = new PaginatedResultDto<ServiceDto>
         {
             Items = items.Select(s => new ServiceDto
             {
@@ -40,13 +61,24 @@ public class ServiceService : IServiceService
             Page = query.Page,
             PageSize = query.PageSize
         };
+
+        await _cache.SetStringAsync(cacheKey, JsonSerializer.Serialize(result), CacheOptions);
+        return result;
     }
 
     public async Task<ServiceDto?> GetByIdAsync(int id)
     {
+        var cacheVersion = await GetCacheVersionAsync(CacheVersionKeys.Services);
+        var cacheKey = $"services:v{cacheVersion}:id:{id}";
+        var cached = await _cache.GetStringAsync(cacheKey);
+        if (!string.IsNullOrWhiteSpace(cached))
+        {
+            return JsonSerializer.Deserialize<ServiceDto>(cached);
+        }
+
         var s = await _repository.GetByIdWithCategoryAsync(id);
         if (s == null) return null;
-        return new ServiceDto
+        var result = new ServiceDto
         {
             Id = s.Id,
             CategoryId = s.CategoryId,
@@ -59,6 +91,9 @@ public class ServiceService : IServiceService
             Features = s.Features,
             IsActive = s.IsActive
         };
+
+        await _cache.SetStringAsync(cacheKey, JsonSerializer.Serialize(result), CacheOptions);
+        return result;
     }
 
     public async Task<bool> CreateAsync(CreateServiceDto dto)
@@ -87,6 +122,7 @@ public class ServiceService : IServiceService
 
         await _repository.AddAsync(service);
         await _repository.SaveChangesAsync();
+        await IncrementCacheVersionAsync(CacheVersionKeys.Services);
         return true;
     }
 
@@ -114,6 +150,7 @@ public class ServiceService : IServiceService
 
         _repository.Update(service);
         await _repository.SaveChangesAsync();
+        await IncrementCacheVersionAsync(CacheVersionKeys.Services);
         return true;
     }
 
@@ -125,6 +162,7 @@ public class ServiceService : IServiceService
         service.IsActive = false;
         _repository.Update(service);
         await _repository.SaveChangesAsync();
+        await IncrementCacheVersionAsync(CacheVersionKeys.Services);
         return true;
     }
 
@@ -136,6 +174,7 @@ public class ServiceService : IServiceService
         service.IsActive = !service.IsActive;
         _repository.Update(service);
         await _repository.SaveChangesAsync();
+        await IncrementCacheVersionAsync(CacheVersionKeys.Services);
         return true;
     }
 
@@ -147,6 +186,33 @@ public class ServiceService : IServiceService
         service.IsActive = true;
         _repository.Update(service);
         await _repository.SaveChangesAsync();
+        await IncrementCacheVersionAsync(CacheVersionKeys.Services);
         return true;
+    }
+
+    private static string BuildPagedCacheKey(string cacheVersion, ServiceQueryDto query)
+    {
+        var search = (query.Search ?? string.Empty).Trim().ToLowerInvariant();
+        var sortBy = (query.SortBy ?? string.Empty).Trim().ToLowerInvariant();
+        var sortOrder = (query.SortOrder ?? string.Empty).Trim().ToLowerInvariant();
+        return $"services:v{cacheVersion}:paged:{search}:{query.CategoryId}:{sortBy}:{sortOrder}:{query.Page}:{query.PageSize}:{query.IsActive}";
+    }
+
+    private async Task<string> GetCacheVersionAsync(string key)
+    {
+        var version = await _cache.GetStringAsync(key);
+        return string.IsNullOrWhiteSpace(version) ? "0" : version;
+    }
+
+    private async Task IncrementCacheVersionAsync(string key)
+    {
+        var current = await GetCacheVersionAsync(key);
+        if (!int.TryParse(current, out var version))
+        {
+            version = 0;
+        }
+
+        version++;
+        await _cache.SetStringAsync(key, version.ToString());
     }
 }
