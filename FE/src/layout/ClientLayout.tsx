@@ -27,6 +27,7 @@ export function ClientLayout() {
         loadMore
     } = useRealtimeNotifications(isAuthReady && isAuthenticated && user != null, true);
 
+    useRealtimeNotifications(isAuthReady && isAuthenticated);
     useEffect(() => {
         const handleScroll = () => {
             setIsScrolled(window.scrollY > 10);
@@ -76,8 +77,8 @@ export function ClientLayout() {
             {/* Elegant Header */}
             <header
                 className={`fixed top-0 left-0 right-0 w-full z-50 transition-all duration-500 ease-in-out ${isScrolled
-                        ? 'bg-white/90 backdrop-blur-xl shadow-sm py-3 border-b border-gray-100'
-                        : 'bg-transparent py-6'
+                    ? 'bg-white/90 backdrop-blur-xl shadow-sm py-3 border-b border-gray-100'
+                    : 'bg-transparent py-6'
                     }`}
             >
                 <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12 object-contain">

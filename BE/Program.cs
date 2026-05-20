@@ -15,6 +15,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.SignalR;
 using HotelManagement.Services;
 using HotelManagement.Repositories;
+using Microsoft.Extensions.Caching.Distributed;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -36,6 +37,16 @@ builder.Services.AddDbContextFactory<AppDbContext>(options =>
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("DefaultConnection"),
         x => x.MigrationsAssembly("BE")));
+
+var redisConnection = builder.Configuration.GetConnectionString("Redis")
+    ?? builder.Configuration["Redis:ConnectionString"]
+    ?? "localhost:6379";
+
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = redisConnection;
+    options.InstanceName = "HotelManagement:";
+});
 
 var jwtSettings = builder.Configuration.GetSection("Jwt");
 var key = Encoding.UTF8.GetBytes(jwtSettings["Key"]!);
@@ -72,6 +83,53 @@ builder.Services.AddAuthentication(options =>
             }
 
             return Task.CompletedTask;
+        },
+        OnTokenValidated = async context =>
+        {
+            var userIdValue = context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var tokenVersionValue = context.Principal?.FindFirst("tv")?.Value;
+
+            if (!int.TryParse(userIdValue, out var userId))
+            {
+                context.Fail("Invalid token: missing user id.");
+                return;
+            }
+
+            if (!int.TryParse(tokenVersionValue, out var tokenVersion))
+            {
+                context.Fail("Invalid token: missing token version.");
+                return;
+            }
+
+            var cache = context.HttpContext.RequestServices.GetRequiredService<Microsoft.Extensions.Caching.Distributed.IDistributedCache>();
+            var cacheKey = TokenVersionCacheKeys.ForUser(userId);
+            var cachedVersionRaw = await cache.GetStringAsync(cacheKey);
+
+            if (string.IsNullOrWhiteSpace(cachedVersionRaw))
+            {
+                var dbFactory = context.HttpContext.RequestServices.GetRequiredService<IDbContextFactory<AppDbContext>>();
+                await using var db = await dbFactory.CreateDbContextAsync();
+                var user = await db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId);
+                if (user == null)
+                {
+                    context.Fail("Invalid token: user not found.");
+                    return;
+                }
+
+                if (!user.IsActive)
+                {
+                    context.Fail("User account is inactive.");
+                    return;
+                }
+
+                cachedVersionRaw = user.TokenVersion.ToString();
+                await cache.SetStringAsync(cacheKey, cachedVersionRaw);
+            }
+
+            if (!int.TryParse(cachedVersionRaw, out var cachedVersion) || cachedVersion != tokenVersion)
+            {
+                context.Fail("Token has been revoked.");
+            }
         }
     };
 });

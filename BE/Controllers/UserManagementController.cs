@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using HotelManagement.Dtos;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Caching.Distributed;
 
 namespace HotelManagement.Controllers;
 
@@ -9,11 +11,19 @@ public class UserManagementController : ControllerBase
 {
     private readonly IUserManagementService _userManagementService;
     private readonly INotificationService _notificationService;
+    private readonly IDistributedCache _cache;
+    private readonly IHubContext<NotificationHub> _hub;
 
-    public UserManagementController(IUserManagementService userManagementService, INotificationService notificationService)
+    public UserManagementController(
+        IUserManagementService userManagementService,
+        INotificationService notificationService,
+        IDistributedCache cache,
+        IHubContext<NotificationHub> hub)
     {
         _userManagementService = userManagementService;
         _notificationService = notificationService;
+        _cache = cache;
+        _hub = hub;
     }
 
     private static RoleName? ToRoleName(int roleId)
@@ -94,6 +104,10 @@ public class UserManagementController : ControllerBase
     {
         await _userManagementService.ChangeRoleByIdAsync(userId, dto.RoleId);
 
+        await _cache.RemoveAsync(PermissionCacheKeys.ForUser(userId));
+        await _hub.Clients.Group($"user_{userId}")
+            .SendAsync("PermissionsChanged", new { userId, roleId = dto.RoleId });
+
         var targetRole = ToRoleName(dto.RoleId);
         var rolesToNotify = new List<RoleName> { RoleName.Admin, RoleName.Manager };
         if (targetRole.HasValue)
@@ -118,10 +132,15 @@ public class UserManagementController : ControllerBase
     [HttpPatch("{userId}/toggle-active")]
     public async Task<IActionResult> ToggleUserActive(int userId)
     {
-        var user = (await _userManagementService.GetAllUsersAsync()).FirstOrDefault(x => x.Id == userId);
-        await _userManagementService.ToggleUserActiveByIdAsync(userId);
+        var user = await _userManagementService.ToggleUserActiveByIdAsync(userId);
+        var isNowActive = user?.IsActive ?? true;
 
-        var isNowActive = user != null ? !(user.IsActive ?? false) : true;
+        await _cache.RemoveAsync(PermissionCacheKeys.ForUser(userId));
+        if (!isNowActive)
+        {
+            await _hub.Clients.Group($"user_{userId}")
+                .SendAsync("ForceLogout", new { userId, reason = "AccountDeactivated" });
+        }
         await TryNotifyRolesAsync(
             new[] { RoleName.Admin, RoleName.Manager },
             new CreateNotificationDto

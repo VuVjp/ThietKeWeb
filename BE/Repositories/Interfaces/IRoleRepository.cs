@@ -9,4 +9,5 @@ public interface IRoleRepository : IRepository<Role>
     Task<List<string>> GetMyPermissionsAsync(int userId);
     Task<List<string>> GetAllPermissionNamesAsync();
     Task UpdateRolePermissionsAsync(int roleId, IEnumerable<string> permissionNames);
+    Task<List<int>> GetUserIdsByRoleIdAsync(int roleId);
 }

@@ -3,6 +3,8 @@ using HotelManagement.Entities;
 using HotelManagement.Repositories.Interfaces;
 using HotelManagement.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using HotelManagement.Data;
+using System.Data;
 
 namespace HotelManagement.Services.Implementations;
 
@@ -11,15 +13,18 @@ public class VoucherService : IVoucherService
     private readonly IVoucherRepository _repo;
     private readonly IUserRepository _userRepo;
     private readonly IEmailService _emailService;
+    private readonly AppDbContext _context;
 
     public VoucherService(
         IVoucherRepository repo,
         IUserRepository userRepo,
-        IEmailService emailService)
+        IEmailService emailService,
+        AppDbContext context)
     {
         _repo = repo;
         _userRepo = userRepo;
         _emailService = emailService;
+        _context = context;
     }
 
     public async Task<IEnumerable<VoucherDto>> GetAllAsync()
@@ -41,111 +46,144 @@ public class VoucherService : IVoucherService
 
     public async Task<bool> CreateAsync(CreateVoucherDto dto)
     {
-        ValidateCreate(dto);
-
-        var normalizedCode = dto.Code.Trim().ToUpperInvariant();
-        var existed = await _repo.GetByCodeAsync(normalizedCode);
-        if (existed != null)
+        await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+        try
         {
-            throw new ConflictException("Voucher code already exists.");
+            ValidateCreate(dto);
+
+            var normalizedCode = dto.Code.Trim().ToUpperInvariant();
+            var existed = await _repo.GetByCodeAsync(normalizedCode);
+            if (existed != null)
+            {
+                throw new ConflictException("Voucher code already exists.");
+            }
+
+            var entity = new Voucher
+            {
+                Code = normalizedCode,
+                DiscountType = dto.DiscountType.Trim(),
+                DiscountValue = dto.DiscountValue,
+                MinBookingValue = dto.MinBookingValue,
+                MaxDiscountValue = dto.MaxDiscountValue,
+                ValidFrom = dto.ValidFrom,
+                ValidTo = dto.ValidTo,
+                UsageLimit = dto.UsageLimit,
+                UsageCount = 0,
+                IsActive = true,
+            };
+
+            await _repo.AddAsync(entity);
+            await _repo.SaveChangesAsync();
+
+            await transaction.CommitAsync();
+            return true;
         }
-
-        var entity = new Voucher
+        catch
         {
-            Code = normalizedCode,
-            DiscountType = dto.DiscountType.Trim(),
-            DiscountValue = dto.DiscountValue,
-            MinBookingValue = dto.MinBookingValue,
-            MaxDiscountValue = dto.MaxDiscountValue,
-            ValidFrom = dto.ValidFrom,
-            ValidTo = dto.ValidTo,
-            UsageLimit = dto.UsageLimit,
-            UsageCount = 0,
-            IsActive = true,
-        };
-
-        await _repo.AddAsync(entity);
-        await _repo.SaveChangesAsync();
-        return true;
+            await transaction.RollbackAsync();
+            throw;
+        }
     }
 
     public async Task<bool> UpdateAsync(int id, UpdateVoucherDto dto)
     {
-        var entity = await _repo.GetByIdAsync(id);
-        if (entity == null)
+        await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+        try
         {
-            return false;
-        }
-
-        ValidateUpdate(dto, entity);
-
-        if (!string.IsNullOrWhiteSpace(dto.Code))
-        {
-            var normalizedCode = dto.Code.Trim().ToUpperInvariant();
-            if (!string.Equals(entity.Code, normalizedCode, StringComparison.OrdinalIgnoreCase))
+            var entity = await _repo.GetByIdAsync(id);
+            if (entity == null)
             {
-                var existed = await _repo.GetByCodeAsync(normalizedCode);
-                if (existed != null && existed.Id != entity.Id)
-                {
-                    throw new ConflictException("Voucher code already exists.");
-                }
+                return false;
             }
 
-            entity.Code = normalizedCode;
-        }
+            ValidateUpdate(dto, entity);
 
-        if (!string.IsNullOrWhiteSpace(dto.DiscountType))
+            if (!string.IsNullOrWhiteSpace(dto.Code))
+            {
+                var normalizedCode = dto.Code.Trim().ToUpperInvariant();
+                if (!string.Equals(entity.Code, normalizedCode, StringComparison.OrdinalIgnoreCase))
+                {
+                    var existed = await _repo.GetByCodeAsync(normalizedCode);
+                    if (existed != null && existed.Id != entity.Id)
+                    {
+                        throw new ConflictException("Voucher code already exists.");
+                    }
+                }
+
+                entity.Code = normalizedCode;
+            }
+
+            if (!string.IsNullOrWhiteSpace(dto.DiscountType))
+            {
+                entity.DiscountType = dto.DiscountType.Trim();
+            }
+
+            if (dto.DiscountValue.HasValue)
+            {
+                entity.DiscountValue = dto.DiscountValue.Value;
+            }
+
+            if (dto.MinBookingValue.HasValue)
+            {
+                entity.MinBookingValue = dto.MinBookingValue.Value;
+            }
+
+            if (dto.MaxDiscountValue.HasValue)
+            {
+                entity.MaxDiscountValue = dto.MaxDiscountValue.Value;
+            }
+
+            if (dto.ValidFrom.HasValue)
+            {
+                entity.ValidFrom = dto.ValidFrom;
+            }
+
+            if (dto.ValidTo.HasValue)
+            {
+                entity.ValidTo = dto.ValidTo;
+            }
+
+            if (dto.UsageLimit.HasValue)
+            {
+                entity.UsageLimit = dto.UsageLimit;
+            }
+
+            _repo.Update(entity);
+            await _repo.SaveChangesAsync();
+
+            await transaction.CommitAsync();
+            return true;
+        }
+        catch
         {
-            entity.DiscountType = dto.DiscountType.Trim();
+            await transaction.RollbackAsync();
+            throw;
         }
-
-        if (dto.DiscountValue.HasValue)
-        {
-            entity.DiscountValue = dto.DiscountValue.Value;
-        }
-
-        if (dto.MinBookingValue.HasValue)
-        {
-            entity.MinBookingValue = dto.MinBookingValue.Value;
-        }
-
-        if (dto.MaxDiscountValue.HasValue)
-        {
-            entity.MaxDiscountValue = dto.MaxDiscountValue.Value;
-        }
-
-        if (dto.ValidFrom.HasValue)
-        {
-            entity.ValidFrom = dto.ValidFrom;
-        }
-
-        if (dto.ValidTo.HasValue)
-        {
-            entity.ValidTo = dto.ValidTo;
-        }
-
-        if (dto.UsageLimit.HasValue)
-        {
-            entity.UsageLimit = dto.UsageLimit;
-        }
-
-        _repo.Update(entity);
-        await _repo.SaveChangesAsync();
-        return true;
     }
 
     public async Task<bool> ToggleActiveAsync(int id)
     {
-        var entity = await _repo.GetByIdAsync(id);
-        if (entity == null)
+        await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+        try
         {
-            return false;
-        }
+            var entity = await _repo.GetByIdAsync(id);
+            if (entity == null)
+            {
+                return false;
+            }
 
-        entity.IsActive = !entity.IsActive;
-        _repo.Update(entity);
-        await _repo.SaveChangesAsync();
-        return true;
+            entity.IsActive = !entity.IsActive;
+            _repo.Update(entity);
+            await _repo.SaveChangesAsync();
+
+            await transaction.CommitAsync();
+            return true;
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
     }
 
     private static VoucherDto ToDto(Voucher entity)

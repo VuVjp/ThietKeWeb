@@ -112,6 +112,10 @@ function notifyAuthRefresh(token: string) {
     authRefreshListeners.forEach((listener) => listener(token));
 }
 
+export function notifyAuthTokenChanged(token: string) {
+    notifyAuthRefresh(token);
+}
+
 function flushQueue(token: string | null) {
     pendingQueue.forEach((cb) => cb(token));
     pendingQueue = [];
