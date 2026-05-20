@@ -4,6 +4,7 @@ import { roomTypesApi, type RoomTypeItem } from '../../api/roomTypesApi';
 import { receptionApi } from '../../api/receptionApi';
 import toast from 'react-hot-toast';
 import { ShieldCheckIcon, CreditCardIcon, InformationCircleIcon, MapPinIcon, CalendarDaysIcon, UserGroupIcon, SparklesIcon, CheckCircleIcon, ArrowRightIcon, TicketIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { Pagination } from '../../components/Pagination';
 import type { RoomAvailability, Voucher } from '../../types/models';
 import { useAppAuth } from '../../auth/useAppAuth';
 import { vouchersApi } from '../../api/vouchersApi';
@@ -25,6 +26,14 @@ export function ClientBookingPage() {
     const [availableRooms, setAvailableRooms] = useState<RoomAvailability[]>([]);
     const [selectedRoomIds, setSelectedRoomIds] = useState<number[]>([]);
     const [isSearching, setIsSearching] = useState(false);
+
+    // Pagination for rooms
+    const [suggestedRoomPage, setSuggestedRoomPage] = useState(1);
+    const [otherRoomPage, setOtherRoomPage] = useState(1);
+    const roomsPerPage = 4;
+
+    // Dropdown selection for other rooms
+    const [selectedOtherRoomTypeName, setSelectedOtherRoomTypeName] = useState<string>('');
 
     // Voucher & Membership State
     const [voucherCode, setVoucherCode] = useState('');
@@ -149,14 +158,19 @@ export function ClientBookingPage() {
             const checkOutISO = formData.checkOut;
             const rooms = await receptionApi.getAvailableRooms(checkInISO, checkOutISO);
 
-            // Filter rooms by selected type
-            const filtered = selectedRoomType
-                ? rooms.filter(r => r.roomTypeName?.toLowerCase() === selectedRoomType.name?.toLowerCase())
-                : rooms;
-
-            setAvailableRooms(filtered);
+            setAvailableRooms(rooms);
             setStep(2);
             setSelectedRoomIds([]); // Reset selection when searching new dates
+            setSuggestedRoomPage(1);
+            setOtherRoomPage(1);
+
+            // Set default other room type name in dropdown
+            const otherRooms = rooms.filter(r => r.roomTypeName?.toLowerCase() !== selectedRoomType?.name?.toLowerCase());
+            if (otherRooms.length > 0) {
+                setSelectedOtherRoomTypeName(otherRooms[0].roomTypeName || '');
+            } else {
+                setSelectedOtherRoomTypeName('');
+            }
         } catch (error) {
             toast.error("Cannot find available rooms. Please try again.");
         } finally {
@@ -281,7 +295,7 @@ export function ClientBookingPage() {
     return (
         <div className="w-full bg-[#f4f7f6] min-h-screen pb-24 font-sans text-slate-800">
             {/* Minimal Header Spacer */}
-            <div className="pt-[100px] pb-10 bg-slate-900 border-b-4 border-cyan-500">
+            <div className="pt-[100px] pb-10 bg-slate-900 border-b-4 border-cyan-500 overflow-hidden">
                 <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12 text-center">
                     <h1 className="text-3xl md:text-5xl font-bold text-white mb-2 uppercase tracking-tighter">Secure Reservation</h1>
                     <div className="flex items-center justify-center gap-4 mt-6">
@@ -416,38 +430,141 @@ export function ClientBookingPage() {
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                                        {availableRooms.map((room) => {
-                                            const isSelected = selectedRoomIds.includes(room.roomId);
-                                            return (
-                                                <div
-                                                    key={room.roomId}
-                                                    onClick={() => handleRoomToggle(room.roomId)}
-                                                    className={`relative cursor-pointer rounded-2xl border-2 p-6 transition-all group ${isSelected
-                                                        ? 'border-cyan-500 bg-cyan-50 shadow-lg shadow-cyan-500/10 ring-2 ring-cyan-500/20'
-                                                        : 'border-slate-100 hover:border-cyan-200 hover:bg-slate-50'
-                                                        }`}
-                                                >
-                                                    <div className="text-center">
-                                                        <span className={`block text-xs font-bold uppercase tracking-widest mb-1 ${isSelected ? 'text-cyan-600' : 'text-slate-400'}`}>Room</span>
-                                                        <span className={`text-3xl font-black ${isSelected ? 'text-cyan-700' : 'text-slate-800'}`}>{room.roomNumber}</span>
-                                                        <div className={`mt-3 mx-auto w-8 h-1 rounded-full transition-all ${isSelected ? 'bg-cyan-500' : 'bg-slate-100 group-hover:bg-cyan-200'}`} />
-                                                    </div>
-                                                    {isSelected && (
-                                                        <div className="absolute top-2 right-2">
-                                                            <CheckCircleIcon className="w-6 h-6 text-cyan-600" />
+                                    {/* Suggested Rooms */}
+                                    {(() => {
+                                        const suggestedRooms = availableRooms.filter(r => r.roomTypeName?.toLowerCase() === selectedRoomType?.name?.toLowerCase());
+                                        const pagedSuggested = suggestedRooms.slice((suggestedRoomPage - 1) * roomsPerPage, suggestedRoomPage * roomsPerPage);
+
+                                        return (
+                                            <>
+                                                <h3 className="text-sm font-bold text-slate-500 uppercase tracking-widest mt-6 mb-4">
+                                                    Recommended: {selectedRoomType?.name}
+                                                </h3>
+                                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 min-h-[120px] content-start">
+                                                    {pagedSuggested.map((room) => {
+                                                        const isSelected = selectedRoomIds.includes(room.roomId);
+                                                        return (
+                                                            <div
+                                                                key={room.roomId}
+                                                                onClick={() => handleRoomToggle(room.roomId)}
+                                                                className={`relative cursor-pointer rounded-2xl border-2 p-6 transition-all group ${isSelected
+                                                                    ? 'border-cyan-500 bg-cyan-50 shadow-lg shadow-cyan-500/10 ring-2 ring-cyan-500/20'
+                                                                    : 'border-slate-100 hover:border-cyan-200 hover:bg-slate-50'
+                                                                    }`}
+                                                            >
+                                                                <div className="text-center">
+                                                                    <span className={`block text-xs font-bold uppercase tracking-widest mb-1 ${isSelected ? 'text-cyan-600' : 'text-slate-400'}`}>Room</span>
+                                                                    <span className={`text-3xl font-black ${isSelected ? 'text-cyan-700' : 'text-slate-800'}`}>{room.roomNumber}</span>
+                                                                    <div className={`mt-3 mx-auto w-8 h-1 rounded-full transition-all ${isSelected ? 'bg-cyan-500' : 'bg-slate-100 group-hover:bg-cyan-200'}`} />
+                                                                </div>
+                                                                {isSelected && (
+                                                                    <div className="absolute top-2 right-2">
+                                                                        <CheckCircleIcon className="w-6 h-6 text-cyan-600" />
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                    {suggestedRooms.length === 0 && (
+                                                        <div className="col-span-full py-8 text-center bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-slate-500">
+                                                            <p className="text-sm font-medium">Sorry, no {selectedRoomType?.name} rooms available.</p>
                                                         </div>
                                                     )}
                                                 </div>
-                                            );
-                                        })}
-                                        {availableRooms.length === 0 && (
-                                            <div className="col-span-full py-12 text-center bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-slate-500">
-                                                <p className="text-lg font-medium">Sorry, no rooms available of this type.</p>
-                                                <button onClick={() => setStep(1)} className="mt-4 text-cyan-600 font-bold hover:underline">Change dates or room type</button>
+                                                {suggestedRooms.length > roomsPerPage && (
+                                                    <div className="mt-4">
+                                                        <Pagination page={suggestedRoomPage} pageSize={roomsPerPage} total={suggestedRooms.length} onPageChange={setSuggestedRoomPage} />
+                                                    </div>
+                                                )}
+                                            </>
+                                        );
+                                    })()}
+
+                                    {/* Other Rooms */}
+                                    {(() => {
+                                        const otherRooms = availableRooms.filter(r => r.roomTypeName?.toLowerCase() !== selectedRoomType?.name?.toLowerCase());
+                                        if (otherRooms.length === 0) return null;
+
+                                        // Get all unique other room type names
+                                        const otherRoomTypes = Array.from(new Set(otherRooms.map(r => r.roomTypeName).filter(Boolean))) as string[];
+
+                                        // Find which other room type is active
+                                        const activeOtherType = otherRoomTypes.includes(selectedOtherRoomTypeName)
+                                            ? selectedOtherRoomTypeName
+                                            : otherRoomTypes[0] || '';
+
+                                        const roomsOfActiveType = otherRooms.filter(r => r.roomTypeName === activeOtherType);
+                                        const pagedRooms = roomsOfActiveType.slice((otherRoomPage - 1) * roomsPerPage, otherRoomPage * roomsPerPage);
+
+                                        return (
+                                            <div className="space-y-6 mt-8 pt-8 border-t border-slate-100">
+                                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                                    <div>
+                                                        <h3 className="text-sm font-bold text-slate-500 uppercase tracking-widest">
+                                                            Other Available Categories
+                                                        </h3>
+                                                        <p className="text-slate-400 text-xs mt-1">Select a category to view its available rooms.</p>
+                                                    </div>
+                                                    <div className="relative min-w-[200px]">
+                                                        <select
+                                                            value={activeOtherType}
+                                                            onChange={(e) => {
+                                                                setSelectedOtherRoomTypeName(e.target.value);
+                                                                setOtherRoomPage(1); // Reset page to 1 on type change
+                                                            }}
+                                                            className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl focus:border-cyan-500 focus:outline-none transition-all font-bold text-sm text-slate-700 appearance-none cursor-pointer pr-10"
+                                                        >
+                                                            {otherRoomTypes.map(typeName => (
+                                                                <option key={typeName} value={typeName}>{typeName}</option>
+                                                            ))}
+                                                        </select>
+                                                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
+                                                            <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                                                                <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                                                            </svg>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {activeOtherType && (
+                                                    <div className="space-y-4 animate-in fade-in duration-300">
+                                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 min-h-[120px] content-start">
+                                                            {pagedRooms.map((room) => {
+                                                                const isSelected = selectedRoomIds.includes(room.roomId);
+                                                                return (
+                                                                    <div
+                                                                        key={room.roomId}
+                                                                        onClick={() => handleRoomToggle(room.roomId)}
+                                                                        className={`relative cursor-pointer rounded-2xl border-2 p-6 transition-all group ${isSelected
+                                                                            ? 'border-cyan-500 bg-cyan-50 shadow-lg shadow-cyan-500/10 ring-2 ring-cyan-500/20'
+                                                                            : 'border-slate-100 hover:border-cyan-200 hover:bg-slate-50'
+                                                                            }`}
+                                                                    >
+                                                                        <div className="text-center">
+                                                                            <span className={`block text-xs font-bold uppercase tracking-widest mb-1 ${isSelected ? 'text-cyan-600' : 'text-slate-400'}`}>Room</span>
+                                                                            <span className={`text-2xl font-black ${isSelected ? 'text-cyan-700' : 'text-slate-800'}`}>{room.roomNumber}</span>
+                                                                            <div className={`text-xs mt-1 font-medium ${isSelected ? 'text-cyan-600' : 'text-slate-500'}`}>${room.pricePerNight}</div>
+                                                                            <div className={`mt-2 mx-auto w-8 h-1 rounded-full transition-all ${isSelected ? 'bg-cyan-500' : 'bg-slate-100 group-hover:bg-cyan-200'}`} />
+                                                                        </div>
+                                                                        {isSelected && (
+                                                                            <div className="absolute top-2 right-2">
+                                                                                <CheckCircleIcon className="w-6 h-6 text-cyan-600" />
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                        {roomsOfActiveType.length > roomsPerPage && (
+                                                            <div className="mt-4">
+                                                                <Pagination page={otherRoomPage} pageSize={roomsPerPage} total={roomsOfActiveType.length} onPageChange={setOtherRoomPage} />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
-                                        )}
-                                    </div>
+                                        );
+                                    })()}
 
                                     <div className="pt-6 border-t border-slate-100 flex justify-between items-center">
                                         <button onClick={() => setStep(1)} className="text-slate-400 font-bold uppercase tracking-widest text-xs hover:text-slate-600 transition-colors">Back to dates</button>
@@ -573,7 +690,7 @@ export function ClientBookingPage() {
 
                     {/* RIGHT COL: SUMMARY CARD */}
                     <div>
-                        <div className="bg-slate-900 text-white p-8 rounded-2xl sticky top-32 shadow-2xl overflow-hidden">
+                        <div className="relative bg-slate-900 text-white p-8 rounded-2xl shadow-2xl overflow-hidden">
                             <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full -mr-16 -mt-16 blur-2xl" />
                             <div className="absolute bottom-0 left-0 w-24 h-24 bg-cyan-500/10 rounded-full -ml-12 -mb-12 blur-2xl" />
 
@@ -585,18 +702,35 @@ export function ClientBookingPage() {
                             <div className="space-y-6 relative z-10">
                                 {selectedRoomType && (
                                     <div className="space-y-4">
-                                        <div className="p-4 bg-slate-800/50 rounded-xl border border-slate-700/50">
-                                            <h4 className="text-sm font-bold text-cyan-400 uppercase tracking-widest mb-1">{selectedRoomType.name}</h4>
-                                            {selectedRoomIds.length > 0 ? (
-                                                <div className="flex flex-wrap gap-2 mt-2">
-                                                    {availableRooms.filter(r => selectedRoomIds.includes(r.roomId)).map(r => (
-                                                        <span key={r.roomId} className="px-2 py-1 bg-cyan-500/20 rounded-md text-white font-black text-lg">#{r.roomNumber}</span>
-                                                    ))}
-                                                </div>
-                                            ) : (
+                                        {selectedRoomIds.length > 0 ? (
+                                            (() => {
+                                                const selectedRoomsData = availableRooms.filter(r => selectedRoomIds.includes(r.roomId));
+                                                const selectedRoomsGrouped = selectedRoomsData.reduce((groups, room) => {
+                                                    const typeName = room.roomTypeName || 'Other';
+                                                    if (!groups[typeName]) {
+                                                        groups[typeName] = [];
+                                                    }
+                                                    groups[typeName].push(room);
+                                                    return groups;
+                                                }, {} as Record<string, RoomAvailability[]>);
+
+                                                return Object.entries(selectedRoomsGrouped).map(([roomTypeName, rooms]) => (
+                                                    <div key={roomTypeName} className="p-4 bg-slate-800/50 rounded-xl border border-slate-700/50">
+                                                        <h4 className="text-sm font-bold text-cyan-400 uppercase tracking-widest mb-1">{roomTypeName}</h4>
+                                                        <div className="flex flex-wrap gap-2 mt-2">
+                                                            {rooms.map(r => (
+                                                                <span key={r.roomId} className="px-2 py-1 bg-cyan-500/20 rounded-md text-white font-black text-lg">#{r.roomNumber}</span>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                ));
+                                            })()
+                                        ) : (
+                                            <div className="p-4 bg-slate-800/50 rounded-xl border border-slate-700/50">
+                                                <h4 className="text-sm font-bold text-cyan-400 uppercase tracking-widest mb-1">{selectedRoomType.name}</h4>
                                                 <p className="text-sm text-slate-400 italic">Select room(s) in Step 2</p>
-                                            )}
-                                        </div>
+                                            </div>
+                                        )}
 
                                         <div className="grid grid-cols-1 gap-2">
                                             <div className="p-3 bg-slate-800/30 rounded-xl border border-slate-800 flex justify-between items-center">

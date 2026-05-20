@@ -14,4 +14,5 @@ public interface IBookingService
     Task<bool> ChangeBookingStatusAsync(int id, string status);
     Task<bool> CancelBookingByUserAsync(int bookingId, int userId);
     Task<IEnumerable<ActiveRoomDto>> GetActiveRoomsAsync();
+    Task<IEnumerable<ActiveRoomDto>> GetActiveRoomsByUserIdAsync(int userId);
 }

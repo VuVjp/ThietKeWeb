@@ -13,6 +13,8 @@ import { EquipmentPage } from '../pages/admin/EquipmentPage';
 import { AmenitiesPage } from '../pages/admin/AmenitiesPage';
 import { RoomTypesPage } from '../pages/admin/RoomTypesPage';
 import { VouchersPage } from '../pages/admin/VouchersPage';
+import { SendVoucherPage } from '../pages/admin/SendVoucherPage';
+import { VoucherFormPage } from '../pages/admin/VoucherFormPage';
 import { MembershipsPage } from '../pages/admin/MembershipsPage';
 import { AttractionsPage } from '../pages/admin/AttractionsPage';
 import { AuditLogPage } from '../pages/admin/AuditLogPage';
@@ -47,6 +49,8 @@ import { ClientServicesPage } from '../pages/client/ClientServicesPage';
 import { ClientNewsPage } from '../pages/client/ClientNewsPage';
 import { ClientAboutPage } from '../pages/client/ClientAboutPage';
 import { ClientNewsDetailPage } from '../pages/client/ClientNewsDetailPage';
+import { ClientServiceDetailPage } from '../pages/client/ClientServiceDetailPage';
+import { ClientBookServicePage } from '../pages/client/ClientBookServicePage';
 
 import { LoginPage } from '../pages/LoginPage';
 import { RegisterPage } from '../pages/RegisterPage';
@@ -135,6 +139,9 @@ export const AppRouter = () => {
 
                     <Route element={<RequirePermission permission="MANAGE_VOUCHERS" />}>
                         <Route path="admin/vouchers" element={<VouchersPage />} />
+                        <Route path="admin/vouchers/new" element={<VoucherFormPage />} />
+                        <Route path="admin/vouchers/:id/edit" element={<VoucherFormPage />} />
+                        <Route path="admin/vouchers/send" element={<SendVoucherPage />} />
                     </Route>
 
                     <Route element={<RequirePermission permission="VIEW_DASHBOARD" />}>
@@ -170,7 +177,7 @@ export const AppRouter = () => {
                         <Route path="admin/reception/order-services/:id" element={<OrderServiceDetailPage />} />
                         <Route path="admin/reception/order-services/:id/add-service" element={<AddServiceToOrderPage />} />
                     </Route>
-                    <Route element={<RequireAnyPermission permissions={['MANAGE_BOOKINGS']} />}>
+                    <Route element={<RequirePermission permission="MANAGE_INVOICE" />}>
                         <Route path="admin/invoices" element={<InvoicesPage />} />
                         <Route path="admin/invoices/:id" element={<InvoiceDetailPage />} />
                     </Route>
@@ -184,6 +191,8 @@ export const AppRouter = () => {
                 <Route path="/booking" element={<ClientBookingPage />} />
                 <Route path="/account" element={<ClientAccountPage />} />
                 <Route path="/services" element={<ClientServicesPage />} />
+                <Route path="/services/book" element={<ClientBookServicePage />} />
+                <Route path="/services/:id" element={<ClientServiceDetailPage />} />
                 <Route path="/news" element={<ClientNewsPage />} />
                 <Route path="/news/:id" element={<ClientNewsDetailPage />} />
                 <Route path="/about" element={<ClientAboutPage />} />

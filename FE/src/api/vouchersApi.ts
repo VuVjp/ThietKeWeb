@@ -25,11 +25,19 @@ export interface VoucherUserItem {
   id: number;
   fullName: string;
   email: string;
+  roleName?: string;
+  membershipName?: string;
+  avatarUrl?: string;
 }
 
 export const vouchersApi = {
   async getAll() {
     const { data } = await httpClient.get<Voucher[]>('vouchers');
+    return data;
+  },
+
+  async getById(id: number) {
+    const { data } = await httpClient.get<Voucher>(`vouchers/${id}`);
     return data;
   },
 

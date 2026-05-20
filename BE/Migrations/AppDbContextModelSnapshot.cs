@@ -939,6 +939,48 @@ namespace BE.Migrations
                     b.ToTable("Reviews", (string)null);
                 });
 
+            modelBuilder.Entity("HotelManagement.Entities.ReviewEligibility", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BookingId")
+                        .HasColumnType("int")
+                        .HasColumnName("booking_id");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("expires_at");
+
+                    b.Property<bool>("IsReviewed")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_reviewed");
+
+                    b.Property<int>("RoomTypeId")
+                        .HasColumnType("int")
+                        .HasColumnName("room_type_id");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BookingId");
+
+                    b.HasIndex("RoomTypeId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Review_Eligibilities", (string)null);
+                });
+
             modelBuilder.Entity("HotelManagement.Entities.Role", b =>
                 {
                     b.Property<int>("Id")
@@ -1267,6 +1309,33 @@ namespace BE.Migrations
                     b.ToTable("Dashboard_Snapshots", (string)null);
                 });
 
+            modelBuilder.Entity("HotelManagement.Entities.SystemSetting", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)")
+                        .HasColumnName("key");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("value");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Key")
+                        .IsUnique();
+
+                    b.ToTable("System_Settings", (string)null);
+                });
+
             modelBuilder.Entity("HotelManagement.Entities.User", b =>
                 {
                     b.Property<int>("Id")
@@ -1342,6 +1411,12 @@ namespace BE.Migrations
                     b.Property<int?>("RoleId")
                         .HasColumnType("int")
                         .HasColumnName("role_id");
+
+                    b.Property<int>("TokenVersion")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("token_version");
 
                     b.HasKey("Id");
 
@@ -1636,6 +1711,33 @@ namespace BE.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("HotelManagement.Entities.ReviewEligibility", b =>
+                {
+                    b.HasOne("HotelManagement.Entities.Booking", "Booking")
+                        .WithMany()
+                        .HasForeignKey("BookingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("HotelManagement.Entities.RoomType", "RoomType")
+                        .WithMany()
+                        .HasForeignKey("RoomTypeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("HotelManagement.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Booking");
+
+                    b.Navigation("RoomType");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("HotelManagement.Entities.RolePermission", b =>
                 {
                     b.HasOne("HotelManagement.Entities.Permission", "Permission")
@@ -1883,6 +1985,8 @@ namespace BE.Migrations
 
                                     b2.Property<int>("BookingCount");
 
+                                    b2.Property<int>("CompletedServiceOrdersCount");
+
                                     b2.Property<decimal>("NetProfit");
 
                                     b2.Property<int>("ServiceOrdersCount");
@@ -1994,6 +2098,32 @@ namespace BE.Migrations
                                                         });
 
                                                     b4.OwnsOne("HotelManagement.Dtos.DashboardMetricComparisonDto", "CleaningRequests", b5 =>
+                                                        {
+                                                            b5.Property<int>("DashboardMetricsComparisonContainerDashboardComparisonDtoDashboardSummaryDtoDashboardOverviewDtoDashboardSnapshotId");
+
+                                                            b5.Property<decimal>("Current");
+
+                                                            b5.Property<decimal>("Difference");
+
+                                                            b5.Property<string>("DirectionMeaning")
+                                                                .IsRequired();
+
+                                                            b5.Property<decimal>("GrowthRate");
+
+                                                            b5.Property<decimal>("Previous");
+
+                                                            b5.Property<string>("Trend")
+                                                                .IsRequired();
+
+                                                            b5.HasKey("DashboardMetricsComparisonContainerDashboardComparisonDtoDashboardSummaryDtoDashboardOverviewDtoDashboardSnapshotId");
+
+                                                            b5.ToTable("Dashboard_Snapshots");
+
+                                                            b5.WithOwner()
+                                                                .HasForeignKey("DashboardMetricsComparisonContainerDashboardComparisonDtoDashboardSummaryDtoDashboardOverviewDtoDashboardSnapshotId");
+                                                        });
+
+                                                    b4.OwnsOne("HotelManagement.Dtos.DashboardMetricComparisonDto", "CompletedServiceOrders", b5 =>
                                                         {
                                                             b5.Property<int>("DashboardMetricsComparisonContainerDashboardComparisonDtoDashboardSummaryDtoDashboardOverviewDtoDashboardSnapshotId");
 
@@ -2180,6 +2310,8 @@ namespace BE.Migrations
                                                     b4.Navigation("Bookings");
 
                                                     b4.Navigation("CleaningRequests");
+
+                                                    b4.Navigation("CompletedServiceOrders");
 
                                                     b4.Navigation("DamageReports");
 

@@ -28,7 +28,7 @@ import {
 } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import { dashboardApi } from '../../api/dashboardApi';
-import type { DashboardOverview, DashboardPendingService, DashboardRecentBooking, DashboardRoomTask, ManagerDashboard, DashboardMetricComparison } from '../../api/dashboardApi';
+import type { DashboardOverview, DashboardMetricComparison } from '../../api/dashboardApi';
 import { toApiError } from '../../api/httpClient';
 import toast from 'react-hot-toast';
 import { useAppAuth } from '../../auth/useAppAuth';
@@ -65,7 +65,7 @@ function MetricCard({ title, value, subValue, comparison, icon: Icon, color, onC
     const trendIcon = comparison?.trend === 'up' ? <ArrowTrendingUpIcon className="h-3 w-3" /> : <ArrowTrendingDownIcon className="h-3 w-3" />;
 
     return (
-        <div 
+        <div
             onClick={onClick}
             className={`relative overflow-hidden rounded-2xl border bg-gradient-to-br p-6 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 ${gradients[color]} ${onClick ? 'cursor-pointer hover:ring-2 hover:ring-cyan-200' : ''}`}
         >
@@ -148,22 +148,24 @@ export function DashboardPage() {
     };
 
     const overview: DashboardOverview = stats?.overview ?? emptyOverview;
-    const managerExtras: ManagerDashboard = stats?.manager ?? {
-        pendingCleaningRequests: 0,
-        pendingServiceOrders: 0,
-        completedServiceOrders: 0,
-        totalLossPenalty: 0,
-        serviceRevenue: 0,
-        netProfit: 0,
-        pendingArticles: 0,
-        publishedArticles: 0,
+
+    const housekeeper = stats?.housekeeper ?? {
+        cleanedToday: 0,
+        cleanedInRange: 0,
+        cleaningRequests: 0,
+        inspectionRequests: 0,
         inspectingCount: 0,
         pendingCleaningRooms: [],
         inspectingRooms: [],
     };
-
-    const housekeeper = stats?.housekeeper ?? { cleanedToday: 0, cleanedInRange: 0, cleaningRequests: 0, inspectionRequests: 0, inspectingCount: 0 };
-    const accountant = stats?.accountant ?? { totalRevenue: 0, totalLossPenalty: 0, netProfit: 0, revenueChartData: [], topInvoices: [] };
+    const accountant = stats?.accountant ?? {
+        totalRevenue: 0,
+        totalLossPenalty: 0,
+        serviceRevenue: 0,
+        netProfit: 0,
+        revenueChartData: [],
+        topInvoices: [],
+    };
     const receptionist = stats?.receptionist ?? { publishedArticles: 0, pendingArticles: 0, pendingServiceOrders: 0, completedServiceOrders: 0, serviceQueue: [], pendingCleaningRooms: [], inspectingRooms: [] };
 
     const occupancy = overview.breakdown.occupancy;
@@ -255,14 +257,14 @@ export function DashboardPage() {
         return (
             <div className="p-6 space-y-8">
                 <Header />
-                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-5">
+                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
                     <MetricCard title="Cleaned Today" value={housekeeper.cleanedToday} subValue="Rooms completed" icon={HomeIcon} color="emerald" />
                     <MetricCard title={`Cleaned (${rangeDays === 0 ? 'All' : rangeDays + 'd'})`} value={housekeeper.cleanedInRange} subValue="Rooms in period" icon={ClipboardDocumentListIcon} color="cyan" />
                     <MetricCard title="Cleaning Requests" value={housekeeper.pendingCleaningRooms?.length || 0} subValue="Pending now" icon={ClockIcon} color="amber" />
                     <MetricCard title="Inspection Needed" value={housekeeper.inspectionRequests} subValue="Awaiting check" icon={ExclamationTriangleIcon} color="rose" />
-                    <MetricCard title="Currently Inspecting" value={housekeeper.inspectingCount} subValue="In progress" icon={ClockIcon} color="blue" />
+                    {/* <MetricCard title="Currently Inspecting" value={housekeeper.inspectingCount} subValue="In progress" icon={ClockIcon} color="blue" /> */}
                 </div>
-                
+
                 <div className="grid gap-6 lg:grid-cols-2">
                     <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                         <div className="flex items-center justify-between mb-6">
@@ -324,7 +326,7 @@ export function DashboardPage() {
                     <MetricCard title="Loss & Damage" value={`$${accountant.totalLossPenalty.toLocaleString()}`} subValue="Total penalties" icon={ExclamationTriangleIcon} color="rose" />
                     <MetricCard title="Net Profit" value={`$${accountant.netProfit.toLocaleString()}`} subValue="Profit realized" icon={ArrowPathIcon} color="emerald" />
                 </div>
-                
+
                 <div className="grid gap-6 lg:grid-cols-3">
                     <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
                         <div className="flex items-center justify-between mb-8">
@@ -394,7 +396,7 @@ export function DashboardPage() {
                     <MetricCard title="Pending Articles" value={receptionist.pendingArticles} subValue="Needs review" icon={ExclamationTriangleIcon} color="rose" />
                     <MetricCard title="Articles Published In Period" value={receptionist.publishedArticles} subValue="Active posts in period" icon={HomeIcon} color="blue" />
                 </div>
-                
+
                 <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                     <div className="flex items-center justify-between mb-6">
                         <h3 className="text-lg font-bold text-slate-900">Service Queue (Pending Orders)</h3>
@@ -662,7 +664,7 @@ export function DashboardPage() {
                         LIVE MONITORING
                     </div>
                 </div>
-                
+
                 <div className="grid gap-6 lg:grid-cols-3">
                     <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm hover:shadow-md transition-shadow">
                         <div className="flex items-center justify-between mb-6">

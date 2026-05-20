@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace HotelManagement.Controllers;
 
 [ApiController]
+[Permission(PermissionNames.ManageInvoice)]
 [Route("api/[controller]")]
 public class InvoicesController : ControllerBase
 {

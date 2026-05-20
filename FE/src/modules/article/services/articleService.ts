@@ -66,6 +66,8 @@ interface ArticleDto {
     IsActive?: boolean;
     publishedAt?: string;
     PublishedAt?: string;
+    attractions?: AttractionDto[];
+    Attractions?: AttractionDto[];
 }
 
 // ─── Normalizers ─────────────────────────────────────────────────────────────

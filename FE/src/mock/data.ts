@@ -52,7 +52,7 @@ export const lossSeed: LossRecord[] = Array.from({ length: 18 }).map((_, idx) =>
   quantity: 1 + (idx % 3),
   penalty: 40 + idx * 12,
   description: 'Guest-reported damage with housekeeping confirmation',
-  date: `2026-03-${String((idx % 28) + 1).padStart(2, '0')}`,
+  createdAt: `2026-03-${String((idx % 28) + 1).padStart(2, '0')}`,
 }));
 
 export const cleaningRoomsSeed: CleaningRoom[] = Array.from({ length: 15 }).map((_, idx) => ({

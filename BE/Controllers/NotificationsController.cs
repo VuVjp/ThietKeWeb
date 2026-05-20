@@ -30,7 +30,7 @@ public class NotificationsController : ControllerBase
     }
 
     [HttpGet("me")]
-    public async Task<IActionResult> GetMine([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+    public async Task<IActionResult> GetMine([FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] bool isClient = false)
     {
         var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
         if (userId <= 0)
@@ -38,12 +38,12 @@ public class NotificationsController : ControllerBase
             return Unauthorized();
         }
 
-        var notifications = await _notificationService.GetNotificationsByUserIdAsync(userId, page, pageSize);
+        var notifications = await _notificationService.GetNotificationsByUserIdAsync(userId, page, pageSize, isClient);
         return Ok(notifications);
     }
 
     [HttpGet("unread-count")]
-    public async Task<IActionResult> GetUnreadCount()
+    public async Task<IActionResult> GetUnreadCount([FromQuery] bool isClient = false)
     {
         var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
         if (userId <= 0)
@@ -51,7 +51,7 @@ public class NotificationsController : ControllerBase
             return Unauthorized();
         }
 
-        var count = await _notificationService.CountUnreadNotificationsAsync(userId);
+        var count = await _notificationService.CountUnreadNotificationsAsync(userId, isClient);
         return Ok(new { count });
     }
 

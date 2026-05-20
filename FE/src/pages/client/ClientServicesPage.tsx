@@ -1,10 +1,13 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useEffect, useState } from 'react';
 import { servicesApi } from '../../api/servicesApi';
+import { useAppAuth } from '../../auth/useAppAuth';
 import type { Service } from '../../types/models';
 
 export function ClientServicesPage() {
+    const navigate = useNavigate();
+    const { isAuthenticated } = useAppAuth();
     const [services, setServices] = useState<Service[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -13,7 +16,7 @@ export function ClientServicesPage() {
             try {
                 const result = await servicesApi.getPaged({
                     page: 1,
-                    pageSize: 50, // Get a reasonable amount for client display
+                    pageSize: 50,
                     isActive: true
                 });
                 setServices(result.items);
@@ -31,6 +34,16 @@ export function ClientServicesPage() {
     const parseFeatures = (featuresStr?: string) => {
         if (!featuresStr) return [];
         return featuresStr.split(/[;,]/).map(f => f.trim()).filter(f => f !== '');
+    };
+
+    const handleBookClick = (service: Service) => {
+        if (!isAuthenticated) {
+            toast.error('Please login to book services');
+            navigate('/login', { state: { from: `/services/book?serviceId=${service.id}` } });
+            return;
+        }
+
+        navigate(`/services/book?serviceId=${service.id}`);
     };
 
     if (isLoading) {
@@ -127,13 +140,13 @@ export function ClientServicesPage() {
 
                                         <div className="flex gap-4">
                                             <button 
-                                                onClick={() => toast.success(`Booking request sent for ${svc.name}`)} 
+                                                onClick={() => void handleBookClick(svc)} 
                                                 className="bg-slate-900 hover:bg-cyan-600 text-white px-8 py-4 text-xs font-bold uppercase tracking-widest transition-colors shadow-lg rounded-xl"
                                             >
                                                 Book Service
                                             </button>
                                             <button 
-                                                onClick={() => toast(`More details about ${svc.name}`)} 
+                                                onClick={() => navigate(`/services/${svc.id}`)} 
                                                 className="bg-white border-2 border-slate-200 hover:border-slate-900 text-slate-900 px-8 py-4 text-xs font-bold uppercase tracking-widest transition-colors rounded-xl"
                                             >
                                                 View Details
@@ -152,6 +165,8 @@ export function ClientServicesPage() {
                 <p className="text-slate-600 mb-6">Our Spa and Restaurant amenities are open to non-guests by reservation.</p>
                 <Link to="/contact" className="inline-block border-b-2 border-cyan-500 text-slate-900 font-bold uppercase tracking-widest text-xs pb-1 hover:text-cyan-600 transition-colors">Contact Us for Reservations</Link>
             </div>
+
+
         </div>
     );
 }

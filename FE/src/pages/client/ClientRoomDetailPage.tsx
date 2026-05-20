@@ -6,13 +6,13 @@ import {
     UserIcon,
     ArrowsPointingOutIcon,
     SparklesIcon,
-    ArrowLeftIcon,
     CheckCircleIcon,
     NoSymbolIcon
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import { RoomReviewSection } from '../../components/RoomReviewSection';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
+import { ArrowLeftIcon } from 'lucide-react';
 
 export function ClientRoomDetailPage() {
     const { roomId } = useParams<{ roomId: string }>();
@@ -54,22 +54,27 @@ export function ClientRoomDetailPage() {
 
     return (
         <div className="w-full bg-slate-50 min-h-screen pb-24">
-            {/* HERo/LARGETHUMBNAIL SECTION */}
-            <div className="relative h-[60vh] w-full bg-slate-900 ">
+            {/* HERO SECTION */}
+            <div className="relative h-[100vh] sm:h-[90vh] md:h-[80vh] lg:h-[80vh] xl:h-[85vh] w-full bg-slate-900 overflow-hidden">
                 <img
                     src={heroImage}
                     alt={roomType.name}
-                    className="w-full h-full object-cover opacity-80"
+                    className="w-full h-full object-cover opacity-60 scale-105"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent" />
-                <div className="absolute inset-0 max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12 flex flex-col justify-end pb-16">
-                    <Link to="/rooms" className="text-white/80 hover:text-white flex items-center gap-2 font-semibold uppercase tracking-widest text-xs mb-6 w-max">
-                        <ArrowLeftIcon className="w-4 h-4" /> Back to Rooms
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/20 to-transparent" />
+
+                <div className="absolute inset-0 max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12 flex flex-col justify-end pb-20">
+                    <Link to="/rooms" className="text-white/70 hover:text-white flex items-center gap-2 font-bold uppercase tracking-[0.2em] text-[15px] mb-8 w-max transition-all group">
+                        <ArrowLeftIcon className="w-4 h-4 transform group-hover:-translate-x-1 transition-transform " /> Back to Rooms
                     </Link>
-                    <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-                        <div>
+
+                    <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-10">
+                        <div className="max-w-3xl">
+                            <span className="text-cyan-400 font-black tracking-[0.3em] uppercase text-xs mb-4 block">Room Type</span>
                             <div className="flex items-center gap-3 mb-2">
-                                <h1 className="text-4xl md:text-6xl font-bold text-white">{roomType.name}</h1>
+                                <h1 className="text-5xl md:text-7xl font-extrabold text-white leading-tight tracking-tight drop-shadow-2xl">
+                                    {roomType.name}
+                                </h1>
                                 {roomType.reviewCount > 0 && (
                                     <div className="flex items-center gap-1.5 bg-amber-400 text-white px-3 py-1 rounded-full font-black shadow-lg shadow-amber-400/20">
                                         <StarIconSolid className="w-5 h-5" />
@@ -77,12 +82,24 @@ export function ClientRoomDetailPage() {
                                     </div>
                                 )}
                             </div>
-                            <p className="text-slate-300 text-lg">{roomType.description || 'Spacious double room with premium bedding, modern interior, and panoramic city view.'}</p>
+                            <p className="text-slate-300 text-lg md:text-xl leading-relaxed font-medium">
+                                {roomType.description || 'Spacious double room with premium bedding, modern interior, and panoramic city view.'}
+                            </p>
                         </div>
-                        <div className="bg-white/10 backdrop-blur-md border border-white/20 p-6 rounded-xl flex-shrink-0">
-                            <span className="text-slate-300 text-sm uppercase tracking-wider block mb-1">Starting From</span>
-                            <div className="text-4xl font-bold text-cyan-400 mb-4">${roomType.basePrice.toLocaleString()} <span className="text-lg text-slate-300 font-normal">/ night</span></div>
-                            <Link to={`/booking?room=${roomType.id}`} className="block w-full bg-cyan-600 hover:bg-cyan-500 text-white text-center py-3 px-8 rounded-lg font-bold uppercase tracking-widest text-sm transition-colors shadow-lg shadow-cyan-600/30">
+
+                        <div className="bg-white/10 backdrop-blur-2xl border border-white/20 p-8 rounded-3xl flex-shrink-0 lg:w-96 shadow-2xl">
+                            <div className="flex items-center gap-2 mb-6">
+                                <SparklesIcon className="w-5 h-5 text-cyan-400" />
+                                <span className="text-slate-300 text-xs font-bold uppercase tracking-widest">Starting From</span>
+                            </div>
+                            <div className="flex items-baseline gap-2 mb-8">
+                                <span className="text-5xl font-black text-white">${roomType.basePrice.toLocaleString()}</span>
+                                <span className="text-lg text-slate-400 font-medium">/ night</span>
+                            </div>
+                            <Link
+                                to={`/booking?room=${roomType.id}`}
+                                className="block w-full bg-cyan-600 hover:bg-cyan-500 text-white text-center py-5 px-8 rounded-2xl font-black uppercase tracking-[0.15em] text-sm transition-all shadow-xl shadow-cyan-600/30 hover:scale-[1.02] active:scale-95"
+                            >
                                 Book Now
                             </Link>
                         </div>
@@ -201,10 +218,10 @@ export function ClientRoomDetailPage() {
 
                         {/* Reviews Section */}
                         <div id="reviews-section" className="pt-12 border-t border-slate-200">
-                            <RoomReviewSection 
-                                roomTypeId={roomType.id} 
-                                averageRating={roomType.averageRating} 
-                                reviewCount={roomType.reviewCount} 
+                            <RoomReviewSection
+                                roomTypeId={roomType.id}
+                                averageRating={roomType.averageRating}
+                                reviewCount={roomType.reviewCount}
                             />
                         </div>
                     </div>

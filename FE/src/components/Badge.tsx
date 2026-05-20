@@ -1,6 +1,7 @@
 interface BadgeProps {
   value: string;
   variant?: 'success' | 'warning' | 'error' | 'info' | 'default' | 'destructive';
+  color?: string;
 }
 
 const classByValue: Record<string, string> = {

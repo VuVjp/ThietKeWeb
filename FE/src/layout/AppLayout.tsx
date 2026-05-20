@@ -6,11 +6,11 @@ import { useAppAuth } from '../auth/useAppAuth';
 import { useRealtimeNotifications } from '../hooks/useRealtimeNotifications';
 
 export function AppLayout() {
-    const { user, logout, isAuthenticated } = useAppAuth();
+    const { user, logout, isAuthenticated, isAuthReady } = useAppAuth();
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
     const [search, setSearch] = useState('');
-    const { notifications, unreadCount, hasMore, isLoadingMore, markRead, markAllRead, loadMore } = useRealtimeNotifications(isAuthenticated);
+    const { notifications, unreadCount, hasMore, isLoadingMore, markRead, markAllRead, loadMore } = useRealtimeNotifications(isAuthReady && isAuthenticated);
 
     return (
         <div className="min-h-screen bg-slate-100">

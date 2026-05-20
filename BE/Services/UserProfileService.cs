@@ -1,15 +1,18 @@
 using HotelManagement.Dtos;
 using HotelManagement.Entities;
+using Microsoft.Extensions.Caching.Distributed;
 
 public class UserProfileService : IUserProfileService
 {
     private readonly IUserRepository _userRepository;
     private readonly ICloudinaryService _cloudinaryService;
+    private readonly IDistributedCache _cache;
 
-    public UserProfileService(IUserRepository userRepository, ICloudinaryService cloudinaryService)
+    public UserProfileService(IUserRepository userRepository, ICloudinaryService cloudinaryService, IDistributedCache cache)
     {
         _userRepository = userRepository;
         _cloudinaryService = cloudinaryService;
+        _cache = cache;
     }
 
     public async Task<UserDto?> GetProfileByEmailAsync(string email)
@@ -112,8 +115,10 @@ public class UserProfileService : IUserProfileService
             throw new ForbiddenException("Current password is incorrect.");
         }
         user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
+        user.TokenVersion += 1;
         _userRepository.Update(user);
         await _userRepository.SaveChangesAsync();
+        await _cache.SetStringAsync(TokenVersionCacheKeys.ForUser(user.Id), user.TokenVersion.ToString());
         return new UserDto
         {
             Id = user.Id,

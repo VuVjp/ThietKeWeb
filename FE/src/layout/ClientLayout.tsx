@@ -3,6 +3,8 @@ import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { useAppAuth } from '../auth/useAppAuth';
+import { useRealtimeNotifications } from '../hooks/useRealtimeNotifications';
+import { NotificationDropdown } from '../components/NotificationDropdown';
 
 export function ClientLayout() {
     const [isScrolled, setIsScrolled] = useState(false);
@@ -15,6 +17,17 @@ export function ClientLayout() {
     // Use real auth state for header synchronization
     const { isAuthenticated, isAuthReady, user, logout } = useAppAuth();
 
+    const {
+        notifications,
+        unreadCount,
+        hasMore,
+        isLoadingMore,
+        markRead,
+        markAllRead,
+        loadMore
+    } = useRealtimeNotifications(isAuthReady && isAuthenticated && user != null, true);
+
+    useRealtimeNotifications(isAuthReady && isAuthenticated);
     useEffect(() => {
         const handleScroll = () => {
             setIsScrolled(window.scrollY > 10);
@@ -63,9 +76,9 @@ export function ClientLayout() {
         <div className="min-h-screen flex flex-col font-['Manrope'] bg-[#F9FAFB] text-slate-800">
             {/* Elegant Header */}
             <header
-                className={`fixed top-0 w-full z-50 transition-all duration-500 ease-in-out ${isScrolled
-                        ? 'bg-white/90 backdrop-blur-xl shadow-sm py-3 border-b border-gray-100'
-                        : 'bg-transparent py-6'
+                className={`fixed top-0 left-0 right-0 w-full z-50 transition-all duration-500 ease-in-out ${isScrolled
+                    ? 'bg-white/90 backdrop-blur-xl shadow-sm py-3 border-b border-gray-100'
+                    : 'bg-transparent py-6'
                     }`}
             >
                 <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12 object-contain">
@@ -84,8 +97,8 @@ export function ClientLayout() {
                                         key={link.name}
                                         to={link.href}
                                         className={`text-[13px] font-bold uppercase tracking-widest transition-colors hover:text-cyan-500 ${isActive
-                                                ? 'text-cyan-500'
-                                                : isScrolled ? 'text-slate-700' : 'text-slate-200'
+                                            ? 'text-cyan-500'
+                                            : isScrolled ? 'text-slate-700' : 'text-slate-200'
                                             }`}
                                     >
                                         {link.name}
@@ -96,17 +109,30 @@ export function ClientLayout() {
 
                         <div className="hidden lg:flex items-center gap-6">
                             {isAuthReady && isAuthenticated && user ? (
-                                <div className="relative" ref={userMenuRef}>
+                                <div className="flex items-center gap-5">
+                                    <NotificationDropdown
+                                        items={notifications}
+                                        unreadCount={unreadCount}
+                                        hasMore={hasMore}
+                                        isLoadingMore={isLoadingMore}
+                                        onMarkRead={markRead}
+                                        onMarkAllRead={markAllRead}
+                                        onLoadMore={loadMore}
+                                    />
+                                    <div className="relative" ref={userMenuRef}>
                                     <button
                                         type="button"
                                         onClick={() => setUserMenuOpen(!userMenuOpen)}
-                                        className={`flex items-center gap-2.5 text-sm font-semibold transition-colors ${isScrolled ? 'text-slate-700 hover:text-cyan-600' : 'text-white hover:text-cyan-300 drop-shadow-md'}`}
+                                        className={`flex items-center gap-1.5 text-sm font-semibold transition-colors ${isScrolled ? 'text-slate-700 hover:text-cyan-600' : 'text-white hover:text-cyan-300 drop-shadow-md'}`}
                                     >
                                         {/* Avatar */}
-                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${isScrolled ? 'bg-cyan-100 text-cyan-700' : 'bg-white/20 text-white backdrop-blur-sm'}`}>
-                                            {user.name?.charAt(0)?.toUpperCase() || user.email?.charAt(0)?.toUpperCase() || 'U'}
+                                        <div className={`w-8 h-8 rounded-full overflow-hidden flex items-center justify-center text-xs font-bold ${isScrolled ? 'bg-cyan-100 text-cyan-700' : 'bg-white/20 text-white backdrop-blur-sm'}`}>
+                                            {user.avatarUrl ? (
+                                                <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
+                                            ) : (
+                                                user.name?.charAt(0)?.toUpperCase() || user.email?.charAt(0)?.toUpperCase() || 'U'
+                                            )}
                                         </div>
-                                        <span className="max-w-[120px] truncate">{user.name || 'My Account'}</span>
                                         <svg className={`w-3.5 h-3.5 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                                             <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
                                         </svg>
@@ -162,6 +188,7 @@ export function ClientLayout() {
                                             </div>
                                         </div>
                                     )}
+                                    </div>
                                 </div>
                             ) : (
                                 <Link to="/login" className={`text-sm font-semibold transition-colors ${isScrolled ? 'text-slate-700 hover:text-cyan-600' : 'text-white hover:text-cyan-300 drop-shadow-md'}`}>

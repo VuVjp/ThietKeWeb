@@ -76,6 +76,7 @@ export interface DashboardComparison {
         cleaningRequests?: DashboardMetricComparison;
         articles?: DashboardMetricComparison;
         serviceOrders?: DashboardMetricComparison;
+        completedServiceOrders?: DashboardMetricComparison;
         serviceRevenue?: DashboardMetricComparison;
     };
 }
@@ -189,7 +190,7 @@ function pick<T = unknown>(source: Record<string, unknown>, camel: string, pasca
 
 const emptyOverview: DashboardOverview = {
     meta: { schemaVersion: 1, dashboardCode: '', roleName: '', periodType: '', periodKey: '', periodStart: '', periodEnd: '', status: '', generatedAt: '' },
-    summary: { totalRevenue: 0, bookingCount: 0, netProfit: 0, auditLogTotal: 0, articlesCount: 0, serviceOrdersCount: 0, serviceRevenue: 0, comparison: { base: { comparisonType: '', currentPeriodKey: '', previousPeriodKey: '' }, metrics: {} } },
+    summary: { totalRevenue: 0, bookingCount: 0, netProfit: 0, auditLogTotal: 0, articlesCount: 0, serviceOrdersCount: 0, completedServiceOrdersCount: 0, serviceRevenue: 0, comparison: { base: { comparisonType: '', currentPeriodKey: '', previousPeriodKey: '' }, metrics: {} } },
     widgets: { revenueChart: [], roomStatusChart: [], recentBookings: [], pendingServices: [] },
     breakdown: { occupancy: { total: 0, occupied: 0, maintenance: 0, available: 0 }, inspectingCount: 0, pendingCleaningRooms: [], inspectingRooms: [] },
     alerts: [],
@@ -366,7 +367,7 @@ function normalizeHousekeeper(raw: unknown): HousekeeperDashboard {
 }
 
 function normalizeAccountant(raw: unknown): AccountantDashboard {
-    if (!raw || typeof raw !== 'object') return { totalRevenue: 0, totalLossPenalty: 0, netProfit: 0, revenueChartData: [], topInvoices: [] };
+    if (!raw || typeof raw !== 'object') return { totalRevenue: 0, totalLossPenalty: 0, serviceRevenue: 0, netProfit: 0, revenueChartData: [], topInvoices: [] };
     const src = raw as Record<string, unknown>;
     const revenueRaw = pick<unknown[]>(src, 'revenueChartData', 'RevenueChartData') ?? [];
     const invoicesRaw = pick<unknown[]>(src, 'topInvoices', 'TopInvoices') ?? [];

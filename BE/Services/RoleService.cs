@@ -33,4 +33,9 @@ public class RoleService : IRoleService
     {
         await _roleRepository.UpdateRolePermissionsAsync(roleId, permissionNames);
     }
+
+    public async Task<List<int>> GetUserIdsByRoleIdAsync(int roleId)
+    {
+        return await _roleRepository.GetUserIdsByRoleIdAsync(roleId);
+    }
 }

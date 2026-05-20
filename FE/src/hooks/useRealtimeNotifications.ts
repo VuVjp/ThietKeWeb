@@ -63,7 +63,7 @@ function parseRoleFromToken(token: string | null): RoleName | null {
     }
 }
 
-export function useRealtimeNotifications(enabled: boolean) {
+export function useRealtimeNotifications(enabled: boolean, isClient: boolean = false) {
     const [items, setItems] = useState<NotificationItem[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [isSyncing, setIsSyncing] = useState(false);
@@ -79,19 +79,19 @@ export function useRealtimeNotifications(enabled: boolean) {
 
     const refreshUnreadCount = useCallback(async () => {
         try {
-            const count = await notificationsApi.getUnreadCount();
+            const count = await notificationsApi.getUnreadCount(isClient);
             setUnreadCount(count);
         } catch {
             // Silent fallback to local count when endpoint temporarily fails.
         }
-    }, []);
+    }, [isClient]);
 
     const refreshNotifications = useCallback(async () => {
         setIsSyncing(true);
         try {
             const [page, count] = await Promise.all([
-                notificationsApi.getMine(1, PAGE_SIZE),
-                notificationsApi.getUnreadCount(),
+                notificationsApi.getMine(1, PAGE_SIZE, isClient),
+                notificationsApi.getUnreadCount(isClient),
             ]);
 
             const nextItems = page.items.map(toNotificationItem);
@@ -102,7 +102,7 @@ export function useRealtimeNotifications(enabled: boolean) {
         } finally {
             setIsSyncing(false);
         }
-    }, []);
+    }, [isClient]);
 
     const scheduleSync = useCallback(() => {
         if (syncTimerRef.current) {
@@ -156,6 +156,12 @@ export function useRealtimeNotifications(enabled: boolean) {
             .build();
 
         connection.on('ReceiveNotification', handleRealtimeEvent);
+        connection.on('PermissionsChanged', () => {
+            window.dispatchEvent(new CustomEvent('permissions-changed'));
+        });
+        connection.on('ForceLogout', () => {
+            window.dispatchEvent(new CustomEvent('force-logout'));
+        });
 
         connection.onreconnected(() => {
             // Special case: reconnect should sync once to catch up missed messages.
@@ -175,6 +181,8 @@ export function useRealtimeNotifications(enabled: boolean) {
             }
 
             connection.off('ReceiveNotification', handleRealtimeEvent);
+            connection.off('PermissionsChanged');
+            connection.off('ForceLogout');
             if (connection.state !== HubConnectionState.Disconnected) {
                 void connection.stop();
             }
@@ -238,7 +246,7 @@ export function useRealtimeNotifications(enabled: boolean) {
         setIsLoadingMore(true);
 
         try {
-            const page = await notificationsApi.getMine(nextPage, PAGE_SIZE);
+            const page = await notificationsApi.getMine(nextPage, PAGE_SIZE, isClient);
             const nextItems = page.items.map(toNotificationItem);
 
             setItems((prev) => {
@@ -252,7 +260,7 @@ export function useRealtimeNotifications(enabled: boolean) {
         } finally {
             setIsLoadingMore(false);
         }
-    }, [enabled, isLoadingMore, hasMore, currentPage]);
+    }, [enabled, isLoadingMore, hasMore, currentPage, isClient]);
 
     return {
         notifications: items,

@@ -1,5 +1,5 @@
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
-import { Bars3Icon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { Bars3Icon, MagnifyingGlassIcon, GlobeAltIcon } from '@heroicons/react/24/outline';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { NotificationBell } from '../components/NotificationBell';
@@ -47,6 +47,16 @@ export function Header({ onSidebarToggle, onMobileToggle, onSearchChange, notifi
         </div>
 
         <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => navigate('/')}
+            className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:text-cyan-700 transition"
+            title="Home Page"
+          >
+            <GlobeAltIcon className="h-5 w-5 text-slate-500 hover:text-cyan-600 transition" />
+            {/* <span className="hidden sm:inline"></span> */}
+          </button>
+
           <NotificationBell
             notifications={notifications}
             unreadCount={unreadCount}
@@ -58,9 +68,14 @@ export function Header({ onSidebarToggle, onMobileToggle, onSearchChange, notifi
           />
 
           <Menu as="div" className="relative">
-            <MenuButton className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-2 py-1.5 text-sm hover:bg-slate-50">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-cyan-100 text-cyan-700">{initial}</div>
-              <span className="hidden md:block">{user?.name ?? 'User'}</span>
+            <MenuButton className="flex items-center rounded-xl border border-slate-200 bg-white p-1 hover:bg-slate-50">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full overflow-hidden bg-cyan-100 text-cyan-700 text-xs font-bold">
+                {user?.avatarUrl ? (
+                  <img src={user.avatarUrl} alt={user?.name} className="w-full h-full object-cover" />
+                ) : (
+                  initial
+                )}
+              </div>
             </MenuButton>
             <MenuItems anchor="bottom end" className="z-30 mt-2 w-44 rounded-xl border border-slate-200 bg-white p-1 shadow-lg">
               <MenuItem>

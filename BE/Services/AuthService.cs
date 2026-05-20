@@ -6,22 +6,25 @@ using Google.Apis.Auth;
 using Microsoft.IdentityModel.Tokens;
 using HotelManagement.Entities;
 using Services.Interfaces;
+using Microsoft.Extensions.Caching.Distributed;
 
 public class AuthService : IAuthService
 {
     private readonly IUserRepository _userRepository;
     private readonly IConfiguration _configuration;
     private readonly IRefreshTokenRepository _refreshTokenRepository;
+    private readonly IDistributedCache _cache;
 
-    public AuthService(IUserRepository userRepository, IConfiguration configuration, IRefreshTokenRepository refreshTokenRepository)
+    public AuthService(IUserRepository userRepository, IConfiguration configuration, IRefreshTokenRepository refreshTokenRepository, IDistributedCache cache)
     {
         _userRepository = userRepository;
         _configuration = configuration;
         _refreshTokenRepository = refreshTokenRepository;
+        _cache = cache;
 
     }
 
-    public async Task<(int, string, string)> RegisterAsync(string email, string fullName, string password)
+    public async Task<(int, string, string)> RegisterAsync(string email, string fullName, string password, string? phone = null)
     {
         if (await _userRepository.IsEmailExistAsync(email))
         {
@@ -32,6 +35,7 @@ public class AuthService : IAuthService
         {
             Email = email,
             FullName = fullName,
+            Phone = phone,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
             RoleId = 6, // Assuming 6 is the ID for the "Guest" role
         };
@@ -58,6 +62,8 @@ public class AuthService : IAuthService
 
         var jwtToken = await GenerateJwt(user);
         var refreshToken = await GenerateRefreshTokenAsync(user);
+
+        await UpdateTokenVersionCacheAsync(user);
 
 
         return (jwtToken, refreshToken);
@@ -94,6 +100,8 @@ public class AuthService : IAuthService
         var jwtToken = await GenerateJwt(user);
         var refreshToken = await GenerateRefreshTokenAsync(user);
 
+        await UpdateTokenVersionCacheAsync(user);
+
         return (jwtToken, refreshToken);
     }
 
@@ -128,6 +136,11 @@ public class AuthService : IAuthService
             throw new UnauthorizedException("Invalid refresh token");
         }
 
+        if (!matchedUser.IsActive)
+        {
+            throw new UnauthorizedException("User account is deactivated");
+        }
+
         if (rf.IsRevoked)
         {
             throw new UnauthorizedException("Refresh token has been revoked");
@@ -136,6 +149,8 @@ public class AuthService : IAuthService
         var newJwt = await GenerateJwt(matchedUser);
 
         var newRefreshToken = await GenerateRefreshTokenAsync(matchedUser);
+
+        await UpdateTokenVersionCacheAsync(matchedUser);
 
         await _refreshTokenRepository.RevokeTokenAsync(refreshToken);
 
@@ -185,7 +200,8 @@ public class AuthService : IAuthService
                 new Claim(ClaimTypes.Role, userRole ?? "Guest"),
                 new Claim("sub", user.Id.ToString()),
                 new Claim("email", user.Email),
-                new Claim("role", userRole ?? "Guest")
+                new Claim("role", userRole ?? "Guest"),
+                new Claim("tv", user.TokenVersion.ToString())
             };
 
         var token = new JwtSecurityToken(
@@ -197,5 +213,10 @@ public class AuthService : IAuthService
         );
 
         return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    private async Task UpdateTokenVersionCacheAsync(User user)
+    {
+        await _cache.SetStringAsync(TokenVersionCacheKeys.ForUser(user.Id), user.TokenVersion.ToString());
     }
 }

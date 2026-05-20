@@ -14,19 +14,22 @@ public class OrderServiceService : IOrderServiceService
     private readonly IBookingRepository _bookingRepository;
     private readonly IInvoiceService _invoiceService;
     private readonly IDashboardService _dashboardService;
+    private readonly INotificationService _notificationService;
 
     public OrderServiceService(
-        IOrderServiceRepository repository, 
+        IOrderServiceRepository repository,
         IServiceRepository serviceRepository,
         IBookingRepository bookingRepository,
         IInvoiceService invoiceService,
-        IDashboardService dashboardService)
+        IDashboardService dashboardService,
+        INotificationService notificationService)
     {
         _repository = repository;
         _serviceRepository = serviceRepository;
         _bookingRepository = bookingRepository;
         _invoiceService = invoiceService;
         _dashboardService = dashboardService;
+        _notificationService = notificationService;
     }
 
     public async Task<PaginatedResultDto<OrderServiceSummaryDto>> GetPagedAsync(OrderServiceQueryDto query)
@@ -42,8 +45,8 @@ public class OrderServiceService : IOrderServiceService
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
             var search = query.Search.Trim().ToLower();
-            dbQuery = dbQuery.Where(os => 
-                os.Id.ToString().Contains(search) || 
+            dbQuery = dbQuery.Where(os =>
+                os.Id.ToString().Contains(search) ||
                 (os.BookingDetail != null && os.BookingDetail.Room != null && os.BookingDetail.Room.RoomNumber.ToLower().Contains(search)) ||
                 (os.BookingDetail != null && os.BookingDetail.Booking != null && os.BookingDetail.Booking.GuestName.ToLower().Contains(search))
             );
@@ -158,6 +161,42 @@ public class OrderServiceService : IOrderServiceService
 
         await _repository.AddAsync(order);
         await _repository.SaveChangesAsync();
+        
+        // Notify staff roles about the new service order
+        try
+        {
+            var roomNumber = bookingDetail.Room?.RoomNumber ?? "Unknown";
+            var guestName = bookingDetail.Booking?.GuestName ?? "Guest";
+            var dtoNote = new CreateNotificationDto
+            {
+                Title = $"New service order #{order.Id}",
+                Content = $"New service order #{order.Id} for Room {roomNumber} ({guestName}) has been created.",
+                Type = NotificationAction.ServiceCreated,
+                ReferenceLink = $"admin/order-services/{order.Id}"
+            };
+
+            await _notificationService.SendByRoleAsync(RoleName.Admin, dtoNote);
+            await _notificationService.SendByRoleAsync(RoleName.Manager, dtoNote);
+            await _notificationService.SendByRoleAsync(RoleName.Receptionist, dtoNote);
+
+            // Notify user
+            if (bookingDetail.Booking != null && bookingDetail.Booking.UserId.HasValue)
+            {
+                await _notificationService.SendToUserAsync(bookingDetail.Booking.UserId.Value, new CreateNotificationDto
+                {
+                    Title = "Service Ordered Successfully",
+                    Content = $"successfully ordered service for room {roomNumber}",
+                    Type = NotificationAction.ServiceCreated,
+                    ReferenceLink = "profile"
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            // Swallow notification errors so order creation is not impacted
+            Console.WriteLine($"[Notification Error] {ex.Message}");
+        }
+
         return order.Id;
     }
 
@@ -278,7 +317,7 @@ public class OrderServiceService : IOrderServiceService
 
             order.OrderServiceDetails.Remove(detail);
             _repository.RemoveDetail(detail);
-            
+
             RecalculateTotal(order);
             order.UpdatedAt = DateTime.Now;
 
@@ -319,9 +358,29 @@ public class OrderServiceService : IOrderServiceService
         if (newStatus == OrderServiceStatus.Completed && order.BookingDetail?.BookingId != null)
         {
             await _invoiceService.UpdateInvoiceAmountsAsync(order.BookingDetail.BookingId.Value);
-            
+
             // Increment Completed Service Orders in Dashboard Snapshots
             await _dashboardService.IncrementMetricAsync("CompletedServiceOrders", 1, DateTime.Now);
+
+            // Notify user
+            if (order.BookingDetail.Booking?.UserId != null)
+            {
+                var roomNumber = order.BookingDetail.Room?.RoomNumber ?? "Unknown";
+                try
+                {
+                    await _notificationService.SendToUserAsync(order.BookingDetail.Booking.UserId.Value, new CreateNotificationDto
+                    {
+                        Title = "Service Completed",
+                        Content = $"completed service for room {roomNumber}",
+                        Type = NotificationAction.ServiceUpdated,
+                        ReferenceLink = "profile"
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Notification Error] {ex.Message}");
+                }
+            }
         }
 
         return true;

@@ -11,6 +11,7 @@ public class User
     public string? Phone { get; set; }
     public string PasswordHash { get; set; } = string.Empty;
     public bool IsActive { get; set; } = true;
+    public int TokenVersion { get; set; } = 0;
     public string? GoogleId { get; set; }
     public string? AvatarUrl { get; set; }
     public DateTime? Birthday { get; set; }

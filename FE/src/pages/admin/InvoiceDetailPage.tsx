@@ -44,7 +44,7 @@ export function InvoiceDetailPage() {
 
     const handleComplete = async () => {
         if (!id || !invoice) return;
-        
+
         setIsCompleting(true);
         try {
             await momoApi.payCash({
@@ -159,7 +159,7 @@ export function InvoiceDetailPage() {
                             <p className="text-sm text-amber-700">This will record a cash payment for this invoice. If fully paid, invoice status will be completed.</p>
                         </div>
                     </div>
-                    
+
                     <p className="text-slate-600 mb-8 px-1">
                         Are you sure you want to record cash payment for <span className="font-mono font-bold text-slate-900">{invoice.invoiceCode}</span>?
                     </p>
@@ -199,11 +199,10 @@ export function InvoiceDetailPage() {
                                 {invoice.roomDetails.map((room) => (
                                     <label
                                         key={room.id}
-                                        className={`flex items-center justify-between p-3 rounded-xl border-2 transition cursor-pointer ${
-                                            selectedRoomIds.includes(room.id)
-                                                ? 'border-cyan-600 bg-cyan-50'
-                                                : 'border-slate-100 hover:border-slate-200'
-                                        }`}
+                                        className={`flex items-center justify-between p-3 rounded-xl border-2 transition cursor-pointer ${selectedRoomIds.includes(room.id)
+                                            ? 'border-cyan-600 bg-cyan-50'
+                                            : 'border-slate-100 hover:border-slate-200'
+                                            }`}
                                     >
                                         <div className="flex items-center gap-3">
                                             <input
@@ -382,9 +381,9 @@ export function InvoiceDetailPage() {
                                             <p className="text-xs text-slate-500">{room.roomType}</p>
                                         </td>
                                         <td className="py-4">
-                                            <p>{new Date(room.checkIn).toLocaleDateString()} - {new Date(room.actualCheckOut || room.checkOut).toLocaleDateString()}</p>
+                                            <p>{new Date(room.checkIn).toLocaleDateString()} - {new Date(room.checkOut).toLocaleDateString()}</p>
                                             {room.actualCheckOut && (
-                                                <p className="text-[10px] text-emerald-600 font-bold uppercase italic">Early Check-out Applied</p>
+                                                <p className="text-[10px] text-emerald-600 font-bold uppercase italic">Checked out on: {new Date(room.actualCheckOut).toLocaleDateString()}</p>
                                             )}
                                         </td>
                                         <td className="py-4 text-right">${room.pricePerNight.toLocaleString()}</td>
@@ -467,10 +466,6 @@ export function InvoiceDetailPage() {
                                 <span>Penalties:</span>
                                 <span>${invoice.totalLossDamageAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                             </div>
-                            <div className="flex justify-between text-sm text-rose-600 font-medium">
-                                <span>Discount:</span>
-                                <span>-${invoice.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                            </div>
                             <div className="flex justify-between text-sm text-slate-500">
                                 <span>Tax (10%):</span>
                                 <span>${invoice.taxAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
@@ -480,17 +475,21 @@ export function InvoiceDetailPage() {
                                 <span>${(invoice.paidAmount ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                             </div>
                             <div className="flex justify-between text-sm text-slate-500">
-                                <span>Allocated Deposit:</span>
-                                <span>${(invoice.allocatedDeposit ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                <span>Final Total:</span>
+                                <span>${invoice.finalTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                             </div>
-                            <div className="flex justify-between text-sm font-semibold text-amber-700">
-                                <span>Remaining:</span>
-                                <span>${(invoice.remainingAmount ?? Math.max(0, invoice.finalTotal - (invoice.paidAmount ?? 0) - (invoice.allocatedDeposit ?? 0))).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                            <div className="flex justify-between text-sm text-rose-600 font-medium">
+                                <span>Discount:</span>
+                                <span>-${invoice.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                            </div>
+                            <div className="flex justify-between text-sm text-rose-600 font-medium">
+                                <span>Allocated Deposit:</span>
+                                <span>-${(invoice.allocatedDeposit ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                             </div>
                             <div className="flex justify-between items-end border-t border-slate-100 pt-3">
-                                <span className="text-lg font-bold text-slate-900">Final Total:</span>
+                                <span className="text-lg font-bold text-slate-900">Remaining:</span>
                                 <span className="text-3xl font-black text-cyan-700 tracking-tighter">
-                                    ${invoice.finalTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                    ${(invoice.remainingAmount ?? Math.max(0, invoice.finalTotal - (invoice.paidAmount ?? 0) - (invoice.allocatedDeposit ?? 0))).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                 </span>
                             </div>
                         </div>

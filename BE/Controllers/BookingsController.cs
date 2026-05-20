@@ -142,10 +142,10 @@ public class BookingsController : ControllerBase
             }
 
             var rolesToNotify = new List<RoleName> { RoleName.Admin, RoleName.Manager, RoleName.Receptionist };
-            if (IsOperationalBookingStatus(dto.Status))
-            {
-                rolesToNotify.Add(RoleName.Housekeeping);
-            }
+            // if (IsOperationalBookingStatus(dto.Status))
+            // {
+            //     rolesToNotify.Add(RoleName.Housekeeping);
+            // }
 
             await TryNotifyRolesAsync(
                 rolesToNotify,
@@ -181,6 +181,20 @@ public class BookingsController : ControllerBase
 
         var history = await _service.GetBookingsByUserIdAsync(userId);
         return Ok(history);
+    }
+
+    [Authorize]
+    [HttpGet("my-active-rooms")]
+    public async Task<IActionResult> GetMyActiveRooms()
+    {
+        var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userIdStr) || !int.TryParse(userIdStr, out int userId))
+        {
+            return Unauthorized();
+        }
+
+        var activeRooms = await _service.GetActiveRoomsByUserIdAsync(userId);
+        return Ok(activeRooms);
     }
 
     [Authorize]

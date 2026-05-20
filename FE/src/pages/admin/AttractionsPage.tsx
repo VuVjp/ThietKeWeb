@@ -24,8 +24,7 @@ L.Icon.Default.mergeOptions({
     shadowUrl: markerShadow,
 });
 
-const HOTEL_LAT = 10.9539722; // 10°57'14.3"N
-const HOTEL_LNG = 106.8019444; // 106°48'07.0"E
+
 
 function calculateDistanceAsKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
     const R = 6371; // Radius of the earth in km
@@ -57,6 +56,20 @@ export function AttractionsPage() {
     const [openModal, setOpenModal] = useState(false);
     const [editingItem, setEditingItem] = useState<Attraction | null>(null);
     const [isSaving, setIsSaving] = useState(false);
+
+    // Hotel Base Location State
+    const [openHotelModal, setOpenHotelModal] = useState(false);
+    const [hotelLat, setHotelLat] = useState(10.9539722);
+    const [hotelLng, setHotelLng] = useState(106.8019444);
+
+    const [tempHotelLat, setTempHotelLat] = useState(String(hotelLat));
+    const [tempHotelLng, setTempHotelLng] = useState(String(hotelLng));
+
+    const openConfigureHotel = () => {
+        setTempHotelLat(String(hotelLat));
+        setTempHotelLng(String(hotelLng));
+        setOpenHotelModal(true);
+    };
     
     // Form Draft
     const [name, setName] = useState('');
@@ -99,10 +112,10 @@ export function AttractionsPage() {
         const lat = Number(latitude);
         const lng = Number(longitude);
         if (latitude !== '' && longitude !== '' && !isNaN(lat) && !isNaN(lng)) {
-            const dist = calculateDistanceAsKm(HOTEL_LAT, HOTEL_LNG, lat, lng);
+            const dist = calculateDistanceAsKm(hotelLat, hotelLng, lat, lng);
             setDistanceKm(dist);
         }
-    }, [latitude, longitude]);
+    }, [latitude, longitude, hotelLat, hotelLng]);
 
     const loadAttractions = useCallback(async () => {
         setIsLoading(true);
@@ -116,9 +129,20 @@ export function AttractionsPage() {
         }
     }, []);
 
+    const loadHotelLocation = useCallback(async () => {
+        try {
+            const loc = await attractionsApi.getHotelLocation();
+            setHotelLat(loc.latitude);
+            setHotelLng(loc.longitude);
+        } catch (error) {
+            console.error('Failed to load hotel location', error);
+        }
+    }, []);
+
     useEffect(() => {
         void loadAttractions();
-    }, [loadAttractions]);
+        void loadHotelLocation();
+    }, [loadAttractions, loadHotelLocation]);
 
     const filtered = useMemo(() => {
         return attractions.filter(item => queryIncludes(item.name, search) || queryIncludes(item.description ?? '', search));
@@ -162,7 +186,11 @@ export function AttractionsPage() {
                 </div>
             );
         } },
-        { key: 'distance', label: 'Distance', render: (row: Attraction) => row.distanceKm ? `${row.distanceKm} km` : '-' },
+        { 
+            key: 'distance', 
+            label: 'Distance', 
+            render: (row: Attraction) => row.distanceKm ? `${row.distanceKm} km` : '-'
+        },
         { key: 'status', label: 'Status', render: (row: Attraction) => (
             <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${row.isActive ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-700'}`}>
                 {row.isActive ? 'Active' : 'Inactive'}
@@ -286,13 +314,22 @@ export function AttractionsPage() {
                     <h2 className="text-2xl font-bold text-slate-900">Attractions</h2>
                     <p className="text-sm text-slate-500">Manage nearby local attractions for guests.</p>
                 </div>
-                <button
-                    type="button"
-                    onClick={openCreate}
-                    className="inline-flex items-center gap-2 rounded-xl bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800"
-                >
-                    <PlusIcon className="h-4 w-4" /> Add Attraction
-                </button>
+                <div className="flex items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={openConfigureHotel}
+                        className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 shadow-sm transition-all"
+                    >
+                        <MapPinIcon className="h-4 w-4 text-slate-500" /> Hotel Location
+                    </button>
+                    <button
+                        type="button"
+                        onClick={openCreate}
+                        className="inline-flex items-center gap-2 rounded-xl bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800 shadow-sm transition-all"
+                    >
+                        <PlusIcon className="h-4 w-4" /> Add Attraction
+                    </button>
+                </div>
             </div>
 
             <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm flex items-center gap-3">
@@ -306,18 +343,25 @@ export function AttractionsPage() {
             </div>
 
             {isLoading ? (
-                <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-slate-500">
-                    Loading attractions...
+                <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-slate-200 shadow-sm">
+                    <div className="w-10 h-10 border-4 border-cyan-600 border-t-transparent rounded-full animate-spin"></div>
+                    <p className="mt-4 text-sm font-bold text-slate-600 animate-pulse">Loading attractions...</p>
                 </div>
             ) : filtered.length === 0 ? (
-                <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-slate-500">
-                    No attractions found.
+                <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm p-16 text-center">
+                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-100 text-slate-400 mb-4">
+                        <MapPinIcon className="h-8 w-8" />
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-900">No attractions found</h3>
+                    <p className="text-slate-500 text-sm mt-1">Try adjusting your filters or search terms.</p>
                 </div>
             ) : (
-                <>
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden relative">
                     <Table columns={columns} rows={paged} />
-                    <Pagination page={page} pageSize={pageSize} total={filtered.length} onPageChange={setPage} />
-                </>
+                    <div className="p-4 border-t border-slate-100 bg-slate-50/30">
+                        <Pagination page={page} pageSize={pageSize} total={filtered.length} onPageChange={setPage} />
+                    </div>
+                </div>
             )}
 
             <Modal
@@ -412,7 +456,7 @@ export function AttractionsPage() {
                     <div className="space-y-2">
                         <label className="text-sm font-medium text-slate-700">Pick Location on Map</label>
                         <div className="w-full h-48 rounded-lg border border-slate-200 overflow-hidden relative z-0">
-                            <MapContainer center={latitude && longitude && !isNaN(Number(latitude)) && !isNaN(Number(longitude)) ? [Number(latitude), Number(longitude)] : [HOTEL_LAT, HOTEL_LNG]} zoom={13} style={{ height: '100%', width: '100%' }}>
+                            <MapContainer center={latitude && longitude && !isNaN(Number(latitude)) && !isNaN(Number(longitude)) ? [Number(latitude), Number(longitude)] : [hotelLat, hotelLng]} zoom={13} style={{ height: '100%', width: '100%' }}>
                                 <TileLayer
                                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                                     attribution="&copy; OpenStreetMap"
@@ -467,6 +511,94 @@ export function AttractionsPage() {
                         <button type="button" onClick={() => setOpenModal(false)} className="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">Cancel</button>
                         <button type="button" onClick={handleSave} disabled={isSaving} className="rounded-lg bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800 disabled:opacity-60">
                             {isSaving ? 'Saving...' : 'Save Changes'}
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+
+            <Modal
+                title="Configure Hotel Location"
+                open={openHotelModal}
+                onClose={() => setOpenHotelModal(false)}
+            >
+                <div className="space-y-4">
+                    <p className="text-sm text-slate-500">
+                        Set the base location of your hotel. This coordinate is used to calculate the distances to all nearby attractions.
+                    </p>
+
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-slate-700">Choose on Map</label>
+                        <div className="w-full h-48 rounded-lg border border-slate-200 overflow-hidden relative z-0">
+                            <MapContainer 
+                                center={!isNaN(Number(tempHotelLat)) && !isNaN(Number(tempHotelLng)) ? [Number(tempHotelLat), Number(tempHotelLng)] : [10.9539722, 106.8019444]} 
+                                zoom={13} 
+                                style={{ height: '100%', width: '100%' }}
+                            >
+                                <TileLayer
+                                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                    attribution="&copy; OpenStreetMap"
+                                />
+                                <MapLocationPicker 
+                                    position={!isNaN(Number(tempHotelLat)) && !isNaN(Number(tempHotelLng)) ? [Number(tempHotelLat), Number(tempHotelLng)] : null}
+                                    onLocationSelect={(lat, lng) => {
+                                        setTempHotelLat(String(lat));
+                                        setTempHotelLng(String(lng));
+                                    }}
+                                />
+                            </MapContainer>
+                        </div>
+                        <p className="text-xs text-slate-500">Click anywhere on the map to place the hotel marker.</p>
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-slate-700">Hotel Latitude</label>
+                            <Input 
+                                value={tempHotelLat} 
+                                onChange={(e) => setTempHotelLat(e.target.value)} 
+                                placeholder="e.g. 10.95397" 
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-slate-700">Hotel Longitude</label>
+                            <Input 
+                                value={tempHotelLng} 
+                                onChange={(e) => setTempHotelLng(e.target.value)} 
+                                placeholder="e.g. 106.80194" 
+                            />
+                        </div>
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-4">
+                        <button 
+                            type="button" 
+                            onClick={() => setOpenHotelModal(false)} 
+                            className="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                        >
+                            Cancel
+                        </button>
+                        <button 
+                            type="button" 
+                            onClick={async () => {
+                                const lat = Number(tempHotelLat);
+                                const lng = Number(tempHotelLng);
+                                if (isNaN(lat) || isNaN(lng) || tempHotelLat === '' || tempHotelLng === '') {
+                                    toast.error('Invalid coordinates');
+                                    return;
+                                }
+                                try {
+                                    await attractionsApi.updateHotelLocation({ latitude: lat, longitude: lng });
+                                    setHotelLat(lat);
+                                    setHotelLng(lng);
+                                    toast.success('Hotel base location updated successfully!');
+                                    setOpenHotelModal(false);
+                                } catch (error) {
+                                    toast.error('Failed to update hotel location');
+                                }
+                            }} 
+                            className="rounded-lg bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800"
+                        >
+                            Save Location
                         </button>
                     </div>
                 </div>

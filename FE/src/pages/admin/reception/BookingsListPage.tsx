@@ -405,12 +405,35 @@ export function BookingsListPage() {
                     style={{ minWidth: '120px' }}
                     onChange={(e) => handleStatusChange(row.id, e.target.value as BookingStatus)}
                     className="w-32"
+                    disabled={row.status === 'CheckedOut' || row.status === 'Cancelled'}
                 >
-                    <option value="Pending">Pending</option>
-                    <option value="Confirmed">Confirmed</option>
-                    <option value="CheckedIn">Checked In</option>
-                    <option value="CheckedOut">Checked Out</option>
-                    <option value="Cancelled">Cancelled</option>
+                    {row.status === 'Pending' && (
+                        <>
+                            <option value="Pending">Pending</option>
+                            <option value="Confirmed">Confirmed</option>
+                            <option value="CheckedIn">Checked In</option>
+                            <option value="Cancelled">Cancelled</option>
+                        </>
+                    )}
+                    {row.status === 'Confirmed' && (
+                        <>
+                            <option value="Confirmed">Confirmed</option>
+                            <option value="CheckedIn">Checked In</option>
+                            <option value="Cancelled">Cancelled</option>
+                        </>
+                    )}
+                    {row.status === 'CheckedIn' && (
+                        <>
+                            <option value="CheckedIn">Checked In</option>
+                            <option value="CheckedOut">Checked Out</option>
+                        </>
+                    )}
+                    {row.status === 'CheckedOut' && (
+                        <option value="CheckedOut">Checked Out</option>
+                    )}
+                    {row.status === 'Cancelled' && (
+                        <option value="Cancelled">Cancelled</option>
+                    )}
                 </Select>
             ),
         },

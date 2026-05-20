@@ -2,6 +2,7 @@ import {
     clearAuthTokens,
     getRefreshToken,
     httpClient,
+    notifyAuthTokenChanged,
     setAccessToken,
     setRefreshToken,
 } from './httpClient';
@@ -15,10 +16,13 @@ export interface RegisterRequest {
     email: string;
     fullName: string;
     password: string;
+    phone?: string;
 }
 
 export interface AuthResponse {
     token: string;
+    message?: string;
+    status?: string;
     refreshToken: string;
 }
 
@@ -31,6 +35,8 @@ interface TokenEnvelope {
     RefreshToken?: string;
     refeshToken?: string;
     RefeshToken?: string;
+    message?: string;
+    status?: string;
 }
 
 function resolveAuthTokens(data: TokenEnvelope): AuthResponse {
@@ -41,23 +47,24 @@ function resolveAuthTokens(data: TokenEnvelope): AuthResponse {
         data.refeshToken ??
         data.RefeshToken;
 
+    const message = data.message;
+    const status = data.status;
+
     if (!token || !refreshToken) {
         throw new Error('Auth response does not contain token pair');
     }
 
-    return { token, refreshToken };
+    return { token, refreshToken, message, status };
 }
 
 export const authApi = {
     async login(payload: LoginRequest) {
         const { data } = await httpClient.post<TokenEnvelope>('auth/login', payload);
+
         const result = resolveAuthTokens(data);
         setAccessToken(result.token);
         setRefreshToken(result.refreshToken);
-        console.log('[AuthApi] Login tokens saved:', {
-            tokenLength: result.token.length,
-            refreshTokenLength: result.refreshToken.length,
-        });
+        notifyAuthTokenChanged(result.token);
         return result;
     },
 
@@ -71,10 +78,7 @@ export const authApi = {
         const result = resolveAuthTokens(data);
         setAccessToken(result.token);
         setRefreshToken(result.refreshToken);
-        console.log('[AuthApi] Google login tokens saved:', {
-            tokenLength: result.token.length,
-            refreshTokenLength: result.refreshToken.length,
-        });
+        notifyAuthTokenChanged(result.token);
         return result;
     },
 
@@ -91,6 +95,7 @@ export const authApi = {
 
         setAccessToken(result.token);
         setRefreshToken(result.refreshToken);
+        notifyAuthTokenChanged(result.token);
         return result;
     },
 

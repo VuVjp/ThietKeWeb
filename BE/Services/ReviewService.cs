@@ -3,16 +3,25 @@ using HotelManagement.Entities;
 using HotelManagement.Repositories.Interfaces;
 using HotelManagement.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using HotelManagement.Data;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using System;
+using System.Linq;
 
 public class ReviewService : IReviewService
 {
     private readonly IReviewRepository _repository;
     private readonly IBookingRepository _bookingRepository;
+    private readonly AppDbContext _context;
+    private readonly INotificationService _notificationService;
 
-    public ReviewService(IReviewRepository repository, IBookingRepository bookingRepository)
+    public ReviewService(IReviewRepository repository, IBookingRepository bookingRepository, AppDbContext context, INotificationService notificationService)
     {
         _repository = repository;
         _bookingRepository = bookingRepository;
+        _context = context;
+        _notificationService = notificationService;
     }
 
     public async Task<IEnumerable<ReviewDto>> GetAllAsync()
@@ -66,8 +75,6 @@ public class ReviewService : IReviewService
             queryable = queryable.Where(r => r.Rating == query.Rating.Value);
         }
 
-
-
         if (query.StartDate.HasValue)
         {
             queryable = queryable.Where(r => r.CreatedAt.HasValue && r.CreatedAt.Value >= query.StartDate.Value);
@@ -81,6 +88,16 @@ public class ReviewService : IReviewService
         if (query.IsActive.HasValue)
         {
             queryable = queryable.Where(r => r.IsActive == query.IsActive.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.Status))
+        {
+            queryable = queryable.Where(r => r.Status == query.Status);
+        }
+
+        if (query.UserId.HasValue)
+        {
+            queryable = queryable.Where(r => r.UserId == query.UserId.Value);
         }
 
         // Sorting
@@ -155,37 +172,20 @@ public class ReviewService : IReviewService
         var review = await _repository.GetByIdAsync(id);
         if (review == null) return false;
 
+        if (review.Status == "Pending")
+        {
+            return false; // Toggle should only work after it's approved or rejected
+        }
+
         if (review.IsActive)
         {
-            // If currently active, we can always deactivate (mark as inactive/rejected)
             review.IsActive = false;
             review.Status = "Inactive";
         }
         else
         {
-            // If currently inactive or pending
-            if (review.Status == "Pending")
-            {
-                var hoursSinceCreation = (DateTime.Now - (review.CreatedAt ?? DateTime.Now)).TotalHours;
-                if (hoursSinceCreation < 12)
-                {
-                    // Within 12 hours, admin can only mark as Inactive (reject)
-                    // Since it's already IsActive = false, let's allow setting status to Inactive
-                    review.Status = "Inactive";
-                }
-                else
-                {
-                    // After 12 hours, allow activation
-                    review.IsActive = true;
-                    review.Status = "Active";
-                }
-            }
-            else if (review.Status == "Inactive")
-            {
-                // If explicitly inactive, allow reactivation
-                review.IsActive = true;
-                review.Status = "Active";
-            }
+            review.IsActive = true;
+            review.Status = "Active";
         }
 
         _repository.Update(review);
@@ -193,22 +193,105 @@ public class ReviewService : IReviewService
         return true;
     }
 
+    public async Task<bool> ApproveAsync(int id)
+    {
+        var review = await _context.Reviews
+            .Include(r => r.RoomType)
+            .FirstOrDefaultAsync(r => r.Id == id);
+
+        if (review == null || review.Status != "Pending") return false;
+
+        review.IsActive = true;
+        review.Status = "Active";
+
+        _repository.Update(review);
+        await _repository.SaveChangesAsync();
+
+        try
+        {
+            if (review.UserId.HasValue)
+            {
+                var roomTypeName = review.RoomType?.Name ?? "Room Type";
+                await _notificationService.SendToUserAsync(review.UserId.Value, new CreateNotificationDto
+                {
+                    Title = "Review Approved",
+                    Content = $"your review for {roomTypeName} has been approved",
+                    Type = NotificationAction.ReviewActivated,
+                    ReferenceLink = "profile"
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Notification Error] {ex.Message}");
+        }
+
+        return true;
+    }
+
+    public async Task<bool> RejectAsync(int id)
+    {
+        var review = await _context.Reviews
+            .Include(r => r.RoomType)
+            .FirstOrDefaultAsync(r => r.Id == id);
+
+        if (review == null || review.Status != "Pending") return false;
+
+        review.IsActive = false;
+        review.Status = "Inactive";
+
+        _repository.Update(review);
+        await _repository.SaveChangesAsync();
+
+        try
+        {
+            if (review.UserId.HasValue)
+            {
+                var roomTypeName = review.RoomType?.Name ?? "Room Type";
+                await _notificationService.SendToUserAsync(review.UserId.Value, new CreateNotificationDto
+                {
+                    Title = "Review Rejected",
+                    Content = $"your review for {roomTypeName} has been rejected",
+                    Type = NotificationAction.ReviewDeactivated,
+                    ReferenceLink = "profile"
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Notification Error] {ex.Message}");
+        }
+
+        return true;
+    }
+
     public async Task<bool> CreateAsync(int userId, CreateReviewDto dto)
     {
-        // 1. Verify booking exists, belongs to user, and is checked out
-        var booking = await _bookingRepository.GetBookingByIdWithDetailsAsync(dto.BookingId);
-        if (booking == null || booking.UserId != userId || booking.Status != "CheckedOut")
+        // 1. Verify that the user has a valid, active review eligibility record
+        var eligibility = await _context.ReviewEligibilities
+            .FirstOrDefaultAsync(re => re.UserId == userId && 
+                                       re.RoomTypeId == dto.RoomTypeId && 
+                                       re.BookingId == dto.BookingId && 
+                                       !re.IsReviewed && 
+                                       re.ExpiresAt > DateTime.Now);
+
+        if (eligibility == null)
+        {
+            return false; // Not eligible to review this booking's room type
+        }
+
+        // Must be paid (Invoice completed)
+        var isPaid = await _context.BookingDetails
+            .AnyAsync(bd => bd.BookingId == dto.BookingId && 
+                            bd.RoomTypeId == dto.RoomTypeId && 
+                            bd.Invoice != null && 
+                            bd.Invoice.Status == "Completed");
+        if (!isPaid)
         {
             return false;
         }
 
-        // 2. Verify no existing review for this booking
-        var existingReview = await _repository.GetByBookingIdAsync(dto.BookingId);
-        if (existingReview != null)
-        {
-            return false;
-        }
-
+        // 2. Create the review
         var review = new Review
         {
             UserId = userId,
@@ -224,6 +307,12 @@ public class ReviewService : IReviewService
 
         await _repository.AddAsync(review);
         await _repository.SaveChangesAsync();
+
+        // 3. Mark eligibility as reviewed so it cannot be used again
+        eligibility.IsReviewed = true;
+        _context.ReviewEligibilities.Update(eligibility);
+        await _context.SaveChangesAsync();
+
         return true;
     }
 
@@ -272,5 +361,39 @@ public class ReviewService : IReviewService
             IsActive = r.IsActive,
             CanEdit = r.UserId == userId && r.Status == "Pending" && (DateTime.Now - (r.CreatedAt ?? DateTime.Now)).TotalHours <= 12
         });
+    }
+
+    public async Task<IEnumerable<ReviewEligibilityDto>> GetEligibleRoomTypesAsync(int userId)
+    {
+        var now = DateTime.Now;
+        var eligibilities = await _context.ReviewEligibilities
+            .Include(re => re.RoomType)
+            .Include(re => re.Booking)
+            .Where(re => re.UserId == userId && !re.IsReviewed && re.ExpiresAt > now)
+            .ToListAsync();
+
+        var result = new List<ReviewEligibilityDto>();
+        foreach (var re in eligibilities)
+        {
+            var isPaid = await _context.BookingDetails
+                .AnyAsync(bd => bd.BookingId == re.BookingId && 
+                                bd.RoomTypeId == re.RoomTypeId && 
+                                bd.Invoice != null && 
+                                bd.Invoice.Status == "Completed");
+            if (isPaid)
+            {
+                result.Add(new ReviewEligibilityDto
+                {
+                    Id = re.Id,
+                    RoomTypeId = re.RoomTypeId,
+                    RoomTypeName = re.RoomType?.Name ?? "N/A",
+                    BookingId = re.BookingId,
+                    BookingCode = re.Booking?.BookingCode ?? "N/A",
+                    IsReviewed = re.IsReviewed,
+                    ExpiresAt = re.ExpiresAt
+                });
+            }
+        }
+        return result;
     }
 }

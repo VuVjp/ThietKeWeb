@@ -49,7 +49,7 @@ export function HomePage() {
     return (
         <div className="w-full bg-white text-slate-800">
             {/* HERO SECTION */}
-            <section className="relative h-[90vh] w-full flex flex-col justify-center items-center overflow-hidden -mt-[88px] pt-[88px]">
+            <section className="relative h-[110vh] w-full flex flex-col justify-center items-center overflow-hidden -mt-[88px] pt-[88px]">
                 {/* Real Background Image */}
                 <div className="absolute inset-0 z-0">
                     <img

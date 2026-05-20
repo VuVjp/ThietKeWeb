@@ -43,7 +43,7 @@ export function ArticleFormPage() {
  
     // Permission check
     useEffect(() => {
-        if (!ensure('MANAGE_ARTICLES')) return;
+        if (!ensure('MANAGE_ARTICLES', 'access article form')) return;
     }, [ensure]);
 
     // Load categories & attractions

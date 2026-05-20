@@ -40,6 +40,8 @@ public class AppDbContext : DbContext
 
     public DbSet<RefreshToken> RefreshTokens { get; set; }
     public DbSet<HotelManagement.Entities.Snapshots.DashboardSnapshot> DashboardSnapshots { get; set; }
+    public DbSet<SystemSetting> SystemSettings { get; set; }
+    public DbSet<ReviewEligibility> ReviewEligibilities { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -86,6 +88,8 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Voucher>().ToTable("Vouchers");
         modelBuilder.Entity<RefreshToken>().ToTable("Refresh_Tokens");
         modelBuilder.Entity<HotelManagement.Entities.Snapshots.DashboardSnapshot>().ToTable("Dashboard_Snapshots");
+        modelBuilder.Entity<SystemSetting>().ToTable("System_Settings");
+        modelBuilder.Entity<ReviewEligibility>().ToTable("Review_Eligibilities");
 
         // Column name mappings
         modelBuilder.Entity<Amenity>(e =>
@@ -412,6 +416,7 @@ public class AppDbContext : DbContext
             e.Property(x => x.Phone).HasColumnName("phone");
             e.Property(x => x.PasswordHash).HasColumnName("password_hash");
             e.Property(x => x.IsActive).HasColumnName("is_active");
+            e.Property(x => x.TokenVersion).HasColumnName("token_version").HasDefaultValue(0);
             e.Property(x => x.LoyaltyPoints).HasColumnName("loyalty_points");
             e.Property(x => x.GoogleId).HasColumnName("google_id");
             e.Property(x => x.AvatarUrl).HasColumnName("avatar_url");
@@ -638,6 +643,28 @@ public class AppDbContext : DbContext
 
         modelBuilder.Entity<Article>()
             .HasOne(a => a.Author).WithMany(u => u.Articles).HasForeignKey(a => a.AuthorId).OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<SystemSetting>(e =>
+        {
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.Key).HasColumnName("key");
+            e.Property(x => x.Value).HasColumnName("value");
+            e.HasIndex(x => x.Key).IsUnique();
+        });
+
+        modelBuilder.Entity<ReviewEligibility>(e =>
+        {
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.UserId).HasColumnName("user_id");
+            e.Property(x => x.RoomTypeId).HasColumnName("room_type_id");
+            e.Property(x => x.BookingId).HasColumnName("booking_id");
+            e.Property(x => x.IsReviewed).HasColumnName("is_reviewed").HasDefaultValue(false);
+            e.Property(x => x.ExpiresAt).HasColumnName("expires_at");
+
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.RoomType).WithMany().HasForeignKey(x => x.RoomTypeId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Booking).WithMany().HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.Cascade);
+        });
     }
 }
 

@@ -122,4 +122,12 @@ class RoleRepository : Repository<Role>, IRoleRepository
         await _context.RolePermissions.AddRangeAsync(newRolePermissions);
         await _context.SaveChangesAsync();
     }
+
+    public async Task<List<int>> GetUserIdsByRoleIdAsync(int roleId)
+    {
+        return await _context.Users
+            .Where(u => u.RoleId == roleId)
+            .Select(u => u.Id)
+            .ToListAsync();
+    }
 }
