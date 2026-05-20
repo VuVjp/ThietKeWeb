@@ -305,155 +305,45 @@ public class BookingService : IBookingService
                             voucherDiscountAmount = Math.Min(voucherDiscountAmount, voucher.MaxDiscountValue.Value);
                         }
                     }
+                    else if (voucher.DiscountType == "Fixed")
+                    {
+                        voucherDiscountAmount = Math.Min(voucher.DiscountValue, booking.TotalPrice);
+                    }
+
+                    booking.VoucherDiscount = voucherDiscountAmount;
+                    voucher.UsageCount += 1;
+                    await _voucherRepository.SaveChangesAsync();
                 }
-                else if (voucher.DiscountType == "Fixed")
-                {
-                    voucherDiscountAmount = Math.Min(voucher.DiscountValue, booking.TotalPrice);
-                }
-
-                booking.VoucherDiscount = voucherDiscountAmount;
-                voucher.UsageCount += 1;
-                await _voucherRepository.SaveChangesAsync();
             }
-        }
-        booking.FinalPrice = Math.Max(0m, booking.TotalPrice - (booking.MembershipDiscountAmountApplied ?? 0m) - (booking.VoucherDiscount ?? 0m));
-        booking.Deposit = Math.Round(booking.FinalPrice * 0.3m, 0);
 
-        await _repository.AddBookingAsync(booking);
-        await _repository.SaveChangesAsync();
-
-        // Increment Bookings in Dashboard Snapshots
-        await _dashboardService.IncrementMetricAsync("Bookings", 1, DateTime.Now);
-
-        if (booking.UserId.HasValue)
-        {
-            var roomNumStr = string.Join(", ", rooms.Select(r => r.RoomNumber));
-            try
-            {
-                await _notificationService.SendToUserAsync(booking.UserId.Value, new CreateNotificationDto
-                {
-                    Title = "Booking Successful",
-                    Content = $"Successfully booked room: {roomNumStr}",
-                    Type = NotificationAction.BookingCreated,
-                    ReferenceLink = "profile"
-                });
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[Notification Error] {ex.Message}");
-            }
-        }
-
-        return MapToSummaryDto(booking);
-    }
-
-    public async Task<BookingSummaryDto> UpdateBookingAsync(int id, UpdateBookingDto dto)
-    {
-        if (dto == null)
-        {
-            throw new ArgumentException("Booking payload is required.");
-        }
-
-        var booking = await _repository.GetBookingByIdWithDetailsAsync(id);
-
-        if (booking == null)
-        {
-            throw new NotFoundException($"Booking with ID {id} not found.");
-        }
-
-        if (string.IsNullOrWhiteSpace(dto.GuestName) && string.IsNullOrWhiteSpace(dto.GuestPhone) && string.IsNullOrWhiteSpace(dto.GuestEmail) && (dto.RoomIds == null || dto.RoomIds.Count == 0))
-        {
-            throw new ArgumentException("At least one field must be provided for update.");
-        }
-
-        if (dto.RoomIds == null || dto.RoomIds.Count == 0)
-        {
-            if (string.IsNullOrWhiteSpace(dto.GuestName) && string.IsNullOrWhiteSpace(dto.GuestPhone) && string.IsNullOrWhiteSpace(dto.GuestEmail))
-            {
-                throw new ArgumentException("At least one field must be provided for update.");
-            }
-        }
-
-        if (!string.Equals(booking.Status, "Pending", StringComparison.OrdinalIgnoreCase))
-        {
-            throw new InvalidOperationException("Only pending bookings can be edited.");
-        }
-
-        ValidateDateRange(dto.CheckInDate, dto.CheckOutDate);
-
-        var roomIds = dto.RoomIds?
-            .Where(roomId => roomId > 0)
-            .Distinct()
-            .ToList() ?? new List<int>();
-
-        if (roomIds.Count == 0)
-        {
-            throw new ArgumentException("At least one room is required.");
-        }
-
-        var currentDetailIds = booking.BookingDetails.Select(detail => detail.Id).ToList();
-
-        var bookedRoomIds = await _repository.GetBookedRoomIdsAsync(dto.CheckInDate, dto.CheckOutDate, null, currentDetailIds);
-
-        var unavailableRoomIds = roomIds.Where(roomId => bookedRoomIds.Contains(roomId)).ToList();
-        if (unavailableRoomIds.Count > 0)
-        {
-            throw new ConflictException($"Room(s) unavailable: {string.Join(", ", unavailableRoomIds)}");
-        }
-
-        var rooms = await _repository.GetRoomsWithRoomTypeByIdsAsync(roomIds);
-
-        if (rooms.Count != roomIds.Count)
-        {
-            throw new NotFoundException("One or more selected rooms do not exist.");
-        }
-
-        booking.GuestName = dto.GuestName!.Trim() ?? booking.GuestName;
-        booking.GuestPhone = dto.GuestPhone!.Trim() ?? booking.GuestPhone;
-        booking.GuestEmail = string.IsNullOrWhiteSpace(dto.GuestEmail) ? null : dto.GuestEmail.Trim();
-        booking.InvoiceType = dto.InvoiceType ?? booking.InvoiceType;
-
-        _repository.RemoveBookingDetails(booking.BookingDetails);
-
-        booking.BookingDetails = rooms.Select(room => new BookingDetail
-        {
-            RoomId = room.Id,
-            RoomTypeId = room.RoomTypeId,
-            CheckInDate = dto.CheckInDate,
-            CheckOutDate = dto.CheckOutDate,
-            PricePerNight = room.RoomType!.BasePrice,
-        }).ToList();
-
-        booking.TotalPrice = CalculateTotalAmount(booking.BookingDetails);
-        var membershipDiscountAmount = CalculateMembershipDiscountForBooking(booking.User, booking.TotalPrice);
-        booking.MembershipDiscountAmountApplied = membershipDiscountAmount;
-
-        if (booking.VoucherId.HasValue)
-        {
-            var voucher = await _voucherRepository.GetByIdAsync(booking.VoucherId.Value);
-            if (voucher != null)
-            {
-                await _voucherService.ValidateCodeAsync(voucher.Code, booking.TotalPrice);
-                decimal voucherDiscountAmount = 0m;
-                if (voucher.DiscountType == "Percentage")
-                {
-                    voucherDiscountAmount = Math.Round(booking.TotalPrice * (voucher.DiscountValue / 100m), 0);
-                    if (voucher.MaxDiscountValue.HasValue && voucher.MaxDiscountValue.Value > 0)
-                {
-                    voucherDiscountAmount = Math.Min(voucher.DiscountValue, booking.TotalPrice);
-                }
-                else if (voucher.DiscountType == "Fixed")
-                {
-                    voucherDiscountAmount = Math.Min(voucher.DiscountValue, booking.TotalPrice);
-                }
-                booking.VoucherDiscount = voucherDiscountAmount;
-            }
             booking.FinalPrice = Math.Max(0m, booking.TotalPrice - (booking.MembershipDiscountAmountApplied ?? 0m) - (booking.VoucherDiscount ?? 0m));
             booking.Deposit = Math.Round(booking.FinalPrice * 0.3m, 0);
 
+            await _repository.AddBookingAsync(booking);
             await _repository.SaveChangesAsync();
 
-            await transaction.CommitAsync();
+            // Increment Bookings in Dashboard Snapshots
+            await _dashboardService.IncrementMetricAsync("Bookings", 1, DateTime.Now);
+
+            if (booking.UserId.HasValue)
+            {
+                var roomNumStr = string.Join(", ", rooms.Select(r => r.RoomNumber));
+                try
+                {
+                    await _notificationService.SendToUserAsync(booking.UserId.Value, new CreateNotificationDto
+                    {
+                        Title = "Booking Successful",
+                        Content = $"Successfully booked room: {roomNumStr}",
+                        Type = NotificationAction.BookingCreated,
+                        ReferenceLink = "profile"
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Notification Error] {ex.Message}");
+                }
+            }
+            transaction.Commit();
             return MapToSummaryDto(booking);
         }
         catch
@@ -639,74 +529,74 @@ public class BookingService : IBookingService
                 }
             }
 
-            
-        booking.Status = status;
-        await _repository.SaveChangesAsync();
 
-        if (booking.UserId.HasValue)
-        {
-            var roomNumStr = string.Join(", ", booking.BookingDetails
-                .Where(d => d.Room != null)
-                .Select(d => d.Room!.RoomNumber)
-                .Distinct());
+            booking.Status = status;
+            await _repository.SaveChangesAsync();
 
-            if (string.IsNullOrEmpty(roomNumStr))
+            if (booking.UserId.HasValue)
             {
-                roomNumStr = "N/A";
-            }
+                var roomNumStr = string.Join(", ", booking.BookingDetails
+                    .Where(d => d.Room != null)
+                    .Select(d => d.Room!.RoomNumber)
+                    .Distinct());
 
-            if (status.Equals("Confirmed", StringComparison.OrdinalIgnoreCase))
-            {
-                try
+                if (string.IsNullOrEmpty(roomNumStr))
                 {
-                    await _notificationService.SendToUserAsync(booking.UserId.Value, new CreateNotificationDto
-                    {
-                        Title = "Deposit Successful",
-                        Content = $"Successfully deposited for room {roomNumStr}",
-                        Type = NotificationAction.BookingUpdated,
-                        ReferenceLink = "profile"
-                    });
+                    roomNumStr = "N/A";
                 }
-                catch (Exception ex)
+
+                if (status.Equals("Confirmed", StringComparison.OrdinalIgnoreCase))
                 {
-                    Console.WriteLine($"[Notification Error] {ex.Message}");
+                    try
+                    {
+                        await _notificationService.SendToUserAsync(booking.UserId.Value, new CreateNotificationDto
+                        {
+                            Title = "Deposit Successful",
+                            Content = $"Successfully deposited for room {roomNumStr}",
+                            Type = NotificationAction.BookingUpdated,
+                            ReferenceLink = "profile"
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[Notification Error] {ex.Message}");
+                    }
+                }
+                else if (status.Equals("CheckedIn", StringComparison.OrdinalIgnoreCase))
+                {
+                    try
+                    {
+                        await _notificationService.SendToUserAsync(booking.UserId.Value, new CreateNotificationDto
+                        {
+                            Title = "Check-in Successful",
+                            Content = $"Successfully checked in to room {roomNumStr}",
+                            Type = NotificationAction.CheckIn,
+                            ReferenceLink = "profile"
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[Notification Error] {ex.Message}");
+                    }
+                }
+                else if (status.Equals("CheckedOut", StringComparison.OrdinalIgnoreCase))
+                {
+                    try
+                    {
+                        await _notificationService.SendToUserAsync(booking.UserId.Value, new CreateNotificationDto
+                        {
+                            Title = "Check-out Successful",
+                            Content = $"Successfully checked out from room {roomNumStr}",
+                            Type = NotificationAction.CheckOut,
+                            ReferenceLink = "profile"
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[Notification Error] {ex.Message}");
+                    }
                 }
             }
-            else if (status.Equals("CheckedIn", StringComparison.OrdinalIgnoreCase))
-            {
-                try
-                {
-                    await _notificationService.SendToUserAsync(booking.UserId.Value, new CreateNotificationDto
-                    {
-                        Title = "Check-in Successful",
-                        Content = $"Successfully checked in to room {roomNumStr}",
-                        Type = NotificationAction.CheckIn,
-                        ReferenceLink = "profile"
-                    });
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"[Notification Error] {ex.Message}");
-                }
-            }
-            else if (status.Equals("CheckedOut", StringComparison.OrdinalIgnoreCase))
-            {
-                try
-                {
-                    await _notificationService.SendToUserAsync(booking.UserId.Value, new CreateNotificationDto
-                    {
-                        Title = "Check-out Successful",
-                        Content = $"Successfully checked out from room {roomNumStr}",
-                        Type = NotificationAction.CheckOut,
-                        ReferenceLink = "profile"
-                    });
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"[Notification Error] {ex.Message}");
-                }
-            }
-        }
 
             await transaction.CommitAsync();
             return true;

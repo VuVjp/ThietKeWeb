@@ -162,7 +162,7 @@ public class InvoiceService : IInvoiceService
             await _repository.SaveChangesAsync();
 
             // Increment Revenue in Dashboard Snapshots
-           if (booking.UserId.HasValue)
+            if (booking.UserId.HasValue)
             {
                 var roomNumbers = booking.BookingDetails
                     .Where(bd => bd.InvoiceId == invoice.Id && bd.Room != null)
@@ -193,7 +193,7 @@ public class InvoiceService : IInvoiceService
 
             // Increment Revenue in Dashboard Snapshots
             await _dashboardService.IncrementMetricAsync("Revenue", invoice.FinalTotal ?? 0, DateTime.Now);
-            
+
             // If there were service orders, increment service revenue
             var serviceRevenue = serviceOrders.Sum(so => so.TotalAmount);
             if (serviceRevenue > 0)
@@ -201,20 +201,16 @@ public class InvoiceService : IInvoiceService
                 await _dashboardService.IncrementMetricAsync("ServiceRevenue", serviceRevenue, DateTime.Now);
             }
 
+            _repository.Update(invoice);
+            await _repository.SaveChangesAsync();
             await transaction.CommitAsync();
             return true;
-
         }
         catch
         {
             await transaction.RollbackAsync();
             throw;
         }
-
-        _repository.Update(invoice);
-        await _repository.SaveChangesAsync();
-
-        
     }
 
     public async Task<decimal> GetPaidAmountAsync(int invoiceId)
