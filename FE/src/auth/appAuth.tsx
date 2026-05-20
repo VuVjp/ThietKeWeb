@@ -6,7 +6,6 @@ import { clearAuthTokens, getAccessToken, toApiError } from '../api/httpClient';
 import { type AppPermission, type AppUser } from './auth.types';
 import { subscribeAuthRefresh } from '../api/httpClient';
 import { userProfileApi } from '../api/userProfileApi';
-import { message } from 'antd';
 
 const PERMISSIONS_STORAGE_KEY = 'permissions';
 

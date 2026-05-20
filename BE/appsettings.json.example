@@ -11,6 +11,7 @@
         "Audience": "Nhom8"
     },
     "ConnectionStrings": {
+        "Redis": "localhost:6379",
         "DefaultConnection": "Server=.;Database=HotelManagement;Trusted_Connection=True;TrustServerCertificate=True;"
     },
     "Permissions": [
