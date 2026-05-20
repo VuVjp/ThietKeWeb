@@ -9,14 +9,16 @@ public class UserManagementService : IUserManagementService
     private readonly IUserRepository _userRepository;
     private readonly IEmailService _emailService;
     private readonly IMembershipRepository _membershipRepository;
+    private readonly IRefreshTokenRepository _refreshTokenRepository;
 
-    public UserManagementService(IUserManagementRepository userManagementRepository, IRoleRepository roleRepository, IUserRepository userRepository, IEmailService emailService, IMembershipRepository membershipRepository)
+    public UserManagementService(IUserManagementRepository userManagementRepository, IRoleRepository roleRepository, IUserRepository userRepository, IEmailService emailService, IMembershipRepository membershipRepository, IRefreshTokenRepository refreshTokenRepository)
     {
         _userManagementRepository = userManagementRepository;
         _roleRepository = roleRepository;
         _userRepository = userRepository;
         _emailService = emailService;
         _membershipRepository = membershipRepository;
+        _refreshTokenRepository = refreshTokenRepository;
     }
 
     private static string GenerateRandomPassword(int length = 12)
@@ -124,15 +126,20 @@ public class UserManagementService : IUserManagementService
         });
     }
 
-    public async Task ToggleUserActiveByIdAsync(int userId)
+    public async Task<User?> ToggleUserActiveByIdAsync(int userId)
     {
-        var user = await _userManagementRepository.GetByIdAsync(userId);
+        var user = await _userManagementRepository.ToggleUserActiveByIdAsync(userId);
         if (user == null)
         {
             throw new NotFoundException("User not found.");
         }
 
-        await _userManagementRepository.ToggleUserActiveByIdAsync(userId);
+        if (!user.IsActive)
+        {
+            await _refreshTokenRepository.RevokeTokensByUserIdAsync(userId);
+        }
+
+        return user;
     }
 
     public async Task ResetPasswordAndSendEmailAsync(int userId)

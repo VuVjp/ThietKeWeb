@@ -129,6 +129,11 @@ public class AuthService : IAuthService
             throw new UnauthorizedException("Invalid refresh token");
         }
 
+        if (!matchedUser.IsActive)
+        {
+            throw new UnauthorizedException("User account is deactivated");
+        }
+
         if (rf.IsRevoked)
         {
             throw new UnauthorizedException("Refresh token has been revoked");

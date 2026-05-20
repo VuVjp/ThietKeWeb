@@ -1,6 +1,8 @@
 using HotelManagement.Dtos;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Caching.Distributed;
 using System;
 
 namespace HotelManagement.Controllers;
@@ -11,11 +13,25 @@ public class PermissionsController : ControllerBase
 {
     private readonly IRoleService _roleService;
     private readonly INotificationService _notificationService;
+    private readonly IDistributedCache _cache;
+    private readonly IHubContext<NotificationHub> _hub;
 
-    public PermissionsController(IRoleService roleService, INotificationService notificationService)
+    public PermissionsController(
+        IRoleService roleService,
+        INotificationService notificationService,
+        IDistributedCache cache,
+        IHubContext<NotificationHub> hub)
     {
         _roleService = roleService;
         _notificationService = notificationService;
+        _cache = cache;
+        _hub = hub;
+    }
+
+    private async Task InvalidateUserPermissionsAsync(IEnumerable<int> userIds)
+    {
+        var tasks = userIds.Select(userId => _cache.RemoveAsync(PermissionCacheKeys.ForUser(userId)));
+        await Task.WhenAll(tasks);
     }
 
     private async Task NotifyRolesAsync(IEnumerable<RoleName> roles, CreateNotificationDto dto)
@@ -65,7 +81,24 @@ public class PermissionsController : ControllerBase
     {
         await _roleService.UpdateRolePermissionsAsync(roleId, dto.PermissionNames);
 
+        var affectedUserIds = await _roleService.GetUserIdsByRoleIdAsync(roleId);
+        await InvalidateUserPermissionsAsync(affectedUserIds);
+
         var targetRole = ToRoleName(roleId);
+        if (targetRole.HasValue)
+        {
+            await _hub.Clients.Group($"role_{targetRole.Value}")
+                .SendAsync("PermissionsChanged", new { roleId });
+        }
+        else
+        {
+            foreach (var userId in affectedUserIds)
+            {
+                await _hub.Clients.Group($"user_{userId}")
+                    .SendAsync("PermissionsChanged", new { roleId });
+            }
+        }
+
         var rolesToNotify = new List<RoleName> { RoleName.Admin, RoleName.Manager };
         if (targetRole.HasValue)
         {
@@ -92,7 +125,24 @@ public class PermissionsController : ControllerBase
     {
         await _roleService.AssignPermissionAsync(dto.roleId, dto.PermissionId);
 
+        var affectedUserIds = await _roleService.GetUserIdsByRoleIdAsync(dto.roleId);
+        await InvalidateUserPermissionsAsync(affectedUserIds);
+
         var targetRole = ToRoleName(dto.roleId);
+        if (targetRole.HasValue)
+        {
+            await _hub.Clients.Group($"role_{targetRole.Value}")
+                .SendAsync("PermissionsChanged", new { roleId = dto.roleId });
+        }
+        else
+        {
+            foreach (var userId in affectedUserIds)
+            {
+                await _hub.Clients.Group($"user_{userId}")
+                    .SendAsync("PermissionsChanged", new { roleId = dto.roleId });
+            }
+        }
+
         var rolesToNotify = new List<RoleName> { RoleName.Admin, RoleName.Manager };
         if (targetRole.HasValue)
         {

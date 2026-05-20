@@ -37,6 +37,16 @@ builder.Services.AddDbContextFactory<AppDbContext>(options =>
         builder.Configuration.GetConnectionString("DefaultConnection"),
         x => x.MigrationsAssembly("BE")));
 
+var redisConnection = builder.Configuration.GetConnectionString("Redis")
+    ?? builder.Configuration["Redis:ConnectionString"]
+    ?? "localhost:6379";
+
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = redisConnection;
+    options.InstanceName = "HotelManagement:";
+});
+
 var jwtSettings = builder.Configuration.GetSection("Jwt");
 var key = Encoding.UTF8.GetBytes(jwtSettings["Key"]!);
 

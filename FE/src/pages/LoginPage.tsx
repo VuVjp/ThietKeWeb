@@ -48,11 +48,11 @@ export function LoginPage() {
         }
 
         setIsSubmitting(true);
-        const ok = await login(email, password);
+        const result = await login(email, password);
         setIsSubmitting(false);
 
-        if (!ok) {
-            toast.error('Invalid email or password');
+        if (!result.success) {
+            toast.error(result.message || 'Login failed. Please check your credentials and try again.');
             return;
         }
 
@@ -66,9 +66,9 @@ export function LoginPage() {
             return;
         }
 
-        const ok = await loginWithGoogle(credentialResponse.credential);
-        if (!ok) {
-            toast.error('Google sign-in failed. Email may already be in use.');
+        const result = await loginWithGoogle(credentialResponse.credential);
+        if (!result.success) {
+            toast.error(result.message || 'Google sign-in failed. Email may already be in use.');
             return;
         }
         toast.success('Welcome back!');

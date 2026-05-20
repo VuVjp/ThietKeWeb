@@ -1,10 +1,12 @@
 import { createContext, useEffect, useMemo, useRef, useState, type PropsWithChildren } from 'react';
+import toast from 'react-hot-toast';
 import { authApi } from '../api/authApi';
 import { rolesApi } from '../api/rolesApi';
-import { getAccessToken } from '../api/httpClient';
+import { clearAuthTokens, getAccessToken, toApiError } from '../api/httpClient';
 import { type AppPermission, type AppUser } from './auth.types';
 import { subscribeAuthRefresh } from '../api/httpClient';
 import { userProfileApi } from '../api/userProfileApi';
+import { message } from 'antd';
 
 const PERMISSIONS_STORAGE_KEY = 'permissions';
 
@@ -12,8 +14,8 @@ interface AuthContextValue {
     user: AppUser | null;
     isAuthenticated: boolean;
     isAuthReady: boolean;
-    login: (email: string, password: string) => Promise<boolean>;
-    loginWithGoogle: (idToken: string) => Promise<boolean>;
+    login: (email: string, password: string) => Promise<{ message: string; success: boolean }>;
+    loginWithGoogle: (idToken: string) => Promise<{ message: string; success: boolean }>;
     logout: () => Promise<void>;
     hasPermission: (permission: AppPermission) => boolean;
     hasAnyPermission: (permissions: AppPermission[]) => boolean;
@@ -88,7 +90,11 @@ function getUserBaseFromToken(previousUser?: AppUser | null): Omit<AppUser, 'per
     };
 }
 
-async function resolveCurrentUser(emailOverride?: string, previousUser?: AppUser | null): Promise<AppUser | null> {
+async function resolveCurrentUser(
+    emailOverride?: string,
+    previousUser?: AppUser | null,
+    forcePermissionsRefresh = false,
+): Promise<AppUser | null> {
     let baseUser = getUserBaseFromToken(previousUser);
 
     if (!baseUser) {
@@ -120,6 +126,15 @@ async function resolveCurrentUser(emailOverride?: string, previousUser?: AppUser
 
     const cachedPermissionsRaw = localStorage.getItem(PERMISSIONS_STORAGE_KEY);
     const cachedPermissions = cachedPermissionsRaw ? toKnownPermissions(JSON.parse(cachedPermissionsRaw) as string[]) : [];
+
+    if (!forcePermissionsRefresh && cachedPermissions.length > 0) {
+        return {
+            ...baseUser,
+            email: emailOverride?.trim().toLowerCase() || baseUser.email,
+            permissions: cachedPermissions,
+            avatarUrl,
+        };
+    }
 
     try {
         const apiPermissions = await rolesApi.getMyPermissions();
@@ -154,7 +169,7 @@ export function AppAuthProvider({ children }: PropsWithChildren) {
     useEffect(() => {
         let active = true;
 
-        void resolveCurrentUser().then((nextUser) => {
+        void resolveCurrentUser(undefined, undefined, false).then((nextUser) => {
             if (active) {
                 setUser(nextUser);
                 setIsAuthReady(true);
@@ -178,7 +193,7 @@ export function AppAuthProvider({ children }: PropsWithChildren) {
                 // swallow parsing errors and continue to resolve full user
             }
 
-            void resolveCurrentUser(undefined, userRef.current).then((nextUser) => {
+            void resolveCurrentUser(undefined, userRef.current, false).then((nextUser) => {
                 if (active) {
                     setUser(nextUser);
                 }
@@ -191,6 +206,31 @@ export function AppAuthProvider({ children }: PropsWithChildren) {
         };
     }, []);
 
+    useEffect(() => {
+        const handlePermissionsChanged = () => {
+            void resolveCurrentUser(undefined, userRef.current, true).then((nextUser) => {
+                setUser(nextUser);
+            });
+            toast.success('Permissions updated. Please reopen the page if something looks off.');
+        };
+
+        const handleForceLogout = () => {
+            clearAuthTokens();
+            setUser(null);
+            localStorage.removeItem(PERMISSIONS_STORAGE_KEY);
+            setIsAuthReady(true);
+            toast.error('Your account was deactivated. You have been signed out.');
+        };
+
+        window.addEventListener('permissions-changed', handlePermissionsChanged);
+        window.addEventListener('force-logout', handleForceLogout);
+
+        return () => {
+            window.removeEventListener('permissions-changed', handlePermissionsChanged);
+            window.removeEventListener('force-logout', handleForceLogout);
+        };
+    }, []);
+
     const value = useMemo<AuthContextValue>(
         () => ({
             user,
@@ -200,36 +240,39 @@ export function AppAuthProvider({ children }: PropsWithChildren) {
                 const normalizedEmail = email.trim().toLowerCase();
 
                 try {
-                    await authApi.login({ email: normalizedEmail, password });
-
+                    const authRes = await authApi.login({ email: normalizedEmail, password });
+                    const message = authRes.message;
                     const nextUser = await resolveCurrentUser(normalizedEmail, user);
 
                     if (!nextUser) {
-                        return false;
+                        return { message: message || 'Login failed', success: false };
                     }
 
                     setUser(nextUser);
                     setIsAuthReady(true);
-                    return true;
-                } catch {
-                    return false;
+                    return { message: message || 'Login successful', success: true };
+                } catch (error) {
+                    const apiError = toApiError(error);
+                    return { message: apiError.message || 'Login failed', success: false };
                 }
             },
             loginWithGoogle: async (idToken: string) => {
                 try {
-                    await authApi.googleLogin(idToken);
+                    const authRes = await authApi.googleLogin(idToken);
+                    const message = authRes.message;
 
                     const nextUser = await resolveCurrentUser(undefined, user);
 
                     if (!nextUser) {
-                        return false;
+                        return { message: message || 'Google sign-in failed', success: false };
                     }
 
                     setUser(nextUser);
                     setIsAuthReady(true);
-                    return true;
-                } catch {
-                    return false;
+                    return { message: message || 'Google sign-in successful', success: true };
+                } catch (error) {
+                    const apiError = toApiError(error);
+                    return { message: apiError.message || 'Google sign-in failed', success: false };
                 }
             },
             logout: async () => {

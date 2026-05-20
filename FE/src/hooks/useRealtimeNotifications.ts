@@ -156,6 +156,12 @@ export function useRealtimeNotifications(enabled: boolean) {
             .build();
 
         connection.on('ReceiveNotification', handleRealtimeEvent);
+        connection.on('PermissionsChanged', () => {
+            window.dispatchEvent(new CustomEvent('permissions-changed'));
+        });
+        connection.on('ForceLogout', () => {
+            window.dispatchEvent(new CustomEvent('force-logout'));
+        });
 
         connection.onreconnected(() => {
             // Special case: reconnect should sync once to catch up missed messages.
@@ -175,6 +181,8 @@ export function useRealtimeNotifications(enabled: boolean) {
             }
 
             connection.off('ReceiveNotification', handleRealtimeEvent);
+            connection.off('PermissionsChanged');
+            connection.off('ForceLogout');
             if (connection.state !== HubConnectionState.Disconnected) {
                 void connection.stop();
             }
