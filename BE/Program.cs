@@ -38,13 +38,38 @@ builder.Services.AddDbContextFactory<AppDbContext>(options =>
         builder.Configuration.GetConnectionString("DefaultConnection"),
         x => x.MigrationsAssembly("BE")));
 
-var redisConnection = builder.Configuration["Redis:ConnectionString"]
-    ?? builder.Configuration.GetConnectionString("Redis")
-    ?? "localhost:6379";
-
 builder.Services.AddStackExchangeRedisCache(options =>
 {
-    options.Configuration = redisConnection;
+    var redisUri = new Uri(
+        builder.Configuration["Redis:ConnectionString"]! ?? "localhost:6379"
+    );
+
+    var userInfo = redisUri.UserInfo.Split(':');
+
+    var config = new StackExchange.Redis.ConfigurationOptions
+    {
+        EndPoints =
+        {
+            { redisUri.Host, redisUri.Port }
+        },
+
+        User = userInfo[0],
+
+        Password = userInfo[1],
+
+        Ssl = true,
+
+        AbortOnConnectFail = false,
+
+        ConnectTimeout = 10000,
+
+        SyncTimeout = 10000,
+
+        AsyncTimeout = 10000
+    };
+
+    options.ConfigurationOptions = config;
+
     options.InstanceName = "HotelManagement:";
 });
 
