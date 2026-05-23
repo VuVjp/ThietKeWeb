@@ -135,13 +135,13 @@ Hệ thống cung cấp hệ thống 24 permissions lõi được phân bổ đ�
 
 | Nhóm Nghiệp Vụ | Tên Quyền Hạn | Quyền Admin | Quyền Lễ Tân (Receptionist) | Quyền Buồng Phòng (Housekeeping) |
 | :--- | :--- | :---: | :---: | :---: |
-| **Quản Lý Phòng** | `get_all_rooms` `create_room` `update_room``delete_room` | 
-| **Vận Hành Phòng** | `change_room_status``change_room_cleaning_status` | 
-| **Loại Phòng & Tiện Nghi** | `manage_room_type``create_amenity``update_amenity``delete_amenity` |
-| **Kho Vật Tư Thiết Bị** | `get_all_room_inventory``create_room_inventory``update_room_inventory``delete_room_inventory` |
-| **Quản Trị Nội Dung CMS** | `create_article``update_article``delete_article``update_thumbnail``create_article_category``update_article_category``delete_article_category` | 
-| **Khu Vực & Địa Điểm** | `manage_attraction` |
-| **Người Dùng & Vai Trò** | `manage_user``manage_role``assign_role` |
+| **Quản Lý Phòng** | `get_all_rooms`<br>`create_room`<br>`update_room`<br>`delete_room` | ✅<br>✅<br>✅<br>✅ | ✅<br>❌<br>❌<br>❌ | ✅<br>❌<br>❌<br>❌ |
+| **Vận Hành Phòng** | `change_room_status`<br>`change_room_cleaning_status` | ✅<br>✅ | ✅<br>✅ | ❌<br>✅ |
+| **Loại Phòng & Tiện Nghi** | `manage_room_type`<br>`create_amenity`<br>`update_amenity`<br>`delete_amenity` | ✅<br>✅<br>✅<br>✅ | ❌<br>❌<br>❌<br>❌ | ❌<br>❌<br>❌<br>❌ |
+| **Kho Vật Tư Thiết Bị** | `get_all_room_inventory`<br>`create_room_inventory`<br>`update_room_inventory`<br>`delete_room_inventory` | ✅<br>✅<br>✅<br>✅ | ✅<br>✅<br>✅<br>✅ | ✅<br>❌<br>✅<br>❌ |
+| **Quản Trị Nội Dung CMS** | `create_article`<br>`update_article`<br>`delete_article`<br>`update_thumbnail`<br>`create_article_category`<br>`update_article_category`<br>`delete_article_category` | ✅<br>✅<br>✅<br>✅<br>✅<br>✅<br>✅ | ✅<br>✅<br>✅<br>✅<br>✅<br>✅<br>✅ | ❌<br>❌<br>❌<br>❌<br>❌<br>❌<br>❌ |
+| **Khu Vực & Địa Điểm** | `manage_attraction` | ✅ | ❌ | ❌ |
+| **Người Dùng & Vai Trò** | `manage_user`<br>`manage_role`<br>`assign_role` | ✅<br>✅<br>✅ | ❌<br>❌<br>❌ | ❌<br>❌<br>❌ |
 
 ---
 
